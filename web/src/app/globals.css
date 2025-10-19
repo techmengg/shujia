@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  --surface: #07080c;
+  --surface-muted: #0f1016;
+  --surface-foreground: #f9fafb;
+  --surface-subtle: #9ca3af;
+  --accent: #6366f1;
+  --accent-soft: rgba(99, 102, 241, 0.12);
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--surface);
+  color: var(--surface-foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  min-height: 100dvh;
+}
+
+.scrollbar-themed {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
+}
+
+.scrollbar-themed::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.scrollbar-themed::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-themed::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(99, 102, 241, 0.6),
+    rgba(99, 102, 241, 0.3)
+  );
+  border-radius: 9999px;
+}
+
+.scrollbar-themed::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(99, 102, 241, 0.8),
+    rgba(99, 102, 241, 0.4)
+  );
+}
