@@ -1,4 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
+
+import { SearchBar } from "@/components/search/search-bar";
 
 interface SiteHeaderProps {
   className?: string;
@@ -6,7 +9,7 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ className }: SiteHeaderProps) {
   const combinedClassName = [
-    "relative z-10 border-b border-white/5 bg-black/45 backdrop-blur-md",
+    "relative z-10 border-b border-white/15 bg-black",
     className ?? "",
   ]
     .filter(Boolean)
@@ -14,26 +17,32 @@ export function SiteHeader({ className }: SiteHeaderProps) {
 
   return (
     <header className={combinedClassName}>
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-10 lg:py-3">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-10 lg:py-3">
         <Link
           href="/"
-          className="group flex items-center gap-2 rounded-2xl pr-1 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-          aria-label="Go to MynkDB home"
+          className="order-1 group flex items-center gap-2 pr-1 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+          aria-label="Go to ShujiaDB home"
         >
-          <div className="relative">
-            <span className="absolute inset-0 rounded-2xl bg-accent/20 blur-lg transition group-hover:blur-xl" />
-            <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-accent/40 bg-black/50 text-sm font-semibold text-accent transition group-hover:border-accent group-hover:text-white sm:h-9 sm:w-9 sm:text-base">
-              M
-            </span>
-          </div>
-          <span className="text-lg font-semibold uppercase tracking-[0.4em] text-white transition group-hover:text-accent sm:text-xl">
-            MynkDB
+          <Image
+            src="/shujia.png"
+            alt="ShujiaDB logo"
+            width={36}
+            height={36}
+            className="h-8 w-8 rounded-md border border-white/20 object-cover grayscale transition group-hover:grayscale-0 sm:h-9 sm:w-9"
+            priority
+          />
+          <span className="text-lg font-semibold uppercase tracking-[0.2em] text-white transition group-hover:text-accent sm:text-xl">
+            ShujiaDB
           </span>
         </Link>
-        <div className="flex items-center gap-2 text-surface-subtle">
+        <div className="order-3 w-full md:order-2 md:flex-1">
+          <SearchBar />
+        </div>
+
+        <div className="order-2 ml-auto flex items-center gap-2 text-surface-subtle md:order-3">
           <button
             type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 transition hover:border-accent hover:text-white sm:h-9 sm:w-9"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-9 sm:w-9"
             aria-label="Settings"
           >
             <svg
@@ -58,7 +67,7 @@ export function SiteHeader({ className }: SiteHeaderProps) {
           </button>
           <Link
             href="/profile"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 transition hover:border-accent hover:text-white sm:h-9 sm:w-9"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-9 sm:w-9"
             aria-label="User profile"
           >
             <svg

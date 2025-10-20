@@ -490,7 +490,7 @@ export function ProfilePageContent() {
               {profile.metrics.map((metric) => (
                 <div
                   key={metric.label}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-white/80"
+                  className="rounded-2xl border border-white/15 bg-black px-4 py-3 text-center text-white/80"
                 >
                   <p className="text-xs uppercase tracking-[0.22em] text-white/50">
                     {metric.label}
@@ -533,7 +533,7 @@ export function ProfilePageContent() {
               {STATS.map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white/80"
+                  className="rounded-2xl border border-white/15 bg-black px-4 py-3 text-white/80"
                 >
                   <p className="text-xs uppercase tracking-[0.22em] text-white/55">
                     {stat.label}
@@ -583,7 +583,7 @@ export function ProfilePageContent() {
                   type="text"
                   value={profileDraft.name}
                   onChange={(event) => handleDraftChange("name", event.target.value)}
-                  className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
+                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
                   placeholder="Enter your display name"
                 />
               </label>
@@ -596,7 +596,7 @@ export function ProfilePageContent() {
                   type="text"
                   value={profileDraft.role}
                   onChange={(event) => handleDraftChange("role", event.target.value)}
-                  className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
+                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
                   placeholder="Share what you do or collect"
                 />
               </label>
@@ -609,7 +609,7 @@ export function ProfilePageContent() {
                   type="url"
                   value={profileDraft.avatar}
                   onChange={(event) => handleDraftChange("avatar", event.target.value)}
-                  className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
+                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
                   placeholder="https://example.com/avatar.png"
                 />
               </label>
@@ -623,7 +623,7 @@ export function ProfilePageContent() {
                 value={profileDraft.bio}
                 onChange={(event) => handleDraftChange("bio", event.target.value)}
                 rows={4}
-                className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
                 placeholder="Tell the community about your reading vibe"
               />
             </label>
@@ -638,7 +638,7 @@ export function ProfilePageContent() {
                   handleDraftChange("focusAreas", event.target.value)
                 }
                 rows={2}
-                className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white focus:outline-none"
                 placeholder="Separate tags with commas, e.g. Seinen epics, Slice-of-life"
               />
               <span className="text-[0.65rem] uppercase tracking-[0.18em] text-white/40">
@@ -777,7 +777,7 @@ export function ProfilePageContent() {
 
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
         <div className="space-y-6">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+          <div className="rounded-3xl border border-white/15 bg-black p-5 sm:p-6">
             <div className="flex items-end justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-white sm:text-xl">
@@ -799,7 +799,7 @@ export function ProfilePageContent() {
               {RECENT_ACTIVITY.map((entry) => (
                 <li
                   key={entry.id}
-                  className="flex gap-4 rounded-2xl border border-white/10 bg-black/40 p-4 transition hover:border-accent/40"
+                  className="flex gap-4 rounded-2xl border border-white/15 bg-white/5 p-4 transition hover:border-white/60"
                 >
                   <div className="mt-1 h-2.5 w-2.5 rounded-full bg-accent" />
                   <div className="flex-1 space-y-1.5">
@@ -821,7 +821,7 @@ export function ProfilePageContent() {
             </ul>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+          <div className="rounded-3xl border border-white/15 bg-black p-5 sm:p-6">
             <div className="flex items-end justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-white">
@@ -839,7 +839,7 @@ export function ProfilePageContent() {
               {TRACKING.map((series) => (
                 <li
                   key={series.id}
-                  className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 transition hover:border-accent/40"
+                  className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 transition hover:border-white/60"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-white">
@@ -857,7 +857,7 @@ export function ProfilePageContent() {
         </div>
 
         <aside className="space-y-6">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+          <div className="rounded-3xl border border-white/15 bg-black p-5 sm:p-6">
             <h3 className="text-lg font-semibold text-white">Reading goals</h3>
             <p className="mt-1 text-sm text-white/60">
               Small steps logged each week—progress resets every quarter.
@@ -868,7 +868,7 @@ export function ProfilePageContent() {
                 return (
                   <li
                     key={goal.id}
-                    className="rounded-2xl border border-white/10 bg-black/40 p-4"
+                    className="rounded-2xl border border-white/15 bg-white/5 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -893,7 +893,7 @@ export function ProfilePageContent() {
             </ul>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+          <div className="rounded-3xl border border-white/15 bg-black p-5 sm:p-6">
             <div className="flex items-end justify-between gap-3">
               <h3 className="text-lg font-semibold text-white">Friend radar</h3>
               <Link
@@ -907,7 +907,7 @@ export function ProfilePageContent() {
               {FRIENDS.map((friend) => (
                 <li
                   key={friend.id}
-                  className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/40 p-3 transition hover:border-accent/40"
+                  className="flex items-start gap-3 rounded-2xl border border-white/15 bg-white/5 p-3 transition hover:border-white/60"
                 >
                   <Image
                     src={friend.avatar ?? DEFAULT_AVATAR}

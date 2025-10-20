@@ -13,22 +13,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MynkDB | Manga & Webtoon Tracker",
+  title: "ShujiaDB | Manga & Webtoon Tracker",
   description:
     "Track manga, manhwa, and manhua releases powered by the MangaDex API.",
-  metadataBase: new URL("https://mynkdb.local"),
+  metadataBase: new URL("https://shujiadb.local"),
   openGraph: {
-    title: "MynkDB | Manga & Webtoon Tracker",
+    title: "ShujiaDB | Manga & Webtoon Tracker",
     description:
       "Discover, follow, and organize series from MangaDex in one place.",
-    url: "https://mynkdb.local",
-    siteName: "MynkDB",
+    url: "https://shujiadb.local",
+    siteName: "ShujiaDB",
     locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "MynkDB | Manga & Webtoon Tracker",
+    title: "ShujiaDB | Manga & Webtoon Tracker",
     description:
       "Discover, follow, and organize series from MangaDex in one place.",
   },

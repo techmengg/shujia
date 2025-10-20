@@ -1,3 +1,5 @@
+"use client";
+
 import type { MangaSummary } from "@/lib/mangadex/types";
 
 import { MangaCard } from "./manga-card";
@@ -13,7 +15,7 @@ export function MangaCarousel({ items, emptyState }: MangaCarouselProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/5 bg-white/[0.02] px-3 sm:px-4">
+    <div className="overflow-hidden rounded-3xl border border-white/15 bg-black px-3 sm:px-4">
       <ul className="grid snap-x snap-mandatory auto-cols-[130px] grid-flow-col gap-3 overflow-x-auto overscroll-x-contain px-4 py-4 sm:auto-cols-[140px] sm:px-5 md:auto-cols-[150px] md:px-6 scrollbar-themed">
         {items.map((item) => (
           <li

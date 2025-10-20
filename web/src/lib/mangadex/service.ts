@@ -67,16 +67,39 @@ function createMangaSummary(manga: MangaDexManga): MangaSummary {
   };
 }
 
+type OrderField =
+  | "followedCount"
+  | "createdAt"
+  | "latestUploadedChapter"
+  | "updatedAt"
+  | "year";
+
+type OrderDirection = "asc" | "desc";
+
 interface ListOptions {
   limit?: number;
   originalLanguage?: string;
+  publicationDemographic?: string;
+  contentRatings?: string[];
+  includedTags?: string[];
+  includedTagsMode?: "AND" | "OR";
+  orderField?: OrderField;
+  orderDirection?: OrderDirection;
 }
 
 async function fetchTrendingTitles(
   options: ListOptions = {},
 ): Promise<MangaSummary[]> {
-  const limit = options.limit ?? DEFAULT_LIMIT;
-  const originalLanguage = options.originalLanguage;
+  const {
+    limit = DEFAULT_LIMIT,
+    originalLanguage,
+    publicationDemographic,
+    contentRatings,
+    includedTags,
+    includedTagsMode,
+    orderField = "followedCount",
+    orderDirection = "desc",
+  } = options;
 
   const response = await mangadexFetch<
     MangaDexCollectionResponse<MangaDexManga>
@@ -85,12 +108,23 @@ async function fetchTrendingTitles(
       limit,
       offset: 0,
       "includes[]": ["cover_art"],
-      "order[followedCount]": "desc",
-      "contentRating[]": ["safe", "suggestive"],
+      [`order[${orderField}]`]: orderDirection,
+      "contentRating[]": contentRatings ?? ["safe", "suggestive"],
       hasAvailableChapters: true,
       ...(originalLanguage
         ? {
             "originalLanguage[]": originalLanguage,
+          }
+        : {}),
+      ...(publicationDemographic
+        ? {
+            "publicationDemographic[]": publicationDemographic,
+          }
+        : {}),
+      ...(includedTags && includedTags.length > 0
+        ? {
+            "includedTags[]": includedTags,
+            includedTagsMode: includedTagsMode ?? "AND",
           }
         : {}),
     },
@@ -115,15 +149,44 @@ export async function getTrendingByOriginalLanguage(
   return fetchTrendingTitles({ originalLanguage, limit });
 }
 
+export async function getDemographicHighlights(
+  demographic: string,
+  limit = 12,
+): Promise<MangaSummary[]> {
+  return fetchTrendingTitles({
+    publicationDemographic: demographic,
+    limit,
+  });
+}
+
+export async function getNewcomerSpotlight(
+  limit = 12,
+): Promise<MangaSummary[]> {
+  return fetchTrendingTitles({
+    limit,
+    orderField: "createdAt",
+  });
+}
+
+export async function getLatestActivityShowcase(
+  limit = 12,
+): Promise<MangaSummary[]> {
+  return fetchTrendingTitles({
+    limit,
+    orderField: "latestUploadedChapter",
+  });
+}
+
 export async function getRecentlyUpdatedManga(
   limit = 20,
+  offset = 0,
 ): Promise<MangaSummary[]> {
   const response = await mangadexFetch<
     MangaDexCollectionResponse<MangaDexManga>
   >("/manga", {
     searchParams: {
       limit,
-      offset: 0,
+      offset,
       "includes[]": ["cover_art"],
       "order[updatedAt]": "desc",
       "contentRating[]": ["safe", "suggestive"],
