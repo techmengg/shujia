@@ -1,19 +1,27 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { LogoutButton } from "@/components/auth/logout-button";
 import { SearchBar } from "@/components/search/search-bar";
+import { getCurrentUser } from "@/lib/auth/session";
 
 interface SiteHeaderProps {
   className?: string;
 }
 
-export function SiteHeader({ className }: SiteHeaderProps) {
+export async function SiteHeader({ className }: SiteHeaderProps) {
   const combinedClassName = [
     "relative z-10 border-b border-white/15 bg-black",
     className ?? "",
   ]
     .filter(Boolean)
     .join(" ");
+
+  const user = await getCurrentUser();
+
+  const greeting =
+    user?.name?.trim() ||
+    (user?.email ? user.email.split("@")[0] : undefined);
 
   return (
     <header className={combinedClassName}>
@@ -65,31 +73,33 @@ export function SiteHeader({ className }: SiteHeaderProps) {
               />
             </svg>
           </button>
-          <Link
-            href="/profile"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-9 sm:w-9"
-            aria-label="User profile"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="h-4 w-4"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.5 19.712a7.5 7.5 0 0115 0"
-              />
-            </svg>
-          </Link>
+          {user ? (
+            <>
+              <Link
+                href="/profile"
+                className="inline-flex h-8 items-center justify-center rounded-full border border-white/20 bg-transparent px-3 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white sm:h-9"
+                aria-label="User profile"
+              >
+                {greeting ?? "Profile"}
+              </Link>
+              <LogoutButton />
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="inline-flex items-center rounded-full border border-white/20 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center rounded-full border border-accent px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-accent transition hover:border-white hover:text-white"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

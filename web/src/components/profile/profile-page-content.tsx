@@ -60,6 +60,11 @@ interface Friend {
   note: string;
 }
 
+interface ProfilePageContentProps {
+  userName?: string | null;
+  userEmail?: string | null;
+}
+
 const INITIAL_PROFILE = {
   name: "Yuzu",
   role: "Illustrator & narrative strategist",
@@ -381,15 +386,42 @@ function goalProgress(goal: ReadingGoal) {
   return Math.min(100, Math.round((goal.current / goal.target) * 100));
 }
 
-export function ProfilePageContent() {
-  const [profile, setProfile] = useState<Profile>(INITIAL_PROFILE);
+export function ProfilePageContent({
+  userName,
+  userEmail,
+}: ProfilePageContentProps) {
+  const trimmedUserName = userName?.trim();
+  const resolvedName =
+    (trimmedUserName && trimmedUserName.length > 0
+      ? trimmedUserName
+      : undefined) ??
+    (userEmail ? userEmail.split("@")[0] : INITIAL_PROFILE.name);
+
+  const derivedMetrics: typeof INITIAL_PROFILE.metrics = [
+    ...INITIAL_PROFILE.metrics.map((metric) => ({ ...metric })),
+  ];
+
+  if (userEmail) {
+    derivedMetrics.push({
+      label: "Account email",
+      value: userEmail,
+    });
+  }
+
+  const initialProfile: Profile = {
+    ...INITIAL_PROFILE,
+    name: resolvedName,
+    metrics: derivedMetrics,
+  };
+
+  const [profile, setProfile] = useState<Profile>(initialProfile);
   const [isEditing, setIsEditing] = useState(false);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({
-    name: INITIAL_PROFILE.name,
-    role: INITIAL_PROFILE.role,
-    bio: INITIAL_PROFILE.bio,
-    focusAreas: INITIAL_PROFILE.focusAreas.join(", "),
-    avatar: INITIAL_PROFILE.avatar,
+    name: initialProfile.name,
+    role: initialProfile.role,
+    bio: initialProfile.bio,
+    focusAreas: initialProfile.focusAreas.join(", "),
+    avatar: initialProfile.avatar,
   });
 
   const openEditor = () => {
