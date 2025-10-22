@@ -9,6 +9,7 @@ import {
   createSession,
 } from "@/lib/auth/session";
 import { consumePasswordResetToken } from "@/lib/auth/password-reset";
+import { isSafeRequestOrigin } from "@/lib/security/origin";
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, "Reset token is required"),
@@ -19,6 +20,13 @@ const resetPasswordSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!isSafeRequestOrigin(request)) {
+    return NextResponse.json(
+      { message: "Invalid request origin." },
+      { status: 403 },
+    );
+  }
+
   let body: unknown;
 
   try {

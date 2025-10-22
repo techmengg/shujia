@@ -2,25 +2,19 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { MangaCarousel } from "@/components/manga/manga-carousel";
 import { RecentlyUpdatedSection } from "@/components/manga/recently-updated-section";
 import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
-import { READING_LIST } from "@/data/reading-list";
 import {
   getDemographicHighlights,
   getRecentlyUpdatedManga,
   getTrendingByOriginalLanguage,
 } from "@/lib/mangadex/service";
 import type { MangaSummary } from "@/lib/mangadex/types";
+import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
 
 export default async function Home() {
-  const [
-    trendingManga,
-    trendingManhwa,
-    trendingManhua,
-    shounenHighlights,
-    seinenHighlights,
-    shoujoHighlights,
-    joseiHighlights,
-    recentUpdates,
-  ] = await Promise.all([
+  const userPromise = getCurrentUser();
+
+  const trendsPromise = Promise.all([
     getTrendingByOriginalLanguage("ja", 16),
     getTrendingByOriginalLanguage("ko", 16),
     getTrendingByOriginalLanguage("zh", 16),
@@ -31,31 +25,63 @@ export default async function Home() {
     getRecentlyUpdatedManga(49),
   ]);
 
-  const followedSummaries: MangaSummary[] = READING_LIST.map((item) => {
-    const timestamp = new Date(item.updatedAt).getTime();
+  const [
+    trendingManga,
+    trendingManhwa,
+    trendingManhua,
+    shounenHighlights,
+    seinenHighlights,
+    shoujoHighlights,
+    joseiHighlights,
+    recentUpdates,
+  ] = await trendsPromise;
 
-    return {
-      timestamp: Number.isFinite(timestamp) ? timestamp : 0,
-      summary: {
-        id: item.id,
-        title: item.title,
-        altTitles: [],
-        description: item.notes,
-        status: item.status,
-        year: undefined,
-        contentRating: undefined,
-        demographic: item.demographic,
-        latestChapter: undefined,
-        languages: [],
-        tags: item.tags,
-        coverImage: item.cover,
-        url: `https://mangadex.org/title/${item.id}`,
-      } satisfies MangaSummary,
-    };
-  })
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .map((entry) => entry.summary)
-    .slice(0, 16);
+  const user = await userPromise;
+
+  const readingListEntries = user
+    ? await prisma.readingListEntry.findMany({
+        where: { userId: user.id },
+        orderBy: { updatedAt: "desc" },
+        take: 16,
+      })
+    : [];
+
+  const followedSummaries: MangaSummary[] = readingListEntries.map((entry) => ({
+    id: entry.mangaId,
+    title: entry.title,
+    altTitles: entry.altTitles,
+    description: entry.description ?? undefined,
+    status: entry.status ?? undefined,
+    year: entry.year ?? undefined,
+    contentRating: entry.contentRating ?? undefined,
+    demographic: entry.demographic ?? undefined,
+    latestChapter: entry.latestChapter ?? undefined,
+    languages: entry.languages,
+    tags: entry.tags,
+    coverImage: entry.coverImage ?? undefined,
+    url: entry.url,
+  }));
+
+  const placeholderFollowedSummaries: MangaSummary[] = Array.from(
+    { length: 8 },
+    (_, index) => ({
+      id: `placeholder-${index}`,
+      title: "Hidden series",
+      altTitles: [],
+      description: undefined,
+      status: undefined,
+      year: undefined,
+      contentRating: undefined,
+      demographic: undefined,
+      latestChapter: undefined,
+      languages: [],
+      tags: [],
+      coverImage: undefined,
+      url: "#",
+    }),
+  );
+
+  const followedItems = user ? followedSummaries : placeholderFollowedSummaries;
 
   const languageTabs = [
     {
@@ -103,7 +129,7 @@ export default async function Home() {
       <SiteHeader />
 
       <main className="relative z-10 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10 xl:px-12">
-        <h1 className="sr-only">ShujiaDB</h1>
+        <h1 className="sr-only">Shujia</h1>
 
         <section className="mt-6 space-y-4">
           <div className="flex items-center justify-between">
@@ -117,7 +143,33 @@ export default async function Home() {
               View list
             </a>
           </div>
-          <MangaCarousel items={followedSummaries} />
+          <div className="relative">
+            <div
+              className={[
+                !user
+                  ? "pointer-events-none select-none blur-sm brightness-[0.65]"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              <MangaCarousel
+                items={followedItems}
+                emptyState={
+                  <p className="rounded-2xl border border-white/15 bg-black/80 px-4 py-6 text-center text-sm text-surface-subtle">
+                    Follow series to see updates here.
+                  </p>
+                }
+              />
+            </div>
+            {!user ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="rounded-2xl border border-white/20 bg-black/75 px-5 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+                  Log in to view
+                </div>
+              </div>
+            ) : null}
+          </div>
         </section>
 
         {languageTabs.length ? (

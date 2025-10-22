@@ -2,7 +2,7 @@ import type { MangaDexErrorResponse } from "./types";
 
 const DEFAULT_API_BASE = "https://api.mangadex.org";
 const USER_AGENT =
-  "ShujiaDB/0.1 (+https://github.com/aingt/shujiadb; contact@localhost)";
+  "Shujia/0.1 (+https://github.com/aingt/shujiadb; contact@localhost)";
 
 const API_BASE =
   process.env.MANGADEX_API_BASE ??

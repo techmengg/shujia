@@ -1,8 +1,8 @@
-import { AuthCard } from "@/components/auth/auth-card";
+﻿import { AuthCard } from "@/components/auth/auth-card";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 
 export const metadata = {
-  title: "Forgot password • ShujiaDB",
+  title: "Forgot password • Shujia",
 };
 
 export default function ForgotPasswordPage() {

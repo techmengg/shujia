@@ -1,6 +1,6 @@
-# ShujiaDB
+# Shujia
 
-ShujiaDB is an experimental toolkit for building a manga, manhwa, and manhua tracking experience powered by the MangaDex API.
+Shujia is an experimental toolkit for building a manga, manhwa, and manhua tracking experience powered by the MangaDex API.
 
 The `web` directory contains a Next.js 15 + Tailwind CSS application scaffolded for:
 

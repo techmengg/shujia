@@ -1,8 +1,8 @@
-import { AuthCard } from "@/components/auth/auth-card";
+﻿import { AuthCard } from "@/components/auth/auth-card";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata = {
-  title: "Sign in • ShujiaDB",
+  title: "Sign in • Shujia",
 };
 
 export default function LoginPage() {

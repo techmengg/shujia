@@ -1,8 +1,8 @@
-import { AuthCard } from "@/components/auth/auth-card";
+﻿import { AuthCard } from "@/components/auth/auth-card";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 
 export const metadata = {
-  title: "Choose a new password • ShujiaDB",
+  title: "Choose a new password • Shujia",
 };
 
 interface ResetPasswordPageProps {

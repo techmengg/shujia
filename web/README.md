@@ -1,6 +1,6 @@
-# ShujiaDB Web
+# Shujia Web
 
-ShujiaDB is a Next.js application scaffold that integrates with the [MangaDex API](https://api.mangadex.org/docs/) to help you track manga, manhwa, and manhua releases. This starter includes a hero dashboard, live trending feed, server-side API helpers, and a client-side search experience that you can extend into a full tracker (reading lists, status management, release alerts, etc.).
+Shujia is a Next.js application scaffold that integrates with the [MangaDex API](https://api.mangadex.org/docs/) to help you track manga, manhwa, and manhua releases. This starter includes a hero dashboard, live trending feed, server-side API helpers, and a client-side search experience that you can extend into a full tracker (reading lists, status management, release alerts, etc.).
 
 ## Project Structure
 

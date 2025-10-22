@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { LogoutButton } from "@/components/auth/logout-button";
 import { SearchBar } from "@/components/search/search-bar";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -29,29 +28,29 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
         <Link
           href="/"
           className="order-1 group flex items-center gap-2 pr-1 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-          aria-label="Go to ShujiaDB home"
+          aria-label="Go to Shujia home"
         >
           <Image
             src="/shujia.png"
-            alt="ShujiaDB logo"
+            alt="Shujia logo"
             width={36}
             height={36}
             className="h-8 w-8 rounded-md border border-white/20 object-cover grayscale transition group-hover:grayscale-0 sm:h-9 sm:w-9"
             priority
           />
           <span className="text-lg font-semibold uppercase tracking-[0.2em] text-white transition group-hover:text-accent sm:text-xl">
-            ShujiaDB
+            Shujia
           </span>
         </Link>
         <div className="order-3 w-full md:order-2 md:flex-1">
-          <SearchBar />
+          <SearchBar isAuthenticated={Boolean(user)} />
         </div>
 
         <div className="order-2 ml-auto flex items-center gap-2 text-surface-subtle md:order-3">
-          <button
-            type="button"
+          <Link
+            href={user ? "/settings" : "/login?redirect=/settings"}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-9 sm:w-9"
-            aria-label="Settings"
+            aria-label="Account settings"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -72,18 +71,15 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
                 d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-          </button>
+          </Link>
           {user ? (
-            <>
-              <Link
-                href="/profile"
-                className="inline-flex h-8 items-center justify-center rounded-full border border-white/20 bg-transparent px-3 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white sm:h-9"
-                aria-label="User profile"
-              >
-                {greeting ?? "Profile"}
-              </Link>
-              <LogoutButton />
-            </>
+            <Link
+              href="/profile"
+              className="inline-flex h-8 items-center justify-center rounded-full border border-white/20 bg-transparent px-3 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white sm:h-9"
+              aria-label="User profile"
+            >
+              {greeting ?? "Profile"}
+            </Link>
           ) : (
             <>
               <Link

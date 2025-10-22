@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { enforceRateLimit } from "@/lib/auth/rate-limit";
+import { isSafeRequestOrigin } from "@/lib/security/origin";
 import { prisma } from "@/lib/prisma";
 import {
   buildSessionCookie,
@@ -22,6 +23,13 @@ const loginSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!isSafeRequestOrigin(request)) {
+    return NextResponse.json(
+      { message: "Invalid request origin." },
+      { status: 403 },
+    );
+  }
+
   let body: unknown;
 
   try {

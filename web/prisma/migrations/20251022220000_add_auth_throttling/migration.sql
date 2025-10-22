@@ -15,4 +15,5 @@ CREATE TABLE "AuthAttempt" (
 );
 
 -- CreateIndex
-CREATE INDEX "AuthAttempt_lookup_idx" ON "AuthAttempt"("type", "scope", "hash", "createdAt");
+CREATE INDEX "AuthAttempt_type_scope_hash_createdAt_idx" ON "AuthAttempt"("type", "scope", "hash", "createdAt");
+

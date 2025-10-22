@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import {
   useEffect,
@@ -27,7 +28,18 @@ interface OverlayPosition {
   width: number;
 }
 
-export function SearchBar() {
+type ReadingListActionState = {
+  status: "idle" | "loading" | "added" | "error";
+  message?: string;
+};
+
+type ReadingListActionStates = Record<string, ReadingListActionState>;
+
+interface SearchBarProps {
+  isAuthenticated?: boolean;
+}
+
+export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MangaSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +48,7 @@ export function SearchBar() {
   const [overlayPosition, setOverlayPosition] =
     useState<OverlayPosition | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [actionStates, setActionStates] = useState<ReadingListActionStates>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const queryTooShort = useMemo(
@@ -109,6 +122,86 @@ export function SearchBar() {
     };
   }, [query]);
 
+  const handleAddToReadingList = async (manga: MangaSummary) => {
+    if (!isAuthenticated) {
+      setActionStates((prev) => ({
+        ...prev,
+        [manga.id]: {
+          status: "error",
+          message: "Log in to add series to your reading list.",
+        },
+      }));
+      return;
+    }
+
+    setActionStates((prev) => ({
+      ...prev,
+      [manga.id]: {
+        status: "loading",
+      },
+    }));
+
+    try {
+      const response = await fetch("/api/reading-list", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mangaId: manga.id,
+        }),
+      });
+
+      let responseBody: unknown = null;
+
+      try {
+        responseBody = await response.json();
+      } catch (parseError) {
+        console.warn("Could not parse reading list response", parseError);
+      }
+
+      const responseMessage =
+        responseBody &&
+        typeof responseBody === "object" &&
+        responseBody !== null &&
+        "message" in responseBody &&
+        typeof (responseBody as Record<string, unknown>).message === "string"
+          ? ((responseBody as Record<string, string>).message ?? undefined)
+          : undefined;
+
+      if (!response.ok && response.status !== 409) {
+        const errorMessage =
+          responseMessage ?? "Could not save series to your reading list.";
+
+        setActionStates((prev) => ({
+          ...prev,
+          [manga.id]: {
+            status: "error",
+            message: errorMessage,
+          },
+        }));
+        return;
+      }
+
+      setActionStates((prev) => ({
+        ...prev,
+        [manga.id]: {
+          status: "added",
+          message: response.status === 409 ? "Already in your reading list." : "Added to your reading list.",
+        },
+      }));
+    } catch (error_) {
+      console.error("Failed to add to reading list", error_);
+      setActionStates((prev) => ({
+        ...prev,
+        [manga.id]: {
+          status: "error",
+          message: "Network error while saving to your reading list.",
+        },
+      }));
+    }
+  };
+
   const showOverlay =
     isFocused &&
     (queryTooShort || query.trim().length >= MIN_QUERY_LENGTH || isLoading);
@@ -116,6 +209,24 @@ export function SearchBar() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    setActionStates((previous) => {
+      if (!results.length) {
+        return {};
+      }
+
+      const next: ReadingListActionStates = {};
+
+      for (const item of results) {
+        if (previous[item.id]) {
+          next[item.id] = previous[item.id];
+        }
+      }
+
+      return next;
+    });
+  }, [results]);
 
   useLayoutEffect(() => {
     if (!showOverlay) {
@@ -178,49 +289,93 @@ export function SearchBar() {
             {!isLoading && !error && !queryTooShort ? (
               results.length > 0 ? (
                 <ul className="mt-1 space-y-2">
-                  {results.map((manga) => (
-                    <li key={manga.id}>
-                      <a
-                        href={manga.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 p-3 transition hover:border-white/60 hover:bg-white/10"
-                      >
-                        <div className="relative h-14 w-10 overflow-hidden rounded-xl bg-white/5 sm:h-16 sm:w-12">
-                          {manga.coverImage ? (
-                            <Image
-                              fill
-                              src={manga.coverImage}
-                              alt={manga.title}
-                              sizes="48px"
-                              className="object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white">
-                              {manga.title.charAt(0).toUpperCase()}
+                  {results.map((manga) => {
+                    const actionState = actionStates[manga.id] ?? {
+                      status: "idle",
+                    };
+                    const isLoadingAction = actionState.status === "loading";
+                    const isAdded = actionState.status === "added";
+                    const helperMessage = actionState.message;
+                    const isErrorState = actionState.status === "error";
+                    const feedbackClass = isErrorState
+                      ? "text-red-300"
+                      : "text-accent";
+                    const buttonLabel = (() => {
+                      if (!isAuthenticated) {
+                        return "Log in";
+                      }
+                      if (isLoadingAction) {
+                        return "Saving...";
+                      }
+                      if (isAdded) {
+                        return "Added";
+                      }
+                      return "Add";
+                    })();
+                    const disableButton =
+                      isLoadingAction || (isAdded && isAuthenticated);
+
+                    return (
+                      <li key={manga.id} className="space-y-1">
+                        <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 p-3 transition hover:border-white/60 hover:bg-white/10">
+                          <Link
+                            href={`/manga/${manga.id}`}
+                            className="flex flex-1 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                          >
+                            <div className="relative h-14 w-10 overflow-hidden rounded-xl bg-white/5 sm:h-16 sm:w-12">
+                              {manga.coverImage ? (
+                                <Image
+                                  fill
+                                  src={manga.coverImage}
+                                  alt={manga.title}
+                                  sizes="48px"
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white">
+                                  {manga.title.charAt(0).toUpperCase()}
+                                </div>
+                              )}
                             </div>
-                          )}
+                            <div className="flex flex-1 flex-col overflow-hidden text-left">
+                              <p className="truncate text-sm font-semibold text-white">
+                                {manga.title}
+                              </p>
+                              {manga.altTitles.length > 0 ? (
+                                <p className="truncate text-xs text-surface-subtle/80">
+                                  {manga.altTitles.join(" / ")}
+                                </p>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.65rem] uppercase text-surface-subtle">
+                                {manga.status ? <span>{manga.status}</span> : null}
+                                {manga.demographic ? (
+                                  <span>{manga.demographic}</span>
+                                ) : null}
+                                {manga.year ? <span>{manga.year}</span> : null}
+                              </div>
+                            </div>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleAddToReadingList(manga)}
+                            disabled={disableButton}
+                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+                              disableButton
+                                ? "cursor-not-allowed border-white/15 text-white/40"
+                                : "border-accent text-accent hover:border-white hover:text-white"
+                            }`}
+                          >
+                            {buttonLabel}
+                          </button>
                         </div>
-                        <div className="flex flex-1 flex-col overflow-hidden text-left">
-                          <p className="truncate text-sm font-semibold text-white">
-                            {manga.title}
+                        {helperMessage ? (
+                          <p className={`pl-1 text-xs ${feedbackClass}`}>
+                            {helperMessage}
                           </p>
-                          {manga.altTitles.length > 0 ? (
-                            <p className="truncate text-xs text-surface-subtle/80">
-                              {manga.altTitles.join(" / ")}
-                            </p>
-                          ) : null}
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.65rem] uppercase text-surface-subtle">
-                            {manga.status ? <span>{manga.status}</span> : null}
-                            {manga.demographic ? (
-                              <span>{manga.demographic}</span>
-                            ) : null}
-                            {manga.year ? <span>{manga.year}</span> : null}
-                          </div>
-                        </div>
-                      </a>
-                    </li>
-                  ))}
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="text-xs text-surface-subtle">

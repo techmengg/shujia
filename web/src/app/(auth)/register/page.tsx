@@ -1,8 +1,8 @@
-import { AuthCard } from "@/components/auth/auth-card";
+﻿import { AuthCard } from "@/components/auth/auth-card";
 import { RegisterForm } from "@/components/auth/register-form";
 
 export const metadata = {
-  title: "Create account • ShujiaDB",
+  title: "Create account • Shujia",
 };
 
 export default function RegisterPage() {

@@ -6,8 +6,16 @@ import {
   deleteSession,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/session";
+import { isSafeRequestOrigin } from "@/lib/security/origin";
 
-export async function POST() {
+export async function POST(request: Request) {
+  if (!isSafeRequestOrigin(request)) {
+    return NextResponse.json(
+      { message: "Invalid request origin." },
+      { status: 403 },
+    );
+  }
+
   try {
     const cookieStore = cookies();
     const existingCookie = cookieStore.get(SESSION_COOKIE_NAME);

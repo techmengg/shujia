@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 import type { MangaSummary } from "@/lib/mangadex/types";
 
@@ -45,12 +46,7 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
   ].join(" ");
 
   return (
-    <a
-      href={manga.url}
-      target="_blank"
-      rel="noreferrer"
-      className={containerClasses}
-    >
+    <Link href={`/manga/${manga.id}`} className={containerClasses}>
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/5">
         {manga.coverImage ? (
           <Image
@@ -98,6 +94,6 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
           <p className={tagsClasses}>{manga.tags.slice(0, 3).join(" / ")}</p>
         ) : null}
       </div>
-    </a>
+    </Link>
   );
 }
