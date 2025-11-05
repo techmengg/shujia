@@ -21,7 +21,7 @@ const registerSchema = z.object({
     .min(8, "Password must be at least 8 characters long")
     .max(72, "Password must be at most 72 characters long"),
   username: z
-    .string({ required_error: "Username is required" })
+    .string()
     .trim()
     .min(3, "Username must be at least 3 characters long")
     .max(32, "Username must be at most 32 characters long")
