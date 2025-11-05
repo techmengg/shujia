@@ -1,10 +1,16 @@
-import type { PasswordResetToken } from "@prisma/client";
-
 import { renderHtmlEmail } from "@/lib/email/render";
+import { sendEmail } from "@/lib/email/transport";
 
-export function buildPasswordResetEmail(token: PasswordResetToken) {
-  const resetUrl = `${process.env.APP_BASE_URL ?? "http://localhost:3000"}/reset-password?token=${token.id}`;
+function htmlToText(html: string) {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
+export function buildPasswordResetEmail(resetUrl: string) {
   const subject = "Reset your Shujia password";
   const previewText = "You requested to reset the password for your Shujia account.";
 
@@ -29,5 +35,25 @@ export function buildPasswordResetEmail(token: PasswordResetToken) {
     subject,
     previewText,
     html,
+    text: htmlToText(html),
   };
+}
+
+interface DispatchPasswordResetEmailOptions {
+  to: string;
+  resetUrl: string;
+}
+
+export async function dispatchPasswordResetEmail({
+  to,
+  resetUrl,
+}: DispatchPasswordResetEmailOptions) {
+  const { subject, html, text } = buildPasswordResetEmail(resetUrl);
+
+  await sendEmail({
+    to,
+    subject,
+    html,
+    text,
+  });
 }
