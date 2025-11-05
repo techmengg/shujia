@@ -92,6 +92,12 @@ export async function POST(request: Request) {
       data: {
         password: passwordHash,
       },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        username: true,
+      },
     });
 
     await prisma.session.deleteMany({
@@ -106,6 +112,7 @@ export async function POST(request: Request) {
           id: user.id,
           email: user.email,
           name: user.name,
+          username: user.username ?? null,
         },
       },
       { status: 200 },

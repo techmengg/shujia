@@ -9,6 +9,7 @@ type FieldErrors = Partial<Record<string, string[]>>;
 export function RegisterForm() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -30,24 +31,33 @@ export function RegisterForm() {
           },
           body: JSON.stringify({
             name: name.trim() || undefined,
+            username: username.trim().toLowerCase(),
             email,
             password,
           }),
         });
 
+        const data = await response.json().catch(() => ({}));
+
         if (!response.ok) {
           if (response.status === 422) {
-            const data = await response.json();
-            setFieldErrors(data.errors ?? {});
+            setFieldErrors((data as { errors?: FieldErrors }).errors ?? {});
             setFormError("Please fix the highlighted fields.");
           } else {
-            const data = await response.json();
-            setFormError(data.message ?? "Unable to create your account.");
+            setFormError((data as { message?: string }).message ?? "Unable to create your account.");
           }
           return;
         }
 
-        router.push("/profile");
+        const resolvedUsername =
+          typeof (data as { user?: { username?: string | null } }).user?.username === "string"
+            ? (data as { user?: { username?: string | null } }).user!.username
+            : null;
+        const destination = resolvedUsername
+          ? `/profile/${resolvedUsername}`
+          : "/settings?onboarding=complete-profile";
+
+        router.push(destination);
         router.refresh();
       } catch (error) {
         console.error("Registration failed", error);
@@ -58,25 +68,55 @@ export function RegisterForm() {
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
-      <div className="space-y-1.5">
-        <label
-          htmlFor="name"
-          className="text-xs font-semibold uppercase tracking-[0.25em] text-white/70"
-        >
-          Display name
-        </label>
-        <input
-          id="name"
-          type="text"
-          autoComplete="name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          placeholder="Yuzu"
-        />
-        {fieldErrors.name ? (
-          <p className="text-xs text-red-400">{fieldErrors.name.join(" ")}</p>
-        ) : null}
+      <div className="grid gap-5 md:grid-cols-2 md:gap-6">
+        <div className="space-y-1.5">
+          <label
+            htmlFor="name"
+            className="text-xs font-semibold uppercase tracking-[0.25em] text-white/70"
+          >
+            Display name
+          </label>
+          <input
+            id="name"
+            type="text"
+            autoComplete="name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            placeholder="Yuzu"
+          />
+          {fieldErrors.name ? (
+            <p className="text-xs text-red-400">{fieldErrors.name.join(" ")}</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-1.5">
+          <label
+            htmlFor="username"
+            className="text-xs font-semibold uppercase tracking-[0.25em] text-white/70"
+          >
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            autoComplete="username"
+            value={username}
+            onChange={(event) =>
+              setUsername(event.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase())
+            }
+            className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            placeholder="shujiafan"
+            maxLength={32}
+            required
+          />
+          <p className="text-[0.6rem] uppercase tracking-[0.25em] text-white/40">
+            Letters, numbers, underscores only.
+          </p>
+          {fieldErrors.username ? (
+            <p className="text-xs text-red-400">{fieldErrors.username.join(" ")}</p>
+          ) : null}
+        </div>
       </div>
 
       <div className="space-y-1.5">

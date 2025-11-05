@@ -20,6 +20,13 @@ const registerSchema = z.object({
     .string()
     .min(8, "Password must be at least 8 characters long")
     .max(72, "Password must be at most 72 characters long"),
+  username: z
+    .string({ required_error: "Username is required" })
+    .trim()
+    .min(3, "Username must be at least 3 characters long")
+    .max(32, "Username must be at most 32 characters long")
+    .regex(/^[a-zA-Z0-9_]+$/, "Usernames can only include letters, numbers, and underscores.")
+    .transform((value) => value.toLowerCase()),
   name: z
     .string()
     .trim()
@@ -82,7 +89,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors }, { status: 422 });
     }
 
-    const { email, password, name } = parsed.data;
+    const { email, password, name, username } = parsed.data;
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -95,11 +102,23 @@ export async function POST(request: Request) {
       );
     }
 
+    const existingUsername = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (existingUsername) {
+      return NextResponse.json(
+        { message: "That username is already taken." },
+        { status: 409 },
+      );
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
       data: {
         email,
+        username,
         name: name ?? null,
         password: passwordHash,
       },
@@ -113,6 +132,7 @@ export async function POST(request: Request) {
           id: user.id,
           email: user.email,
           name: user.name,
+          username: (user as { username?: string | null }).username ?? null,
         },
       },
       { status: 201 },

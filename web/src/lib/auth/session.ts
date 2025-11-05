@@ -11,6 +11,7 @@ export type AuthenticatedUser = {
   id: string;
   email: string;
   name: string | null;
+  username: string | null;
 };
 
 export function hashToken(token: string) {
@@ -103,18 +104,23 @@ export async function getSessionFromToken(token: string) {
 
   const { user } = session;
 
+  const username =
+    (user as { username?: string | null }).username ?? null;
+
   return {
     session,
     user: {
       id: user.id,
       email: user.email,
       name: user.name,
+      username,
     } satisfies AuthenticatedUser,
   };
 }
 
 export async function getCurrentUser() {
-  const cookie = cookies().get(SESSION_COOKIE_NAME);
+  const cookieStore = await cookies();
+  const cookie = cookieStore.get(SESSION_COOKIE_NAME);
 
   if (!cookie?.value) {
     return null;

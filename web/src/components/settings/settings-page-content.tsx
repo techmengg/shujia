@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -8,6 +8,7 @@ import { LogoutButton } from "@/components/auth/logout-button";
 export interface SettingsUser {
   id: string;
   email: string;
+  username: string | null;
   name: string | null;
   bio: string | null;
   avatarUrl: string | null;
@@ -21,6 +22,14 @@ interface SettingsPageContentProps {
   user: SettingsUser;
   sessionCount: number;
 }
+
+type ProfileFormState = {
+  name: string;
+  username: string;
+  bio: string;
+  timezone: string;
+  avatarUrl: string;
+};
 
 type Status = "idle" | "saving" | "success" | "error";
 
@@ -39,6 +48,26 @@ const TIMEZONE_OPTIONS = [
   { value: "Asia/Singapore", label: "UTC +08:00 (Singapore)" },
   { value: "Australia/Sydney", label: "UTC +10:00 (Sydney)" },
 ];
+
+const inputClass =
+  "rounded-lg border border-white/12 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/35 focus:border-accent focus:outline-none focus:ring-0 transition";
+const textareaClass = `${inputClass} min-h-[120px] resize-vertical`;
+const selectClass = inputClass;
+const labelClass = "flex flex-col gap-2 text-sm font-medium text-white/70";
+const helpTextClass = "text-xs text-white/45";
+const checkboxClass = "h-4 w-4 accent-accent";
+const primaryButtonClass =
+  "inline-flex items-center justify-center rounded-lg border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
+const neutralButtonClass =
+  "inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
+const dangerButtonClass =
+  "inline-flex items-center justify-center rounded-lg border border-red-400 px-4 py-2 text-sm font-medium text-red-200 transition hover:border-red-300 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60";
+
+function statusToneClass(status: Status): string {
+  if (status === "error") return "text-red-300";
+  if (status === "success") return "text-accent";
+  return "text-white/60";
+}
 
 function extractErrorMessage(payload: unknown): string {
   if (!payload || typeof payload !== "object") {
@@ -64,14 +93,46 @@ function extractErrorMessage(payload: unknown): string {
 export function SettingsPageContent({ user, sessionCount }: SettingsPageContentProps) {
   const router = useRouter();
 
-  const [profileForm, setProfileForm] = useState({
+  const [profileForm, setProfileForm] = useState<ProfileFormState>({
     name: user.name ?? "",
+    username: user.username ?? "",
+    bio: user.bio ?? "",
+    timezone: user.timezone ?? "UTC",
+    avatarUrl: user.avatarUrl ?? "",
+  });
+  const [savedProfile, setSavedProfile] = useState<ProfileFormState>({
+    name: user.name ?? "",
+    username: user.username ?? "",
     bio: user.bio ?? "",
     timezone: user.timezone ?? "UTC",
     avatarUrl: user.avatarUrl ?? "",
   });
   const [profileStatus, setProfileStatus] = useState<Status>("idle");
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [avatarUploadStatus, setAvatarUploadStatus] = useState<Status>("idle");
+  const [avatarUploadMessage, setAvatarUploadMessage] =
+    useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarFallbackInitial =
+    profileForm.name?.trim()?.charAt(0) ||
+    profileForm.username?.charAt(0) ||
+    user.email.charAt(0) ||
+    "S";
+
+  const buildProfilePayload = (
+    base: ProfileFormState,
+    overrides: Partial<ProfileFormState> = {},
+  ) => {
+    const next = { ...base, ...overrides };
+    const sanitized: ProfileFormState = {
+      name: next.name.trim(),
+      username: next.username.trim().toLowerCase(),
+      bio: next.bio.trim(),
+      timezone: next.timezone,
+      avatarUrl: next.avatarUrl.trim(),
+    };
+    return sanitized;
+  };
 
   const [emailForm, setEmailForm] = useState({
     email: user.email,
@@ -112,12 +173,13 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
     setProfileStatus("saving");
     setProfileMessage(null);
 
-    const payload = {
-      name: profileForm.name.trim(),
-      bio: profileForm.bio.trim(),
-      timezone: profileForm.timezone,
-      avatarUrl: profileForm.avatarUrl.trim(),
-    };
+    const payload = buildProfilePayload(profileForm);
+
+    if (!payload.username || payload.username.length < 3) {
+      setProfileStatus("error");
+      setProfileMessage("Choose a username that is at least 3 characters long.");
+      return;
+    }
 
     try {
       const response = await fetch("/api/settings/profile", {
@@ -138,10 +200,91 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
 
       setProfileStatus("success");
       setProfileMessage(result?.message ?? "Profile updated.");
+      setSavedProfile(payload);
+      setProfileForm(payload);
+      router.refresh();
     } catch (error) {
       console.error(error);
       setProfileStatus("error");
       setProfileMessage("Unable to update profile. Please try again.");
+    }
+  };
+
+  const handleAvatarFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setAvatarUploadStatus("saving");
+    setAvatarUploadMessage("Uploading...");
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const previousAvatarUrl = profileForm.avatarUrl;
+
+    try {
+      const response = await fetch("/api/uploads/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || typeof result?.url !== "string") {
+        setAvatarUploadStatus("error");
+        setAvatarUploadMessage(
+          typeof result?.message === "string"
+            ? result.message
+            : "Upload failed. Please try again.",
+        );
+        return;
+      }
+
+      const nextAvatarUrl = result.url;
+      const payload = buildProfilePayload(savedProfile, {
+        avatarUrl: nextAvatarUrl,
+      });
+
+      if (!payload.username || payload.username.length < 3) {
+        setAvatarUploadStatus("error");
+        setAvatarUploadMessage("Set a username before uploading an avatar.");
+        return;
+      }
+
+      setProfileForm((prev) => ({ ...prev, avatarUrl: nextAvatarUrl }));
+      setAvatarUploadStatus("saving");
+      setAvatarUploadMessage("Saving to profile...");
+      const profileResponse = await fetch("/api/settings/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const profileResult = await profileResponse.json().catch(() => ({}));
+
+      if (!profileResponse.ok) {
+        setProfileForm((prev) => ({ ...prev, avatarUrl: previousAvatarUrl }));
+        setAvatarUploadStatus("error");
+        setAvatarUploadMessage(extractErrorMessage(profileResult));
+        return;
+      }
+
+      setSavedProfile(payload);
+      setProfileForm(payload);
+      router.refresh();
+      setAvatarUploadStatus("success");
+      setAvatarUploadMessage("Avatar updated.");
+    } catch (error) {
+      console.error(error);
+      setProfileForm((prev) => ({ ...prev, avatarUrl: previousAvatarUrl }));
+      setAvatarUploadStatus("error");
+      setAvatarUploadMessage("Upload failed. Please try again.");
+    } finally {
+      event.target.value = "";
     }
   };
 
@@ -313,140 +456,178 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
   };
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-        <header className="space-y-1">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-white">Profile</h2>
-          <p className="text-xs text-white/60">
+    <div className="flex flex-col gap-12 md:gap-16">
+      <section className="space-y-6">
+        <header className="space-y-2">
+          <h2 className="text-base font-semibold text-white">Profile</h2>
+          <p className="text-sm text-white/60">
             Update your public profile information and how other readers see you.
           </p>
         </header>
-        <form className="mt-4 space-y-4" onSubmit={handleProfileSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
-              Display name
+        <form className="space-y-6" onSubmit={handleProfileSubmit}>
+          <div className="grid gap-6 md:grid-cols-2">
+            <label className={labelClass}>
+              <span>Display name</span>
               <input
                 type="text"
                 value={profileForm.name}
                 onChange={(event) =>
                   setProfileForm((prev) => ({ ...prev, name: event.target.value }))
                 }
-                className="rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
+                className={inputClass}
                 placeholder="A name for the community"
                 maxLength={120}
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
-              Timezone
-              <select
-                value={profileForm.timezone}
-                onChange={(event) =>
-                  setProfileForm((prev) => ({ ...prev, timezone: event.target.value }))
-                }
-                className="rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
-              >
-                {TIMEZONE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-black">
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+            <label className={labelClass}>
+              <span>Username</span>
+              <input
+                type="text"
+                value={profileForm.username}
+                onChange={(event) => {
+                  const sanitized = event.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+                  setProfileForm((prev) => ({ ...prev, username: sanitized }));
+                }}
+                className={inputClass}
+                placeholder="choose a handle"
+                maxLength={32}
+                required
+              />
+              <span className={helpTextClass}>
+                Only letters, numbers, and underscores. This becomes your profile link.
+              </span>
             </label>
           </div>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
-            Avatar URL
-            <input
-              type="url"
-              value={profileForm.avatarUrl}
+          <label className={labelClass}>
+            <span>Timezone</span>
+            <select
+              value={profileForm.timezone}
               onChange={(event) =>
-                setProfileForm((prev) => ({ ...prev, avatarUrl: event.target.value }))
+                setProfileForm((prev) => ({ ...prev, timezone: event.target.value }))
               }
-              className="rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
-              placeholder="https://example.com/avatar.jpg"
+              className={selectClass}
+            >
+              {TIMEZONE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value} className="bg-black">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={labelClass}>
+            <span>Avatar</span>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 text-lg font-semibold uppercase text-white/50 sm:h-24 sm:w-24">
+                {profileForm.avatarUrl ? (
+                  <img
+                    src={profileForm.avatarUrl}
+                    alt="Avatar preview"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  avatarFallbackInitial.toUpperCase()
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  className={neutralButtonClass}
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploadStatus === "saving"}
+                >
+                  {avatarUploadStatus === "saving" ? "Working..." : "Upload PNG/JPG"}
+                </button>
+                <span className={helpTextClass}>
+                  PNG or JPG up to 5MB. Uploading replaces your current avatar instantly.
+                </span>
+                {avatarUploadMessage ? (
+                  <span className={`text-xs ${statusToneClass(avatarUploadStatus)}`}>
+                    {avatarUploadMessage}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+              className="sr-only"
+              onChange={handleAvatarFileChange}
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
-            Bio
+          <label className={labelClass}>
+            <span>Bio</span>
             <textarea
               value={profileForm.bio}
               onChange={(event) =>
                 setProfileForm((prev) => ({ ...prev, bio: event.target.value }))
               }
-              className="min-h-[120px] rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
-              placeholder="Tell readers about your favorite series, genres, or current obsessions."
+              className={textareaClass}
+              placeholder="Share a bit about your favourite series or genres."
               maxLength={500}
             />
-            <span className="text-[0.6rem] text-white/40">
-              {profileForm.bio.length}/500 characters
-            </span>
+            <span className={helpTextClass}>{profileForm.bio.length}/500 characters</span>
           </label>
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-white/50" />
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {profileMessage ? (
+              <p className={`text-sm ${statusToneClass(profileStatus)}`}>{profileMessage}</p>
+            ) : null}
             <button
               type="submit"
-              className="inline-flex items-center rounded-full border border-accent px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className={primaryButtonClass}
               disabled={profileStatus === "saving"}
             >
               {profileStatus === "saving" ? "Saving..." : "Save profile"}
             </button>
           </div>
-          {profileMessage ? (
-            <p
-              className={	ext-xs }
-            >
-              {profileMessage}
-            </p>
-          ) : null}
         </form>
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-        <header className="space-y-1">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-white">Account</h2>
-          <p className="text-xs text-white/60">Manage how you sign in to Shujia.</p>
+      <section className="space-y-6 border-t border-white/10 pt-10 md:pt-12">
+        <header className="space-y-2">
+          <h2 className="text-base font-semibold text-white">Account</h2>
+          <p className="text-sm text-white/60">Manage how you sign in to Shujia.</p>
         </header>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-          <div className="text-xs text-white/55">
-            Need to take a break? You can sign out of this device anytime.
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+          <span>Need to take a break? You can sign out of this device anytime.</span>
           <LogoutButton />
         </div>
-        <form className="mt-4 space-y-4" onSubmit={handleEmailSubmit}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
-              Email address
+        <form className="space-y-6" onSubmit={handleEmailSubmit}>
+          <div className="grid gap-6 md:grid-cols-2">
+            <label className={labelClass}>
+              <span>Email address</span>
               <input
                 type="email"
                 value={emailForm.email}
                 onChange={(event) =>
                   setEmailForm((prev) => ({ ...prev, email: event.target.value }))
                 }
-                className="rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
+                className={inputClass}
                 autoComplete="email"
                 required
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
-              Current password
+            <label className={labelClass}>
+              <span>Current password</span>
               <input
                 type="password"
                 value={emailForm.currentPassword}
                 onChange={(event) =>
                   setEmailForm((prev) => ({ ...prev, currentPassword: event.target.value }))
                 }
-                className="rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
+                className={inputClass}
                 autoComplete="current-password"
                 required
               />
             </label>
           </div>
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-white/50">
-              {emailMessage}
-            </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {emailMessage ? (
+              <p className={`text-sm ${statusToneClass(emailStatus)}`}>{emailMessage}</p>
+            ) : null}
             <button
               type="submit"
-              className="inline-flex items-center rounded-full border border-accent px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className={primaryButtonClass}
               disabled={emailStatus === "saving"}
             >
               {emailStatus === "saving" ? "Saving..." : "Update email"}
@@ -454,61 +635,55 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
           </div>
         </form>
 
-        <div className="mt-6 h-px bg-white/10" />
-
-        <form className="mt-6 space-y-4" onSubmit={handlePasswordSubmit}>
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60 md:col-span-1">
-              Current password
+        <form className="space-y-6" onSubmit={handlePasswordSubmit}>
+          <div className="grid gap-6 md:grid-cols-3">
+            <label className={`${labelClass} md:col-span-1`}>
+              <span>Current password</span>
               <input
                 type="password"
                 value={passwordForm.currentPassword}
                 onChange={(event) =>
                   setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))
                 }
-                className="rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
+                className={inputClass}
                 autoComplete="current-password"
                 required
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
-              New password
+            <label className={labelClass}>
+              <span>New password</span>
               <input
                 type="password"
                 value={passwordForm.newPassword}
                 onChange={(event) =>
                   setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))
                 }
-                className="rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
+                className={inputClass}
                 autoComplete="new-password"
                 required
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-white/60">
-              Confirm new password
+            <label className={labelClass}>
+              <span>Confirm new password</span>
               <input
                 type="password"
                 value={passwordForm.confirmPassword}
                 onChange={(event) =>
                   setPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
                 }
-                className="rounded-2xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white focus:border-accent focus:outline-none"
+                className={inputClass}
                 autoComplete="new-password"
                 required
               />
             </label>
           </div>
           {passwordMessage ? (
-            <p
-              className={	ext-xs }
-            >
-              {passwordMessage}
-            </p>
+            <p className={`text-sm ${statusToneClass(passwordStatus)}`}>{passwordMessage}</p>
           ) : null}
-          <div className="flex items-center justify-end">
+          <div className="flex justify-end">
             <button
               type="submit"
-              className="inline-flex items-center rounded-full border border-accent px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className={primaryButtonClass}
               disabled={passwordStatus === "saving"}
             >
               {passwordStatus === "saving" ? "Updating..." : "Change password"}
@@ -517,71 +692,71 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
         </form>
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-        <header className="space-y-1">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-white">Notifications</h2>
-          <p className="text-xs text-white/60">Choose what hits your inbox.</p>
+      <section className="space-y-6 border-t border-white/10 pt-10 md:pt-12">
+        <header className="space-y-2">
+          <h2 className="text-base font-semibold text-white">Notifications</h2>
+          <p className="text-sm text-white/60">Choose what reaches your inbox.</p>
         </header>
-        <form className="mt-4 space-y-4" onSubmit={handleNotificationsSubmit}>
-          <label className="flex items-start justify-between gap-4">
-            <div>
-              <span className="text-sm font-semibold text-white">Weekly digest</span>
-              <p className="text-xs text-white/50">
-                Highlights of new chapters, curated picks, and community activity.
+        <form className="space-y-6" onSubmit={handleNotificationsSubmit}>
+          <div className="space-y-5">
+            <label className="flex items-start justify-between gap-6">
+              <div className="space-y-1">
+                <span className="text-sm font-medium text-white">Weekly digest</span>
+                <p className={helpTextClass}>
+                  Highlights of new chapters, curated picks, and community activity.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={preferences.weeklyDigestEmails}
+                onChange={(event) =>
+                  setPreferences((prev) => ({ ...prev, weeklyDigestEmails: event.target.checked }))
+                }
+                className={checkboxClass}
+              />
+            </label>
+            <label className="flex items-start justify-between gap-6">
+              <div className="space-y-1">
+                <span className="text-sm font-medium text-white">Product updates</span>
+                <p className={helpTextClass}>
+                  Be the first to know about new features and roadmap wins.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={preferences.productUpdates}
+                onChange={(event) =>
+                  setPreferences((prev) => ({ ...prev, productUpdates: event.target.checked }))
+                }
+                className={checkboxClass}
+              />
+            </label>
+            <label className="flex items-start justify-between gap-6">
+              <div className="space-y-1">
+                <span className="text-sm font-medium text-white">Announcements &amp; offers</span>
+                <p className={helpTextClass}>
+                  Occasional campaigns, creator collabs, and partner drops.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={preferences.marketingEmails}
+                onChange={(event) =>
+                  setPreferences((prev) => ({ ...prev, marketingEmails: event.target.checked }))
+                }
+                className={checkboxClass}
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {preferencesMessage ? (
+              <p className={`text-sm ${statusToneClass(preferencesStatus)}`}>
+                {preferencesMessage}
               </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={preferences.weeklyDigestEmails}
-              onChange={(event) =>
-                setPreferences((prev) => ({ ...prev, weeklyDigestEmails: event.target.checked }))
-              }
-              className="h-4 w-4 accent-accent"
-            />
-          </label>
-          <label className="flex items-start justify-between gap-4">
-            <div>
-              <span className="text-sm font-semibold text-white">Product updates</span>
-              <p className="text-xs text-white/50">
-                Be the first to know about new features and roadmap wins.
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={preferences.productUpdates}
-              onChange={(event) =>
-                setPreferences((prev) => ({ ...prev, productUpdates: event.target.checked }))
-              }
-              className="h-4 w-4 accent-accent"
-            />
-          </label>
-          <label className="flex items-start justify-between gap-4">
-            <div>
-              <span className="text-sm font-semibold text-white">Announcements & offers</span>
-              <p className="text-xs text-white/50">
-                Occasional campaigns, creator collabs, and partner drops.
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={preferences.marketingEmails}
-              onChange={(event) =>
-                setPreferences((prev) => ({ ...prev, marketingEmails: event.target.checked }))
-              }
-              className="h-4 w-4 accent-accent"
-            />
-          </label>
-          {preferencesMessage ? (
-            <p
-              className={	ext-xs }
-            >
-              {preferencesMessage}
-            </p>
-          ) : null}
-          <div className="flex items-center justify-end">
+            ) : null}
             <button
               type="submit"
-              className="inline-flex items-center rounded-full border border-accent px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className={primaryButtonClass}
               disabled={preferencesStatus === "saving"}
             >
               {preferencesStatus === "saving" ? "Saving..." : "Save preferences"}
@@ -590,76 +765,76 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
         </form>
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-white">Sessions</h2>
-            <p className="text-xs text-white/60">
-              You are currently signed in on {activeSessionCount} device{activeSessionCount === 1 ? "" : "s"}.
-            </p>
-          </div>
+      <section className="space-y-6 border-t border-white/10 pt-10 md:pt-12">
+        <header className="space-y-2">
+          <h2 className="text-base font-semibold text-white">Sessions</h2>
+          <p className="text-sm text-white/60">
+            You are currently signed in on {activeSessionCount} device
+            {activeSessionCount === 1 ? "" : "s"}.
+          </p>
+        </header>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {sessionsMessage ? (
+            <p className={`text-sm ${statusToneClass(sessionsStatus)}`}>{sessionsMessage}</p>
+          ) : null}
           <button
             type="button"
             onClick={handleSignOutOtherSessions}
-            className="inline-flex items-center rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white transition hover:border-white/60 disabled:cursor-not-allowed disabled:opacity-60"
+            className={neutralButtonClass}
             disabled={sessionsStatus === "saving"}
           >
             {sessionsStatus === "saving" ? "Revoking..." : "Sign out others"}
           </button>
-        </header>
-        {sessionsMessage ? (
-          <p
-            className={`mt-4 text-xs ${sessionsStatus === "error" ? "text-red-300" : "text-accent"}`}
-          >
-            {sessionsMessage}
-          </p>
-        ) : null}
+        </div>
       </section>
 
-      <section className="rounded-3xl border border-red-500/30 bg-red-500/10 p-6">
-        <header className="space-y-1">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.3em] text-red-200">Danger zone</h2>
-          <p className="text-xs text-red-200/80">
-            Deleting your account removes reading history, sessions, and preferences. This action is irreversible.
+      <section className="space-y-6 border-t border-red-500/30 pt-10 md:pt-12">
+        <header className="space-y-2">
+          <h2 className="text-base font-semibold text-red-200">Danger zone</h2>
+          <p className="text-sm text-red-200/80">
+            Deleting your account removes reading history, sessions, and preferences. This action is
+            irreversible.
           </p>
         </header>
-        <form className="mt-4 space-y-4" onSubmit={handleDeleteAccount}>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-red-200/80">
-            Confirm with password
+        <form className="space-y-6" onSubmit={handleDeleteAccount}>
+          <label className="flex flex-col gap-2 text-sm font-medium text-red-200/90">
+            <span>Confirm with password</span>
             <input
               type="password"
               value={dangerForm.password}
               onChange={(event) =>
                 setDangerForm((prev) => ({ ...prev, password: event.target.value }))
               }
-              className="rounded-2xl border border-red-500/50 bg-black/40 px-3 py-2 text-sm text-white focus:border-red-400 focus:outline-none"
+              className="rounded-lg border border-red-500/50 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-red-200/50 focus:border-red-300 focus:outline-none focus:ring-0"
               required
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs uppercase tracking-[0.2em] text-red-200/80">
-            Type DELETE to confirm
+          <label className="flex flex-col gap-2 text-sm font-medium text-red-200/90">
+            <span>Type DELETE to confirm</span>
             <input
               type="text"
               value={dangerForm.confirm}
               onChange={(event) =>
                 setDangerForm((prev) => ({ ...prev, confirm: event.target.value }))
               }
-              className="rounded-2xl border border-red-500/50 bg-black/40 px-3 py-2 text-sm text-white focus:border-red-400 focus:outline-none"
+              className="rounded-lg border border-red-500/50 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-red-200/50 focus:border-red-300 focus:outline-none focus:ring-0"
               placeholder="DELETE"
               required
             />
           </label>
-          {dangerMessage ? (
-            <p
-              className={`text-xs ${dangerStatus === "error" ? "text-red-200" : "text-red-100"}`}
-            >
-              {dangerMessage}
-            </p>
-          ) : null}
-          <div className="flex items-center justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {dangerMessage ? (
+              <p
+                className={`text-sm ${
+                  dangerStatus === "error" ? "text-red-300" : "text-red-100"
+                }`}
+              >
+                {dangerMessage}
+              </p>
+            ) : null}
             <button
               type="submit"
-              className="inline-flex items-center rounded-full border border-red-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-red-200 transition hover:border-red-300 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className={dangerButtonClass}
               disabled={dangerStatus === "saving"}
             >
               {dangerStatus === "saving" ? "Deleting..." : "Delete account"}

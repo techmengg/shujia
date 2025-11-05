@@ -11,6 +11,13 @@ const profileSchema = z.object({
     .trim()
     .max(120, "Name must be 120 characters or fewer")
     .optional(),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Username must be at least 3 characters long")
+    .max(32, "Username must be at most 32 characters long")
+    .regex(/^[a-zA-Z0-9_]+$/, "Usernames can only include letters, numbers, and underscores.")
+    .transform((value) => value.toLowerCase()),
   bio: z
     .string()
     .trim()
@@ -24,9 +31,16 @@ const profileSchema = z.object({
   avatarUrl: z
     .string()
     .trim()
-    .url("Enter a valid image URL")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
+    .refine(
+      (value) =>
+        value.length === 0 ||
+        value.startsWith("http://") ||
+        value.startsWith("https://") ||
+        value.startsWith("/uploads/"),
+      { message: "Enter a valid image URL" },
+    )
+    .transform((value) => (value.length === 0 ? undefined : value))
+    .optional(),
 });
 
 function toNullable(value: string | undefined) {
@@ -73,13 +87,31 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
-  const { name, bio, timezone, avatarUrl } = parsed.data;
+  const { name, username, bio, timezone, avatarUrl } = parsed.data;
+
+  const usernameOwner = await prisma.user.findFirst({
+    where: {
+      username,
+      NOT: {
+        id: user.id,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (usernameOwner) {
+    return NextResponse.json(
+      { message: "That username is already taken." },
+      { status: 409 },
+    );
+  }
 
   try {
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: {
         name: toNullable(name),
+        username,
         bio: toNullable(bio),
         timezone,
         avatarUrl: toNullable(avatarUrl),
@@ -87,6 +119,7 @@ export async function PATCH(request: Request) {
       select: {
         id: true,
         email: true,
+        username: true,
         name: true,
         bio: true,
         timezone: true,

@@ -2,7 +2,6 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { SiteHeader } from "@/components/layout/site-header";
 import { AddToReadingListButton } from "@/components/manga/add-to-reading-list-button";
 import { MangaActionBar } from "@/components/manga/manga-action-bar";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -10,9 +9,9 @@ import { prisma } from "@/lib/prisma";
 import { getMangaDetails, getMangaSummaryById } from "@/lib/mangadex/service";
 
 interface MangaPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 const FALLBACK_TEXT = "--";
@@ -65,7 +64,8 @@ function buildCreatorUrl(id: string, role: "author" | "artist"): string {
 export async function generateMetadata({
   params,
 }: MangaPageProps): Promise<Metadata> {
-  const mangaId = decodeURIComponent(params.id);
+  const { id } = await params;
+  const mangaId = decodeURIComponent(id);
   const summary = await getMangaSummaryById(mangaId);
 
   if (!summary) {
@@ -92,7 +92,8 @@ export async function generateMetadata({
 }
 
 export default async function MangaPage({ params }: MangaPageProps) {
-  const mangaId = decodeURIComponent(params.id);
+  const { id } = await params;
+  const mangaId = decodeURIComponent(id);
 
   const [user, manga] = await Promise.all([
     getCurrentUser(),
@@ -161,8 +162,6 @@ export default async function MangaPage({ params }: MangaPageProps) {
     <div className="relative min-h-screen bg-surface text-surface-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-[-20rem] z-0 h-[40rem] bg-gradient-to-b from-accent/25 via-transparent to-transparent blur-[150px]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-72 bg-gradient-to-t from-black/70 via-surface/40 to-transparent" />
-
-      <SiteHeader className="bg-black/90 backdrop-blur supports-[backdrop-filter]:bg-black/70" />
 
       <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-16 pt-10 sm:px-6 lg:px-10">
 

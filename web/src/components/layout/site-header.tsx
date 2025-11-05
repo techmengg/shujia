@@ -20,7 +20,8 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
 
   const greeting =
     user?.name?.trim() ||
-    (user?.email ? user.email.split("@")[0] : undefined);
+    (user?.username ? `@${user.username}` : user?.email ? user.email.split("@")[0] : undefined);
+  const profileHref = user?.username ? `/profile/${user.username}` : "/profile";
 
   return (
     <header className={combinedClassName}>
@@ -74,7 +75,7 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
           </Link>
           {user ? (
             <Link
-              href="/profile"
+              href={profileHref}
               className="inline-flex h-8 items-center justify-center rounded-full border border-white/20 bg-transparent px-3 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white sm:h-9"
               aria-label="User profile"
             >

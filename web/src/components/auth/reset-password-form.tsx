@@ -45,19 +45,27 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           body: JSON.stringify({ token, password }),
         });
 
+        const data = await response.json().catch(() => ({}));
+
         if (!response.ok) {
           if (response.status === 422) {
-            const data = await response.json();
-            setFieldErrors(data.errors ?? {});
+            setFieldErrors((data as { errors?: FieldErrors }).errors ?? {});
             setFormError("Please fix the highlighted field.");
           } else {
-            const data = await response.json();
-            setFormError(data.message ?? "Unable to reset your password.");
+            setFormError((data as { message?: string }).message ?? "Unable to reset your password.");
           }
           return;
         }
 
-        router.push("/profile");
+        const username =
+          typeof (data as { user?: { username?: string | null } }).user?.username === "string"
+            ? (data as { user?: { username?: string | null } }).user!.username
+            : null;
+        const destination = username
+          ? `/profile/${username}`
+          : "/settings?onboarding=complete-profile";
+
+        router.push(destination);
         router.refresh();
       } catch (error) {
         console.error("Password reset failed", error);

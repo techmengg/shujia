@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -8,6 +8,7 @@ const FALLBACK_AVATAR = "/noprofile.jpg";
 interface ProfileUser {
   name: string | null;
   email: string;
+  username: string | null;
   bio: string | null;
   avatarUrl: string | null;
   timezone: string;
@@ -36,6 +37,7 @@ interface ReadingListEntryDto {
 interface ProfilePageContentProps {
   user: ProfileUser;
   readingList: ReadingListEntryDto[];
+  isOwner: boolean;
 }
 
 function formatMemberSince(isoDate: string): string {
@@ -65,7 +67,11 @@ function normalizeStatus(status: string | null): "completed" | "in-progress" | "
   const normalized = status.trim().toLowerCase();
   if (normalized.includes("complete")) return "completed";
   if (normalized.includes("plan") || normalized.includes("queue")) return "planned";
-  if (normalized.includes("reading") || normalized.includes("ongoing") || normalized.includes("current")) {
+  if (
+    normalized.includes("reading") ||
+    normalized.includes("ongoing") ||
+    normalized.includes("current")
+  ) {
     return "in-progress";
   }
   return "unknown";
@@ -110,278 +116,296 @@ function getTopTags(readingList: ReadingListEntryDto[], limit = 10) {
     .slice(0, limit);
 }
 
-export function ProfilePageContent({ user, readingList }: ProfilePageContentProps) {
+export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageContentProps) {
   const memberSince = formatMemberSince(user.memberSince);
   const avatar = user.avatarUrl?.trim() ? user.avatarUrl : FALLBACK_AVATAR;
-  const displayName = user.name?.trim() || user.email.split("@")[0];
   const bio = user.bio?.trim();
 
   const totalSeries = readingList.length;
-  const completedCount = readingList.filter((entry) => normalizeStatus(entry.status) === "completed").length;
-  const inProgressCount = readingList.filter((entry) => normalizeStatus(entry.status) === "in-progress").length;
-  const plannedCount = readingList.filter((entry) => normalizeStatus(entry.status) === "planned").length;
+  const completedCount = readingList.filter(
+    (entry) => normalizeStatus(entry.status) === "completed",
+  ).length;
+  const inProgressCount = readingList.filter(
+    (entry) => normalizeStatus(entry.status) === "in-progress",
+  ).length;
+  const plannedCount = readingList.filter(
+    (entry) => normalizeStatus(entry.status) === "planned",
+  ).length;
 
-  const ratings = readingList.map((entry) => entry.rating).filter((rating): rating is number => typeof rating === "number");
+  const ratings = readingList
+    .map((entry) => entry.rating)
+    .filter((rating): rating is number => typeof rating === "number");
   const averageRating = ratings.length
     ? (ratings.reduce((total, rating) => total + rating, 0) / ratings.length).toFixed(1)
     : null;
 
-  const latestUpdates = readingList.slice(0, 6);
+  const latestUpdates = readingList.slice(0, 5);
   const statusGroups = groupByStatus(readingList);
   const topTags = getTopTags(readingList);
 
+  const mostRecentRating =
+    readingList.find((entry) => typeof entry.rating === "number")?.rating ?? null;
+  const lastUpdatedDisplay = readingList.length ? formatUpdatedAt(readingList[0].updatedAt) : "-";
+
+  const languageSet = new Set<string>();
+  for (const entry of readingList) {
+    for (const language of entry.languages) {
+      const trimmed = language.trim();
+      if (trimmed) {
+        languageSet.add(trimmed);
+      }
+    }
+  }
+  const languagesLabel = languageSet.size ? Array.from(languageSet).join(", ") : "-";
+  const hasStatusData = Object.values(statusGroups).some((items) => items.length > 0);
+
+  const usernameLabel = user.username ? `@${user.username}` : null;
+  const displayName =
+    user.name?.trim() ||
+    usernameLabel ||
+    user.email;
+
   return (
-    <main className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 pb-16 pt-10 sm:px-6 lg:px-10">
-      <section className="relative overflow-hidden rounded-3xl border border-white/15 bg-gradient-to-r from-black via-black to-accent/10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.35)_0%,_transparent_60%)] opacity-70" />
-        <div className="relative flex flex-col gap-6 px-6 py-8 sm:flex-row sm:items-center sm:gap-8 sm:px-10 sm:py-10">
-          <div className="relative h-28 w-28 overflow-hidden rounded-3xl border border-white/20 bg-white/5 sm:h-32 sm:w-32">
-            <Image
-              src={avatar}
-              alt={displayName ?? "Profile avatar"}
-              fill
-              sizes="128px"
-              className="object-cover"
-            />
+    <main className="mx-auto w-full max-w-4xl space-y-10 px-4 pb-12 pt-4 sm:px-6 sm:pt-5 lg:px-8">
+      <section className="space-y-6 border-b border-white/10 pb-6 sm:pb-7">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <div className="flex flex-col items-start">
+            <div className="relative h-28 w-28 overflow-hidden rounded-3xl border border-white/15 bg-white/5 shadow-[0_20px_40px_rgba(8,11,24,0.4)] sm:h-36 sm:w-36">
+              <Image
+                src={avatar}
+                alt={`${displayName} avatar`}
+                fill
+                priority
+                sizes="(min-width: 640px) 180px, 128px"
+                quality={100}
+                unoptimized
+                className="object-cover"
+              />
+            </div>
           </div>
-          <div className="space-y-4 text-white">
-            <div>
-              <h1 className="text-2xl font-semibold sm:text-3xl">{displayName}</h1>
-              <p className="mt-1 text-sm text-white/70">{user.email}</p>
-              <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/50">
-                Member since {memberSince} · Timezone: {user.timezone || "UTC"}
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold text-white sm:text-3xl">{displayName}</h1>
+              {usernameLabel ? (
+                <p className="text-sm text-white/60">{usernameLabel}</p>
+              ) : null}
+              {isOwner ? (
+                <p className="text-sm text-white/45">{user.email}</p>
+              ) : null}
+              <p className="text-sm text-white/45">
+                Member since {memberSince} | {user.timezone || "UTC"}
               </p>
             </div>
-            <p className="max-w-2xl text-sm text-white/75">
-              {bio || "Add a short bio in settings to let the community know what keeps you turning pages."}
+            <p className="max-w-2xl text-sm text-white/70">
+              {bio || "Add a short bio in settings to share what keeps you turning pages."}
             </p>
-            <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.25em] text-white/55">
-              <span className="rounded-full border border-white/25 px-3 py-1">Total series: {totalSeries}</span>
-              <span className="rounded-full border border-white/25 px-3 py-1">Completed: {completedCount}</span>
-              <span className="rounded-full border border-white/25 px-3 py-1">In progress: {inProgressCount}</span>
-              <span className="rounded-full border border-white/25 px-3 py-1">Planned: {plannedCount}</span>
+            <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/60">
+              <li>
+                <span className="text-white/75">Total series:</span> {totalSeries}
+              </li>
+              <li>
+                <span className="text-white/75">Completed:</span> {completedCount}
+              </li>
+              <li>
+                <span className="text-white/75">In progress:</span> {inProgressCount}
+              </li>
+              <li>
+                <span className="text-white/75">Planned:</span> {plannedCount}
+              </li>
               {averageRating ? (
-                <span className="rounded-full border border-white/25 px-3 py-1">Avg rating: {averageRating}</span>
+                <li>
+                  <span className="text-white/75">Average rating:</span> {averageRating}
+                </li>
               ) : null}
-            </div>
+            </ul>
           </div>
         </div>
       </section>
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
-            Latest reading activity
-          </h2>
-          <Link
-            href="/reading-list"
-            className="text-xs uppercase tracking-[0.3em] text-surface-subtle transition hover:text-white"
-          >
-            View full shelf
+        <header className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">Latest reading activity</h2>
+          <Link href="/reading-list" className="text-sm text-accent transition hover:text-white">
+            View reading list
           </Link>
-        </div>
+        </header>
         {latestUpdates.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="space-y-4">
             {latestUpdates.map((entry) => (
-              <article
+              <li
                 key={entry.id}
-                className="flex flex-col gap-3 rounded-3xl border border-white/15 bg-black/80 p-4 transition hover:border-white/40"
+                className="flex gap-4 border-b border-white/10 pb-4 last:border-0 last:pb-0"
               >
-                <div className="flex gap-3">
-                  <div className="relative h-28 w-20 overflow-hidden rounded-2xl border border-white/10 bg-white/10">
-                    {entry.coverImage ? (
-                      <Image
-                        src={entry.coverImage}
-                        alt={entry.title}
-                        fill
-                        sizes="(min-width: 1024px) 120px, 80px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/60">
-                        {entry.title.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <div>
-                      <h3 className="text-sm font-semibold text-white">{entry.title}</h3>
-                      {entry.altTitles.length ? (
-                        <p className="text-xs text-white/55">{entry.altTitles[0]}</p>
-                      ) : null}
+                <div className="relative h-20 w-14 overflow-hidden rounded-xl bg-white/5 sm:h-24 sm:w-16">
+                  {entry.coverImage ? (
+                    <Image
+                      src={entry.coverImage}
+                      alt={entry.title}
+                      fill
+                      sizes="(min-width: 768px) 96px, 64px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/50">
+                      {entry.title.charAt(0)}
                     </div>
-                    <div className="flex flex-wrap gap-2 text-[0.6rem] uppercase tracking-[0.2em] text-white/45">
-                      {entry.status ? <span>{entry.status}</span> : null}
-                      {entry.demographic ? <span>{entry.demographic}</span> : null}
-                      <span>Updated {formatUpdatedAt(entry.updatedAt)}</span>
-                    </div>
-                    {entry.progress ? (
-                      <p className="text-xs text-white/65">{entry.progress}</p>
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-semibold text-white">{entry.title}</h3>
+                    {entry.altTitles.length ? (
+                      <p className="text-xs text-white/55">{entry.altTitles[0]}</p>
                     ) : null}
                   </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-white/50">
+                    {entry.status ? <span>{entry.status}</span> : null}
+                    {entry.demographic ? <span>{entry.demographic}</span> : null}
+                    <span>Updated {formatUpdatedAt(entry.updatedAt)}</span>
+                  </div>
+                  {entry.progress ? (
+                    <p className="text-xs text-white/65">{entry.progress}</p>
+                  ) : null}
+                  {entry.notes ? (
+                    <p className="text-sm text-white/65 line-clamp-3">{entry.notes}</p>
+                  ) : null}
+                  <div className="flex items-center justify-between text-xs text-white/50">
+                    <span>
+                      {typeof entry.rating === "number"
+                        ? `Rated ${entry.rating.toFixed(1)}`
+                        : "Not rated yet"}
+                    </span>
+                    <a
+                      href={entry.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent transition hover:text-white"
+                    >
+                      Open on MangaDex
+                    </a>
+                  </div>
                 </div>
-                {entry.notes ? (
-                  <p className="text-sm text-white/70 line-clamp-3">{entry.notes}</p>
-                ) : null}
-                <div className="flex items-center justify-between text-xs text-white/50">
-                  <span>{entry.rating ? Rated  : "Not rated yet"}</span>
-                  <a
-                    href={entry.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-accent transition hover:text-white"
-                  >
-                    Open on MangaDex
-                  </a>
-                </div>
-              </article>
+              </li>
             ))}
-          </div>
+          </ul>
         ) : (
-          <div className="rounded-3xl border border-white/15 bg-black/70 p-6 text-center text-sm text-white/65">
-            You haven&apos;t added anything to your reading list yet. Browse the latest titles and start tracking your shelf.
-          </div>
+          <p className="rounded-lg border border-dashed border-white/15 px-4 py-6 text-sm text-white/60">
+            You have not logged any reading activity yet. Browse the latest titles and start tracking
+            your shelf.
+          </p>
         )}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-white/15 bg-black/80 p-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
-                Shelf by status
-              </h2>
-              <span className="text-xs uppercase tracking-[0.3em] text-white/50">
-                {totalSeries} total entries
-              </span>
-            </div>
-            <div className="mt-5 space-y-5">
-              {Object.entries(statusGroups)
-                .filter(([, items]) => items.length)
-                .map(([label, items]) => (
+      <section className="space-y-6 border-t border-white/10 pt-8">
+        <header className="space-y-1">
+          <h2 className="text-lg font-semibold text-white">Library overview</h2>
+          <p className="text-sm text-white/60">A snapshot of how your series are organised.</p>
+        </header>
+
+        {hasStatusData ? (
+          <div className="space-y-6">
+            {Object.entries(statusGroups)
+              .filter(([, items]) => items.length)
+              .map(([label, items]) => {
+                const visibleItems = items.slice(0, 5);
+                const remaining = items.length - visibleItems.length;
+
+                return (
                   <div key={label} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-white">{label}</h3>
-                      <span className="text-xs uppercase tracking-[0.3em] text-white/45">
-                        {items.length} {items.length === 1 ? "series" : "series"}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-white">{label}</span>
+                      <span className="text-white/50">
+                        {items.length} title{items.length === 1 ? "" : "s"}
                       </span>
                     </div>
-                    <div className="flex gap-3 overflow-x-auto pb-1">
-                      {items.map((item) => (
-                        <div
+                    <ul className="space-y-2">
+                      {visibleItems.map((item) => (
+                        <li
                           key={item.id}
-                          className="min-w-[220px] rounded-2xl border border-white/15 bg-white/5 p-3"
+                          className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm text-white/65"
                         >
-                          <p className="text-sm font-semibold text-white line-clamp-2">{item.title}</p>
+                          <span className="flex-1 truncate font-medium text-white">{item.title}</span>
                           {item.progress ? (
-                            <p className="mt-1 text-xs text-white/65">{item.progress}</p>
+                            <span className="text-white/45">{item.progress}</span>
                           ) : null}
-                          <div className="mt-2 flex flex-wrap gap-1 text-[0.6rem] uppercase tracking-[0.2em] text-white/45">
-                            {item.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded-full border border-white/15 px-2 py-0.5">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
+                    {remaining > 0 ? (
+                      <p className="text-xs text-white/40">+ {remaining} more in this list</p>
+                    ) : null}
                   </div>
-                ))}
-            </div>
+                );
+              })}
           </div>
+        ) : (
+          <p className="text-sm text-white/60">Start tracking series to see them grouped here.</p>
+        )}
 
-          <div className="rounded-3xl border border-white/15 bg-black/80 p-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
-                Tag focus
-              </h2>
-              <span className="text-xs uppercase tracking-[0.3em] text-white/50">
-                {topTags.length} tracked tags
-              </span>
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-white">Top tags</h3>
+          {topTags.length ? (
+            <div className="flex flex-wrap gap-2 text-sm text-white/70">
+              {topTags.map(([tag, count]) => (
+                <span key={tag} className="rounded-full border border-white/15 px-3 py-1">
+                  {tag}
+                  <span className="ml-2 text-white/40">{count}</span>
+                </span>
+              ))}
             </div>
-            {topTags.length ? (
-              <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-                {topTags.map(([tag, count]) => (
-                  <li
-                    key={tag}
-                    className="flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-4 py-3"
-                  >
-                    <span className="text-sm font-semibold text-white">{tag}</span>
-                    <span className="text-xs uppercase tracking-[0.25em] text-white/60">{count}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-4 text-sm text-white/65">
-                Tags will start appearing once you add series to your reading list.
-              </p>
-            )}
-          </div>
+          ) : (
+            <p className="text-sm text-white/60">
+              Tags will appear once you add a few more series to your list.
+            </p>
+          )}
         </div>
+      </section>
 
-        <aside className="space-y-6">
-          <div className="rounded-3xl border border-white/15 bg-black/80 p-6">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
-              Quick actions
-            </h2>
-            <div className="mt-5 space-y-3">
-              <Link
-                href="/settings"
-                className="block rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/40"
-              >
-                Edit profile & preferences
+      <section className="space-y-6 border-t border-white/10 pt-8">
+        <header className="space-y-1">
+          <h2 className="text-lg font-semibold text-white">Quick links and summary</h2>
+          <p className="text-sm text-white/60">Keep things tidy with a few shortcuts.</p>
+        </header>
+        <div className="grid gap-8 md:grid-cols-2">
+          <ul className="space-y-2 text-sm text-white">
+            <li>
+              <Link href="/settings" className="text-accent transition hover:text-white">
+                Edit profile and preferences
               </Link>
-              <Link
-                href="/reading-list"
-                className="block rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/40"
-              >
+            </li>
+            <li>
+              <Link href="/reading-list" className="text-accent transition hover:text-white">
                 Manage reading list
               </Link>
+            </li>
+            <li>
               <a
                 href="https://mangadex.org/"
                 target="_blank"
                 rel="noreferrer"
-                className="block rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/40"
+                className="text-accent transition hover:text-white"
               >
                 Discover new titles
               </a>
+            </li>
+          </ul>
+          <dl className="space-y-3 text-sm text-white/70">
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/50">Last update</dt>
+              <dd className="text-white">{lastUpdatedDisplay}</dd>
             </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/15 bg-black/80 p-6">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
-              Activity summary
-            </h2>
-            <ul className="mt-5 space-y-3 text-sm text-white/70">
-              <li className="flex items-center justify-between">
-                <span>Last update</span>
-                <span className="text-white">
-                  {readingList.length ? formatUpdatedAt(readingList[0].updatedAt) : "—"}
-                </span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span>Most recent rating</span>
-                <span className="text-white">
-                  {readingList.find((entry) => typeof entry.rating === "number")?.rating?.toFixed(1) ?? "—"}
-                </span>
-              </li>
-              <li className="flex items-center justify-between">
-                <span>Tracked languages</span>
-                <span className="text-white">
-                  {readingList
-                    .reduce<string[]>((languages, entry) => {
-                      for (const language of entry.languages) {
-                        if (!languages.includes(language)) languages.push(language);
-                      }
-                      return languages;
-                    }, [])
-                    .join(", ") || "—"}
-                </span>
-              </li>
-            </ul>
-          </div>
-        </aside>
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/50">Most recent rating</dt>
+              <dd className="text-white">
+                {typeof mostRecentRating === "number" ? mostRecentRating.toFixed(1) : "-"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-white/50">Tracked languages</dt>
+              <dd className="text-white">{languagesLabel}</dd>
+            </div>
+          </dl>
+        </div>
       </section>
     </main>
   );

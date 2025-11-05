@@ -50,6 +50,7 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [actionStates, setActionStates] = useState<ReadingListActionStates>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
 
   const queryTooShort = useMemo(
     () => query.trim().length > 0 && query.trim().length < MIN_QUERY_LENGTH,
@@ -58,13 +59,23 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
 
   useEffect(() => {
     const handleClickAway = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        event.target instanceof Node &&
-        !containerRef.current.contains(event.target)
-      ) {
-        setIsFocused(false);
+      if (!(event.target instanceof Node)) {
+        return;
       }
+
+      const container = containerRef.current;
+      const overlayNode = overlayRef.current;
+
+      if (
+        (container &&
+          (container === event.target || container.contains(event.target))) ||
+        (overlayNode &&
+          (overlayNode === event.target || overlayNode.contains(event.target)))
+      ) {
+        return;
+      }
+
+      setIsFocused(false);
     };
 
     window.addEventListener("mousedown", handleClickAway);
@@ -261,6 +272,7 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
     isMounted && showOverlay && overlayPosition
       ? createPortal(
           <div
+            ref={overlayRef}
             className="fixed z-[200] max-h-[70vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/95 p-3 sm:rounded-3xl sm:p-4"
             style={{
               width: overlayPosition.width,
