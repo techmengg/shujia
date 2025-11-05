@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const existingCookie = cookieStore.get(SESSION_COOKIE_NAME);
 
     if (existingCookie?.value) {
