@@ -1,11 +1,8 @@
 
-<div align="center">
-  <img src="public/shujia.png" alt="Shujia logo" width="96" height="96" />
   <h1>Shujia</h1>
   <p>
-    A modern reader and tracker for manga, manhwa, and manhua powered by the MangaDex ecosystem.
+    A tracker for manga, manhwa, and manhua powered by a bunch of API's.
   </p>
-</div>
 
 ---
 
