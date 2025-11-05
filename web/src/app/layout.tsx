@@ -5,6 +5,8 @@ import "./globals.css";
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
 import { SiteHeader } from "@/components/layout/site-header";
 
+import { Analytics } from "@vercel/analytics/next"
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -53,7 +55,10 @@ export default function RootLayout({
         </div>
 
         <div className="flex flex-1 flex-col">{children}</div>
+
+        <Analytics />
       </body>
     </html>
   );
 }
+
