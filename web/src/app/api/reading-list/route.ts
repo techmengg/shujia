@@ -12,7 +12,7 @@ const addToReadingListSchema = z
     mangaId: z.string().min(1, "Manga identifier is required."),
     progress: z.string().optional(),
     rating: z
-      .number({ invalid_type_error: "Rating must be a number." })
+      .number()
       .min(0, "Rating cannot be negative.")
       .max(10, "Rating cannot exceed 10.")
       .optional(),
