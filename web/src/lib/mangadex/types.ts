@@ -93,6 +93,12 @@ export interface MangaContributor {
   role: "author" | "artist";
 }
 
+export interface MangaScanlationGroup {
+  
+  id: string;
+  
+  name: string;
+}
 export interface MangaStatistics {
   follows?: number;
   rating?: {
@@ -106,6 +112,7 @@ export interface MangaDetails extends MangaSummary {
   lastChapter?: string;
   lastVolume?: string;
   contributors: MangaContributor[];
+  scanlationGroups?: MangaScanlationGroup[];
   statistics?: MangaStatistics;
   tagsDetailed: string[];
   availableLanguages: string[];

@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { COVER_ART_BASE_URL, MangaDexAPIError, mangadexFetch } from "./client";
 import type {
   MangaDexCollectionResponse,
@@ -10,6 +11,30 @@ import type {
 } from "./types";
 
 const DEFAULT_LIMIT = 12;
+
+function normalizeText(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  try {
+    if (/[ÃÂ]/.test(trimmed)) {
+      const decoded = Buffer.from(trimmed, "latin1").toString("utf8").trim();
+      if (decoded) {
+        return decoded;
+      }
+    }
+  } catch {
+    // ignore decoding failures
+  }
+
+  return trimmed;
+}
 
 function getPreferredLocaleText(
   textRecord: Record<string, string>,
@@ -261,7 +286,7 @@ function createMangaDetails(
 
       const name =
         attributesObj && typeof attributesObj.name === "string"
-          ? (attributesObj.name as string)
+          ? normalizeText(attributesObj.name as string) ?? "Unknown"
           : "Unknown";
 
       const role =
@@ -282,6 +307,32 @@ function createMangaDetails(
     }
   }
 
+  const scanlationGroupsRaw = relationships
+    .filter((relationship) => relationship.type === "scanlation_group")
+    .map((relationship) => {
+      const attributesObj =
+        relationship.attributes && typeof relationship.attributes === "object"
+          ? (relationship.attributes as Record<string, unknown>)
+          : null;
+
+      const name =
+        attributesObj && typeof attributesObj.name === "string"
+          ? normalizeText(attributesObj.name as string) ?? "Unknown"
+          : "Unknown";
+
+      return {
+        id: relationship.id,
+        name,
+      };
+    });
+
+  const uniqueScanlationGroups = new Map<string, { id: string; name: string }>();
+  for (const group of scanlationGroupsRaw) {
+    if (!uniqueScanlationGroups.has(group.id)) {
+      uniqueScanlationGroups.set(group.id, group);
+    }
+  }
+
   const tagsDetailed = attributes.tags
     .map((tag) => getPreferredLocaleText(tag.attributes.name))
     .filter((value): value is string => Boolean(value));
@@ -292,6 +343,7 @@ function createMangaDetails(
     lastChapter: attributes.lastChapter ?? undefined,
     lastVolume: attributes.lastVolume ?? undefined,
     contributors: Array.from(uniqueContributors.values()),
+    scanlationGroups: Array.from(uniqueScanlationGroups.values()),
     statistics: statistics ?? undefined,
     tagsDetailed,
     availableLanguages: attributes.availableTranslatedLanguages ?? [],
@@ -309,7 +361,7 @@ export async function getMangaDetails(
     const [detailResponse, statistics] = await Promise.all([
       mangadexFetch<{ data: MangaDexManga }>(`/manga/${mangaId}`, {
         searchParams: {
-          "includes[]": ["cover_art", "author", "artist"],
+          "includes[]": ["cover_art", "author", "artist", "scanlation_group"],
         },
         cache: "no-store",
       }),

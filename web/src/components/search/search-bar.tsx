@@ -349,13 +349,15 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
                                 </div>
                               )}
                             </div>
-                            <div className="flex flex-1 flex-col overflow-hidden text-left">
+                            <div className="flex min-w-0 flex-1 flex-col overflow-hidden text-left">
                               <p className="truncate text-sm font-semibold text-white">
                                 {manga.title}
                               </p>
                               {manga.altTitles.length > 0 ? (
-                                <p className="truncate text-xs text-surface-subtle/80">
-                                  {manga.altTitles.join(" / ")}
+                                <p className="text-xs text-surface-subtle/80">
+                                  <span className="line-clamp-2 break-words sm:line-clamp-1">
+                                    {manga.altTitles.join(" / ")}
+                                  </span>
                                 </p>
                               ) : null}
                               <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.65rem] uppercase text-surface-subtle">

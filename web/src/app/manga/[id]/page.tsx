@@ -61,6 +61,10 @@ function buildCreatorUrl(id: string, role: "author" | "artist"): string {
   return `https://mangadex.org/${base}/${id}`;
 }
 
+function buildScanlationGroupUrl(id: string): string {
+  return `https://mangadex.org/group/${id}`;
+}
+
 export async function generateMetadata({
   params,
 }: MangaPageProps): Promise<Metadata> {
@@ -119,6 +123,12 @@ export default async function MangaPage({ params }: MangaPageProps) {
             mangaId,
           },
         },
+        select: {
+          id: true,
+          progress: true,
+          rating: true,
+          notes: true,
+        },
       })
     : null;
 
@@ -143,33 +153,34 @@ export default async function MangaPage({ params }: MangaPageProps) {
     : baseUrlEnv;
   const shareUrl = `${baseUrl}/manga/${mangaId}`;
 
+  const originalLanguageLabel = manga.originalLanguage
+    ? mapLanguages([manga.originalLanguage])[0]
+    : FALLBACK_TEXT;
+
+  const languageNames = manga.availableLanguages.length
+    ? mapLanguages(manga.availableLanguages).join(", ")
+    : FALLBACK_TEXT;
+
+  const scanlationGroups = manga.scanlationGroups ?? [];
+
   const infoRows: Array<{ label: string; value: string }> = [
+    { label: "Original language", value: originalLanguageLabel },
     { label: "Series status", value: formatNullable(manga.status) },
     { label: "Demographic", value: formatNullable(manga.demographic) },
     { label: "Content rating", value: formatNullable(manga.contentRating) },
     { label: "Publication year", value: formatNullable(manga.year) },
-    {
-      label: "Latest chapter",
-      value: formatNullable(manga.latestChapter ?? manga.lastChapter),
-    },
-    { label: "Last volume", value: formatNullable(manga.lastVolume) },
     { label: "Followers", value: formatNullable(follows) },
     { label: "Avg rating", value: formatRating(ratingAverage) },
     { label: "Bayesian rating", value: formatRating(ratingBayesian) },
+    { label: "Translations", value: languageNames },
   ];
 
   return (
-    <div className="relative min-h-screen bg-surface text-surface-foreground">
-      <div className="pointer-events-none absolute inset-x-0 top-[-20rem] z-0 h-[40rem] bg-gradient-to-b from-accent/25 via-transparent to-transparent blur-[150px]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-72 bg-gradient-to-t from-black/70 via-surface/40 to-transparent" />
-
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-16 pt-10 sm:px-6 lg:px-10">
-
-
-        <section className="grid gap-8 lg:grid-cols-[minmax(240px,280px)_1fr]">
-          <div className="space-y-6">
-            <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/[0.04] shadow-[0_20px_45px_rgba(8,11,24,0.5)]">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
+    <div className="min-h-screen bg-surface text-surface-foreground">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:px-10">
+        <section className="grid gap-12 lg:grid-cols-[minmax(240px,280px)_1fr]">
+          <div className="space-y-8 min-w-0 text-center lg:text-left">
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
               {manga.coverImage ? (
                 <Image
                   src={manga.coverImage}
@@ -184,7 +195,7 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   {manga.title.charAt(0).toUpperCase()}
                 </div>
               )}
-              <div className="absolute left-4 top-4 rounded-full border border-white/20 bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+              <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white">
                 {formatRating(ratingAverage)} rating
               </div>
             </div>
@@ -193,21 +204,28 @@ export default async function MangaPage({ params }: MangaPageProps) {
               mangaId={manga.id}
               isAuthenticated={Boolean(user)}
               initiallyAdded={Boolean(existingEntry)}
+              initialEntry={
+                existingEntry
+                  ? {
+                      progress: existingEntry.progress,
+                      rating: existingEntry.rating,
+                      notes: existingEntry.notes,
+                    }
+                  : null
+              }
               className="w-full"
             />
 
             <MangaActionBar mangaUrl={manga.url} shareUrl={shareUrl} />
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+            <section className="space-y-4 border-t border-white/10 pt-6">
               <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-white/65">
                 Creators
               </h2>
-              <div className="mt-3 space-y-4 text-sm text-white/75">
+              <div className="grid gap-4 text-sm text-white/75">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-white/45">
-                    Authors
-                  </p>
-                  <div className="mt-2 space-y-1">
+                  <p className="text-xs uppercase tracking-[0.28em] text-white/45">Authors</p>
+                  <div className="mt-1 flex flex-col gap-1">
                     {authors.length ? (
                       authors.map((author) => (
                         <a
@@ -215,10 +233,10 @@ export default async function MangaPage({ params }: MangaPageProps) {
                           href={buildCreatorUrl(author.id, "author")}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center gap-1 text-sm text-accent transition hover:text-white"
+                          className="inline-flex items-center gap-1 text-sm text-accent transition hover:text-white"
                         >
                           {author.name}
-                          <span aria-hidden="true">-&gt;</span>
+                          <span aria-hidden="true">&rarr;</span>
                         </a>
                       ))
                     ) : (
@@ -227,10 +245,8 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-white/45">
-                    Artists
-                  </p>
-                  <div className="mt-2 space-y-1">
+                  <p className="text-xs uppercase tracking-[0.28em] text-white/45">Artists</p>
+                  <div className="mt-1 flex flex-col gap-1">
                     {artists.length ? (
                       artists.map((artist) => (
                         <a
@@ -238,10 +254,10 @@ export default async function MangaPage({ params }: MangaPageProps) {
                           href={buildCreatorUrl(artist.id, "artist")}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex items-center gap-1 text-sm text-accent transition hover:text-white"
+                          className="inline-flex items-center gap-1 text-sm text-accent transition hover:text-white"
                         >
                           {artist.name}
-                          <span aria-hidden="true">-&gt;</span>
+                          <span aria-hidden="true">&rarr;</span>
                         </a>
                       ))
                     ) : (
@@ -250,48 +266,24 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-white/65">
-                Quick links
-              </h2>
-              <div className="mt-4 space-y-3 text-sm">
-                <a
-                  href={manga.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-2xl border border-white/15 bg-white/5 px-4 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/40"
-                >
-                  Read on MangaDex
-                </a>
-                <a
-                  href={`https://mangadex.org/title/${manga.id}/chapters`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-2xl border border-white/15 bg-white/5 px-4 py-3 font-semibold text-white transition hover:-translate-y-0.5 hover:border-white/40"
-                >
-                  View chapter feed
-                </a>
-              </div>
-            </div>
+            </section>
           </div>
 
-          <div className="space-y-6">
-            <div className="space-y-4">
+          <div className="space-y-8 min-w-0">
+            <header className="space-y-4 min-w-0 text-center lg:text-left">
               <div className="flex flex-wrap gap-2 text-xs uppercase tracking-[0.28em] text-white/60">
                 {manga.demographic ? (
-                  <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1">
+                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
                     {manga.demographic}
                   </span>
                 ) : null}
                 {manga.status ? (
-                  <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1">
+                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
                     {manga.status}
                   </span>
                 ) : null}
                 {manga.contentRating ? (
-                  <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1">
+                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1">
                     {manga.contentRating}
                   </span>
                 ) : null}
@@ -302,105 +294,80 @@ export default async function MangaPage({ params }: MangaPageProps) {
               </h1>
 
               {altTitles.length ? (
-                <p className="text-sm text-white/65">
-                  Also known as {altTitles.join(" / ")}
+                <p className="text-sm text-white/65 break-words">Also known as {altTitles.join(" / ")}</p>
+              ) : null}
+            </header>
+
+            {manga.descriptionFull ? (
+              <section className="space-y-2 border-t border-white/10 pt-6">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-white/65">
+                  Synopsis
+                </h2>
+                <p className="whitespace-pre-line break-words text-sm text-white/80">
+                  {manga.descriptionFull}
                 </p>
-              ) : null}
-
-              {manga.descriptionFull ? (
-                <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-[0.28em] text-white/50">
-                    Synopsis
-                  </p>
-                  <p className="whitespace-pre-line text-sm text-white/80">
-                    {manga.descriptionFull}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {infoRows.map((row) => (
-                <div
-                  key={row.label}
-                  className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3"
-                >
-                  <p className="text-[0.6rem] uppercase tracking-[0.28em] text-white/45">
-                    {row.label}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-white">
-                    {row.value}
-                  </p>
-                </div>
-              ))}
-            </div>
+              </section>
+            ) : null}
 
             {tags.length ? (
-              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+              <section className="space-y-3 border-t border-white/10 pt-6">
                 <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-white/65">
                   Tags
                 </h2>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2">
                   {tags.map((tag) => (
                     <a
                       key={tag}
                       href={`https://mangadex.org/titles?title=${encodeURIComponent(tag)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/40 hover:text-white"
+                      className="inline-flex items-center rounded-full border border-white/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/40 hover:text-white"
                     >
                       {tag}
                     </a>
                   ))}
                 </div>
-              </div>
+              </section>
             ) : null}
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+            <section className="space-y-3 border-t border-white/10 pt-6">
               <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-white/65">
-                Series details
+                Key facts
               </h2>
-              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <dt className="text-[0.6rem] uppercase tracking-[0.28em] text-white/45">
-                    Original language
-                  </dt>
-                  <dd className="mt-1 text-sm text-white/80">
-                    {formatNullable(
-                      manga.originalLanguage
-                        ? mapLanguages([manga.originalLanguage])[0]
-                        : null,
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[0.6rem] uppercase tracking-[0.28em] text-white/45">
-                    Publication year
-                  </dt>
-                  <dd className="mt-1 text-sm text-white/80">
-                    {formatNullable(manga.year)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[0.6rem] uppercase tracking-[0.28em] text-white/45">
-                    Latest chapter
-                  </dt>
-                  <dd className="mt-1 text-sm text-white/80">
-                    {formatNullable(manga.latestChapter ?? manga.lastChapter)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[0.6rem] uppercase tracking-[0.28em] text-white/45">
-                    Content rating
-                  </dt>
-                  <dd className="mt-1 text-sm text-white/80">
-                    {formatNullable(manga.contentRating)}
-                  </dd>
-                </div>
+              <dl className="grid gap-y-3 sm:grid-cols-2">
+                {infoRows.map((row) => (
+                  <div key={row.label} className="space-y-1">
+                    <dt className="text-[0.65rem] uppercase tracking-[0.28em] text-white/45">
+                      {row.label}
+                    </dt>
+                    <dd className="text-sm text-white break-words">{row.value}</dd>
+                  </div>
+                ))}
               </dl>
-            </div>
-          </div>
+            </section>
 
+            {scanlationGroups.length ? (
+              <section className="space-y-3 border-t border-white/10 pt-6">
+                <h2 className="text-xs font-semibold uppercase tracking-[0.3em] text-white/65">
+                  Scanlation groups
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {scanlationGroups.map((group) => (
+                    <a
+                      key={group.id}
+                      href={buildScanlationGroupUrl(group.id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/40 hover:text-white"
+                    >
+                      {group.name}
+                      <span aria-hidden="true">&rarr;</span>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </div>
         </section>
       </main>
     </div>

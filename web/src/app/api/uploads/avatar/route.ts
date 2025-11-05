@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/session";
@@ -42,6 +43,35 @@ export async function POST(request: Request) {
 
   const extension = ALLOWED_TYPES.get(file.type) ?? "png";
   const fileName = `${user.id}-${randomUUID()}.${extension}`;
+  const blobPath = `avatars/${user.id}/${fileName}`;
+
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+
+  if (blobToken) {
+    try {
+      const blob = await put(blobPath, file, {
+        access: "public",
+        contentType: file.type,
+        token: blobToken,
+      });
+
+      return NextResponse.json({ url: blob.url });
+    } catch (error) {
+      console.error("Avatar upload to Vercel Blob failed", error);
+      return NextResponse.json(
+        { message: "Unable to upload avatar right now. Please try again later." },
+        { status: 500 },
+      );
+    }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { message: "Avatar storage is not configured for this environment." },
+      { status: 500 },
+    );
+  }
+
   const uploadDir = path.join(process.cwd(), "public", "uploads", "avatars");
   const filePath = path.join(uploadDir, fileName);
 

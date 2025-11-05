@@ -112,7 +112,9 @@ Update `DATABASE_URL`, `APP_BASE_URL`, and SMTP details if you need email flows.
 | -------------------------------- | --------------------------------------------------------------------------- | -------- | ---------------------------------- |
 | `NEXT_PUBLIC_MANGADEX_API_BASE`  | Base URL for MangaDex API requests                                         | ✔        | `https://api.mangadex.org`         |
 | `NEXT_PUBLIC_COMICK_API_BASE`    | Base URL for Comick API (future integrations)                              | ✔        | `https://api.comick.io/v1.0`       |
+| `NEXT_PUBLIC_BLOB_BASE_URL`      | Public Vercel Blob URL (e.g. `https://...public.blob.vercel-storage.com`)  | ✔        | —                                  |
 | `DATABASE_URL`                   | PostgreSQL connection string                                                | ✔        | —                                  |
+| `BLOB_READ_WRITE_TOKEN`          | Server-side token with read/write access to your Blob store                | ✔        | —                                  |
 | `APP_BASE_URL`                   | Public URL of the application (used in metadata, sharing, redirects)       | ✔        | `http://localhost:3000`           |
 | `CSRF_ALLOWED_ORIGINS`           | Comma-separated whitelist for CSRF validation (optional)                   |          | empty                              |
 | `EMAIL_FROM`                     | Default "from" email address                                                |          | empty                              |
@@ -191,7 +193,7 @@ Automated tests are not yet implemented; see the Roadmap for planned additions.
    npx prisma migrate deploy && npx prisma generate && next build
    ```
 
-4. **Static Files & Uploads**: Avatar uploads currently write to `public/uploads/avatars`. For production, configure an object storage provider (S3, R2, etc.) and swap the upload handler to persist externally. The Vercel file system is ephemeral across deployments.
+4. **Static Files & Uploads**: Avatars are stored in [Vercel Blob](https://vercel.com/docs/storage/vercel-blob). Provide `BLOB_READ_WRITE_TOKEN` (server) and `NEXT_PUBLIC_BLOB_BASE_URL` (client) so uploads work in production. Local development falls back to the writable `/public/uploads/avatars` directory.
 5. **Deploy**: Connect the repository to Vercel, trigger a deployment, and verify all routes.
 
 ### Alternative Hosting
