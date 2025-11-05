@@ -26,7 +26,8 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const cookie = cookies().get(SESSION_COOKIE_NAME);
+  const cookieStore = await cookies();
+  const cookie = cookieStore.get(SESSION_COOKIE_NAME);
   const currentTokenHash = cookie?.value ? hashToken(cookie.value) : null;
 
   try {
