@@ -1,150 +1,220 @@
 import { SiteHeader } from "@/components/layout/site-header";
 import { MangaCarousel } from "@/components/manga/manga-carousel";
-import { MangaGrid } from "@/components/manga/manga-grid";
-import { SearchBar } from "@/components/search/search-bar";
+import { RecentlyUpdatedSection } from "@/components/manga/recently-updated-section";
+import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
 import {
+  getDemographicHighlights,
   getRecentlyUpdatedManga,
   getTrendingByOriginalLanguage,
 } from "@/lib/mangadex/service";
+import type { MangaSummary } from "@/lib/mangadex/types";
+import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
 
 export default async function Home() {
-  const [trendingManga, trendingManhwa, trendingManhua, recentUpdates] =
-    await Promise.all([
-      getTrendingByOriginalLanguage("ja", 12),
-      getTrendingByOriginalLanguage("ko", 12),
-      getTrendingByOriginalLanguage("zh", 12),
-      getRecentlyUpdatedManga(60),
-    ]);
+  const userPromise = getCurrentUser();
+
+  const trendsPromise = Promise.all([
+    getTrendingByOriginalLanguage("ja", 16),
+    getTrendingByOriginalLanguage("ko", 16),
+    getTrendingByOriginalLanguage("zh", 16),
+    getDemographicHighlights("shounen", 14),
+    getDemographicHighlights("seinen", 14),
+    getDemographicHighlights("shoujo", 14),
+    getDemographicHighlights("josei", 14),
+    getRecentlyUpdatedManga(49),
+  ]);
+
+  const [
+    trendingManga,
+    trendingManhwa,
+    trendingManhua,
+    shounenHighlights,
+    seinenHighlights,
+    shoujoHighlights,
+    joseiHighlights,
+    recentUpdates,
+  ] = await trendsPromise;
+
+  const user = await userPromise;
+
+  const readingListEntries = user
+    ? await prisma.readingListEntry.findMany({
+        where: { userId: user.id },
+        orderBy: { updatedAt: "desc" },
+        take: 16,
+      })
+    : [];
+
+  const followedSummaries: MangaSummary[] = readingListEntries.map((entry) => ({
+    id: entry.mangaId,
+    title: entry.title,
+    altTitles: entry.altTitles,
+    description: entry.description ?? undefined,
+    status: entry.status ?? undefined,
+    year: entry.year ?? undefined,
+    contentRating: entry.contentRating ?? undefined,
+    demographic: entry.demographic ?? undefined,
+    latestChapter: entry.latestChapter ?? undefined,
+    languages: entry.languages,
+    tags: entry.tags,
+    coverImage: entry.coverImage ?? undefined,
+    url: entry.url,
+  }));
+
+  const placeholderFollowedSummaries: MangaSummary[] = Array.from(
+    { length: 8 },
+    (_, index) => ({
+      id: `placeholder-${index}`,
+      title: "Hidden series",
+      altTitles: [],
+      description: undefined,
+      status: undefined,
+      year: undefined,
+      contentRating: undefined,
+      demographic: undefined,
+      latestChapter: undefined,
+      languages: [],
+      tags: [],
+      coverImage: undefined,
+      url: "#",
+    }),
+  );
+
+  const followedItems = user ? followedSummaries : placeholderFollowedSummaries;
+
+  const languageTabs = [
+    {
+      id: "kr",
+      label: "Manhwa (KR)",
+      items: trendingManhwa,
+    },
+    {
+      id: "jp",
+      label: "Manga (JP)",
+      items: trendingManga,
+    },
+    {
+      id: "cn",
+      label: "Manhua (CN)",
+      items: trendingManhua,
+    },
+  ].filter((tab) => tab.items.length > 0);
+
+  const demographicTabs = [
+    {
+      id: "shounen",
+      label: "Shounen",
+      items: shounenHighlights,
+    },
+    {
+      id: "seinen",
+      label: "Seinen",
+      items: seinenHighlights,
+    },
+    {
+      id: "shoujo",
+      label: "Shoujo",
+      items: shoujoHighlights,
+    },
+    {
+      id: "josei",
+      label: "Josei",
+      items: joseiHighlights,
+    },
+  ].filter((tab) => tab.items.length > 0);
 
   return (
     <div className="relative min-h-screen bg-surface text-surface-foreground">
-      <div className="pointer-events-none absolute inset-x-0 top-[-16rem] z-0 h-[32rem] bg-gradient-to-b from-accent/25 via-transparent to-transparent blur-[140px]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-72 bg-gradient-to-t from-black/70 via-surface/40 to-transparent" />
-
       <SiteHeader />
 
-      <main className="relative z-10 mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 lg:px-10 lg:py-8 xl:px-12">
-        <section className="rounded-3xl border border-white/6 bg-black/35 p-3 shadow-[0_0_25px_rgba(99,102,241,0.15)] sm:p-3.5 lg:p-4">
-          <div className="flex flex-col items-center gap-2 text-center sm:gap-3 md:flex-row md:items-center md:gap-5 md:text-left">
-            <div className="flex w-full flex-1">
-              <SearchBar />
-            </div>
-            <div className="flex max-w-md flex-col gap-1.5 md:max-w-sm">
-              <p className="text-xs uppercase tracking-[0.35em] text-accent">
-                Pro tip
-              </p>
-              <p className="text-[0.68rem] text-surface-subtle sm:text-xs">
-                Use the quick search panel to jump straight to any title on MangaDex.
-              </p>
-              <div className="flex flex-wrap justify-center gap-2 text-[0.6rem] text-surface-subtle sm:justify-start sm:text-[0.65rem]">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 sm:px-2.5 sm:py-1">
-                  Slash shortcut
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 sm:px-2.5 sm:py-1">
-                  Smart suggestions
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
-          {[
-            {
-              id: "manhwa",
-              overline: "Trending manhwa",
-              title: "Korean webtoons gaining momentum",
-              description:
-                "Action-packed and romance-driven manhwa that readers can't put down.",
-              items: trendingManhwa,
-            },
-            {
-              id: "manga",
-              overline: "Trending manga",
-              title: "Japanese releases heating up",
-              description:
-                "Serialized manga pulling the highest follow counts this hour.",
-              items: trendingManga,
-            },
-            {
-              id: "manhua",
-              overline: "Trending manhua",
-              title: "Chinese series worth bookmarking",
-              description:
-                "Cultivation epics and modern dramas thriving on MangaDex.",
-              items: trendingManhua,
-            },
-          ].map((section) => (
-            <div key={section.id} className="space-y-2.5 sm:space-y-3">
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.45em] text-accent">
-                    {section.overline}
-                  </p>
-                  <h2 className="mt-1 text-lg font-semibold text-white sm:text-xl">
-                    {section.title}
-                  </h2>
-                  <p className="mt-1 text-[0.7rem] text-surface-subtle sm:text-xs">
-                    {section.description}
-                  </p>
-                </div>
-                <a
-                  href="https://mangadex.org/titles"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-accent transition hover:text-white"
-                >
-                  Browse all titles
-                  <span aria-hidden>{"->"}</span>
-                </a>
-              </div>
+      <main className="relative z-10 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10 xl:px-12">
+        <h1 className="sr-only">Shujia</h1>
 
+        <section className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+              Latest Updates from Your Followed List
+            </h2>
+            <a
+              href="/reading-list"
+              className="text-xs uppercase tracking-[0.3em] text-surface-subtle transition hover:text-white"
+            >
+              View list
+            </a>
+          </div>
+          <div className="relative">
+            <div
+              className={[
+                !user
+                  ? "pointer-events-none select-none blur-sm brightness-[0.65]"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
               <MangaCarousel
-                items={section.items}
+                items={followedItems}
                 emptyState={
-                  <p className="rounded-2xl border border-white/5 bg-black/20 p-6 text-sm text-surface-subtle">
-                    We could not load trending series from MangaDex right now.
-                    Check your network connection and try again later.
+                  <p className="rounded-2xl border border-white/15 bg-black/80 px-4 py-6 text-center text-sm text-surface-subtle">
+                    Follow series to see updates here.
                   </p>
                 }
               />
             </div>
-          ))}
+            {!user ? (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="rounded-2xl border border-white/20 bg-black/75 px-5 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+                  Log in to view
+                </div>
+              </div>
+            ) : null}
+          </div>
         </section>
 
-        <section className="mt-10 space-y-5 sm:mt-12 sm:space-y-6">
-          <div className="flex flex-wrap items-end justify-between gap-2 sm:gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.45em] text-accent">
-                Recently updated
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-white sm:text-2xl">
-                Fresh chapters you might have missed
-              </h2>
-              <p className="mt-1 text-[0.75rem] text-surface-subtle sm:text-sm">
-                The latest 60 series with new chapters from MangaDex across all
-                regions.
-              </p>
-            </div>
-            <a
-              href="https://mangadex.org/chapters"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-accent transition hover:text-white"
-            >
-              View chapter feed
-              <span aria-hidden>{"->"}</span>
-            </a>
-          </div>
+        {languageTabs.length ? (
+          <section className="mt-10 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+              Regions
+            </h2>
+            <TabbedCarousel tabs={languageTabs} />
+          </section>
+        ) : null}
 
-          <MangaGrid
-            items={recentUpdates}
-            emptyState={
-              <p className="rounded-2xl border border-white/5 bg-black/20 p-6 text-sm text-surface-subtle">
-                We could not load recent updates from MangaDex right now. Try
-                refreshing in a few moments.
-              </p>
-            }
-          />
+        {demographicTabs.length ? (
+          <section className="mt-10 space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+              Demographic
+            </h2>
+            <TabbedCarousel tabs={demographicTabs} />
+          </section>
+        ) : null}
+
+        <section className="mt-10 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+              Latest
+            </h2>
+            <div className="flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-surface-subtle">
+              <a
+                href="https://mangadex.org/chapters"
+                target="_blank"
+                rel="noreferrer"
+                className="transition hover:text-white"
+              >
+                Chapters
+              </a>
+              <a
+                href="https://mangadex.org/updates"
+                target="_blank"
+                rel="noreferrer"
+                className="transition hover:text-white"
+              >
+                Calendar
+              </a>
+            </div>
+          </div>
+          <RecentlyUpdatedSection initialItems={recentUpdates} pageSize={49} />
         </section>
       </main>
     </div>

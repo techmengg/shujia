@@ -81,7 +81,47 @@ export interface MangaSummary {
   demographic?: string;
   latestChapter?: string;
   languages: string[];
+  originalLanguage?: string;
   tags: string[];
   coverImage?: string;
   url: string;
+}
+
+export interface MangaContributor {
+  id: string;
+  name: string;
+  role: "author" | "artist";
+}
+
+export interface MangaStatistics {
+  follows?: number;
+  rating?: {
+    average?: number;
+    bayesian?: number;
+  };
+}
+
+export interface MangaDetails extends MangaSummary {
+  descriptionFull?: string;
+  lastChapter?: string;
+  lastVolume?: string;
+  contributors: MangaContributor[];
+  statistics?: MangaStatistics;
+  tagsDetailed: string[];
+  availableLanguages: string[];
+}
+
+export interface MangaDexStatisticsEntry {
+  rating?: {
+    average?: number;
+    bayesian?: number;
+    distribution?: Record<string, number>;
+  };
+  follows?: number;
+  comments?: number;
+}
+
+export interface MangaDexStatisticsResponse {
+  result: "ok";
+  statistics: Record<string, MangaDexStatisticsEntry>;
 }

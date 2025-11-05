@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String                @id @default(cuid())
+  email     String                @unique
+  name      String?
+  avatarUrl String?
+  bio       String?
+  timezone  String                @default("UTC")
+  marketingEmails   Boolean       @default(true)
+  productUpdates    Boolean       @default(true)
+  weeklyDigestEmails Boolean      @default(true)
+  password  String
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  sessions  Session[]
+  passwordResetTokens PasswordResetToken[]
+  readingListEntries ReadingListEntry[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+}
+
+model AuthAttempt {
+  id        String            @id @default(cuid())
+  type      AuthAttemptType
+  scope     AuthThrottleScope
+  hash      String
+  createdAt DateTime          @default(now())
+
+  @@index([type, scope, hash, createdAt])
+}
+
+enum AuthAttemptType {
+  LOGIN
+  REGISTER
+  FORGOT_PASSWORD
+  RESET_PASSWORD
+}
+
+enum AuthThrottleScope {
+  IP
+  IDENTIFIER
+}
+
+model ReadingListEntry {
+  id            String   @id @default(cuid())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  mangaId       String
+  title         String
+  altTitles     String[]
+  description   String?
+  status        String?
+  year          Int?
+  contentRating String?
+  demographic   String?
+  latestChapter String?
+  languages     String[]
+  tags          String[]
+  coverImage    String?
+  url           String
+  progress      String?
+  rating        Float?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, mangaId])
+}

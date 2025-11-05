@@ -1,8 +1,12 @@
-import { COVER_ART_BASE_URL, mangadexFetch } from "./client";
+import { COVER_ART_BASE_URL, MangaDexAPIError, mangadexFetch } from "./client";
 import type {
   MangaDexCollectionResponse,
   MangaDexManga,
+  MangaDexStatisticsResponse,
   MangaSummary,
+  MangaDetails,
+  MangaContributor,
+  MangaStatistics,
 } from "./types";
 
 const DEFAULT_LIMIT = 12;
@@ -56,6 +60,7 @@ function createMangaSummary(manga: MangaDexManga): MangaSummary {
     demographic: attributes.publicationDemographic ?? undefined,
     latestChapter: attributes.latestUploadedChapter ?? undefined,
     languages: attributes.availableTranslatedLanguages ?? [],
+    originalLanguage: attributes.originalLanguage ?? undefined,
     tags: attributes.tags
       .map((tag) => getPreferredLocaleText(tag.attributes.name))
       .filter((value): value is string => Boolean(value)),
@@ -67,16 +72,39 @@ function createMangaSummary(manga: MangaDexManga): MangaSummary {
   };
 }
 
+type OrderField =
+  | "followedCount"
+  | "createdAt"
+  | "latestUploadedChapter"
+  | "updatedAt"
+  | "year";
+
+type OrderDirection = "asc" | "desc";
+
 interface ListOptions {
   limit?: number;
   originalLanguage?: string;
+  publicationDemographic?: string;
+  contentRatings?: string[];
+  includedTags?: string[];
+  includedTagsMode?: "AND" | "OR";
+  orderField?: OrderField;
+  orderDirection?: OrderDirection;
 }
 
 async function fetchTrendingTitles(
   options: ListOptions = {},
 ): Promise<MangaSummary[]> {
-  const limit = options.limit ?? DEFAULT_LIMIT;
-  const originalLanguage = options.originalLanguage;
+  const {
+    limit = DEFAULT_LIMIT,
+    originalLanguage,
+    publicationDemographic,
+    contentRatings,
+    includedTags,
+    includedTagsMode,
+    orderField = "followedCount",
+    orderDirection = "desc",
+  } = options;
 
   const response = await mangadexFetch<
     MangaDexCollectionResponse<MangaDexManga>
@@ -85,12 +113,23 @@ async function fetchTrendingTitles(
       limit,
       offset: 0,
       "includes[]": ["cover_art"],
-      "order[followedCount]": "desc",
-      "contentRating[]": ["safe", "suggestive"],
+      [`order[${orderField}]`]: orderDirection,
+      "contentRating[]": contentRatings ?? ["safe", "suggestive"],
       hasAvailableChapters: true,
       ...(originalLanguage
         ? {
             "originalLanguage[]": originalLanguage,
+          }
+        : {}),
+      ...(publicationDemographic
+        ? {
+            "publicationDemographic[]": publicationDemographic,
+          }
+        : {}),
+      ...(includedTags && includedTags.length > 0
+        ? {
+            "includedTags[]": includedTags,
+            includedTagsMode: includedTagsMode ?? "AND",
           }
         : {}),
     },
@@ -115,15 +154,44 @@ export async function getTrendingByOriginalLanguage(
   return fetchTrendingTitles({ originalLanguage, limit });
 }
 
+export async function getDemographicHighlights(
+  demographic: string,
+  limit = 12,
+): Promise<MangaSummary[]> {
+  return fetchTrendingTitles({
+    publicationDemographic: demographic,
+    limit,
+  });
+}
+
+export async function getNewcomerSpotlight(
+  limit = 12,
+): Promise<MangaSummary[]> {
+  return fetchTrendingTitles({
+    limit,
+    orderField: "createdAt",
+  });
+}
+
+export async function getLatestActivityShowcase(
+  limit = 12,
+): Promise<MangaSummary[]> {
+  return fetchTrendingTitles({
+    limit,
+    orderField: "latestUploadedChapter",
+  });
+}
+
 export async function getRecentlyUpdatedManga(
   limit = 20,
+  offset = 0,
 ): Promise<MangaSummary[]> {
   const response = await mangadexFetch<
     MangaDexCollectionResponse<MangaDexManga>
   >("/manga", {
     searchParams: {
       limit,
-      offset: 0,
+      offset,
       "includes[]": ["cover_art"],
       "order[updatedAt]": "desc",
       "contentRating[]": ["safe", "suggestive"],
@@ -135,6 +203,163 @@ export async function getRecentlyUpdatedManga(
   });
 
   return response.data.map(createMangaSummary);
+}
+
+async function getMangaStatistics(
+  mangaId: string,
+): Promise<MangaStatistics | null> {
+  try {
+    const response = await mangadexFetch<MangaDexStatisticsResponse>(
+      `/statistics/manga/${mangaId}`,
+      {
+        cache: "no-store",
+      },
+    );
+
+    const stats = response.statistics?.[mangaId];
+
+    if (!stats) {
+      return null;
+    }
+
+    return {
+      follows: stats.follows ?? undefined,
+      rating: stats.rating
+        ? {
+            average: stats.rating.average ?? undefined,
+            bayesian: stats.rating.bayesian ?? undefined,
+          }
+        : undefined,
+    };
+  } catch (error) {
+    if (error instanceof MangaDexAPIError && error.status === 404) {
+      return null;
+    }
+
+    console.warn(`Failed to load statistics for manga ${mangaId}`, error);
+    return null;
+  }
+}
+
+function createMangaDetails(
+  manga: MangaDexManga,
+  statistics: MangaStatistics | null,
+): MangaDetails {
+  const base = createMangaSummary(manga);
+  const { attributes, relationships } = manga;
+
+  const contributors: MangaContributor[] = relationships
+    .filter(
+      (relationship) =>
+        relationship.type === "author" || relationship.type === "artist",
+    )
+    .map((relationship) => {
+      const attributesObj =
+        relationship.attributes && typeof relationship.attributes === "object"
+          ? (relationship.attributes as Record<string, unknown>)
+          : null;
+
+      const name =
+        attributesObj && typeof attributesObj.name === "string"
+          ? (attributesObj.name as string)
+          : "Unknown";
+
+      const role =
+        relationship.type === "author" ? "author" : ("artist" as const);
+
+      return {
+        id: relationship.id,
+        name,
+        role,
+      };
+    });
+
+  const uniqueContributors = new Map<string, MangaContributor>();
+  for (const contributor of contributors) {
+    const key = `${contributor.role}-${contributor.id}`;
+    if (!uniqueContributors.has(key)) {
+      uniqueContributors.set(key, contributor);
+    }
+  }
+
+  const tagsDetailed = attributes.tags
+    .map((tag) => getPreferredLocaleText(tag.attributes.name))
+    .filter((value): value is string => Boolean(value));
+
+  return {
+    ...base,
+    descriptionFull: getPreferredLocaleText(attributes.description),
+    lastChapter: attributes.lastChapter ?? undefined,
+    lastVolume: attributes.lastVolume ?? undefined,
+    contributors: Array.from(uniqueContributors.values()),
+    statistics: statistics ?? undefined,
+    tagsDetailed,
+    availableLanguages: attributes.availableTranslatedLanguages ?? [],
+  };
+}
+
+export async function getMangaDetails(
+  mangaId: string,
+): Promise<MangaDetails | null> {
+  if (!mangaId.trim()) {
+    return null;
+  }
+
+  try {
+    const [detailResponse, statistics] = await Promise.all([
+      mangadexFetch<{ data: MangaDexManga }>(`/manga/${mangaId}`, {
+        searchParams: {
+          "includes[]": ["cover_art", "author", "artist"],
+        },
+        cache: "no-store",
+      }),
+      getMangaStatistics(mangaId),
+    ]);
+
+    if (!detailResponse?.data) {
+      return null;
+    }
+
+    return createMangaDetails(detailResponse.data, statistics);
+  } catch (error) {
+    if (error instanceof MangaDexAPIError && error.status === 404) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+export async function getMangaSummaryById(
+  mangaId: string,
+): Promise<MangaSummary | null> {
+  if (!mangaId.trim()) {
+    return null;
+  }
+
+  try {
+    const response = await mangadexFetch<{ data: MangaDexManga }>(
+      `/manga/${mangaId}`,
+      {
+        searchParams: {
+          "includes[]": ["cover_art"],
+        },
+        cache: "no-store",
+      },
+    );
+
+    if (!response?.data) {
+      return null;
+    }
+
+    return createMangaSummary(response.data);
+  } catch (error) {
+    if (error instanceof MangaDexAPIError && error.status === 404) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 export async function searchManga(

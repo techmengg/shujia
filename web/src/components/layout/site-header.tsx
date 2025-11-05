@@ -1,40 +1,56 @@
+import Image from "next/image";
 import Link from "next/link";
+
+import { SearchBar } from "@/components/search/search-bar";
+import { getCurrentUser } from "@/lib/auth/session";
 
 interface SiteHeaderProps {
   className?: string;
 }
 
-export function SiteHeader({ className }: SiteHeaderProps) {
+export async function SiteHeader({ className }: SiteHeaderProps) {
   const combinedClassName = [
-    "relative z-10 border-b border-white/5 bg-black/45 backdrop-blur-md",
+    "relative z-10 border-b border-white/15 bg-black",
     className ?? "",
   ]
     .filter(Boolean)
     .join(" ");
 
+  const user = await getCurrentUser();
+
+  const greeting =
+    user?.name?.trim() ||
+    (user?.email ? user.email.split("@")[0] : undefined);
+
   return (
     <header className={combinedClassName}>
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-10 lg:py-3">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-10 lg:py-3">
         <Link
           href="/"
-          className="group flex items-center gap-2 rounded-2xl pr-1 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-          aria-label="Go to MynkDB home"
+          className="order-1 group flex items-center gap-2 pr-1 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+          aria-label="Go to Shujia home"
         >
-          <div className="relative">
-            <span className="absolute inset-0 rounded-2xl bg-accent/20 blur-lg transition group-hover:blur-xl" />
-            <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-accent/40 bg-black/50 text-sm font-semibold text-accent transition group-hover:border-accent group-hover:text-white sm:h-9 sm:w-9 sm:text-base">
-              M
-            </span>
-          </div>
-          <span className="text-lg font-semibold uppercase tracking-[0.4em] text-white transition group-hover:text-accent sm:text-xl">
-            MynkDB
+          <Image
+            src="/shujia.png"
+            alt="Shujia logo"
+            width={36}
+            height={36}
+            className="h-8 w-8 rounded-md border border-white/20 object-cover grayscale transition group-hover:grayscale-0 sm:h-9 sm:w-9"
+            priority
+          />
+          <span className="text-lg font-semibold uppercase tracking-[0.2em] text-white transition group-hover:text-accent sm:text-xl">
+            Shujia
           </span>
         </Link>
-        <div className="flex items-center gap-2 text-surface-subtle">
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 transition hover:border-accent hover:text-white sm:h-9 sm:w-9"
-            aria-label="Settings"
+        <div className="order-3 w-full md:order-2 md:flex-1">
+          <SearchBar isAuthenticated={Boolean(user)} />
+        </div>
+
+        <div className="order-2 ml-auto flex items-center gap-2 text-surface-subtle md:order-3">
+          <Link
+            href={user ? "/settings" : "/login?redirect=/settings"}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-9 sm:w-9"
+            aria-label="Account settings"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -55,32 +71,31 @@ export function SiteHeader({ className }: SiteHeaderProps) {
                 d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-          </button>
-          <Link
-            href="/profile"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 transition hover:border-accent hover:text-white sm:h-9 sm:w-9"
-            aria-label="User profile"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="h-4 w-4"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.5 19.712a7.5 7.5 0 0115 0"
-              />
-            </svg>
           </Link>
+          {user ? (
+            <Link
+              href="/profile"
+              className="inline-flex h-8 items-center justify-center rounded-full border border-white/20 bg-transparent px-3 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white sm:h-9"
+              aria-label="User profile"
+            >
+              {greeting ?? "Profile"}
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="inline-flex items-center rounded-full border border-white/20 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center rounded-full border border-accent px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-accent transition hover:border-white hover:text-white"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

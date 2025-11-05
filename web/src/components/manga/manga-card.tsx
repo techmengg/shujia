@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import Link from "next/link";
 
 import type { MangaSummary } from "@/lib/mangadex/types";
 
@@ -11,7 +14,7 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
   const isGrid = variant === "grid";
 
   const containerClasses = [
-    "group flex h-full flex-col overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] transition hover:-translate-y-[4px] hover:border-accent/60 hover:bg-accent-soft/20",
+    "group flex h-full flex-col overflow-hidden rounded-xl border border-white/15 bg-black transition hover:-translate-y-[4px] hover:border-white",
     isGrid
       ? "w-full"
       : "min-w-[130px] max-w-[130px] sm:min-w-[140px] sm:max-w-[140px] md:min-w-[150px] md:max-w-[150px]",
@@ -23,33 +26,28 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
   ].join(" ");
 
   const titleClasses = [
-    "line-clamp-2 font-semibold text-white/90 group-hover:text-white",
+    "line-clamp-2 font-semibold text-white group-hover:text-white",
     isGrid ? "text-[0.75rem] sm:text-[0.8rem]" : "text-[0.85rem] sm:text-sm",
   ].join(" ");
 
   const subtitleClasses = [
-    "line-clamp-1 text-surface-subtle/90",
+    "line-clamp-1 text-surface-subtle",
     isGrid ? "text-[0.55rem] sm:text-[0.6rem]" : "text-[0.6rem] sm:text-[0.7rem]",
   ].join(" ");
 
   const badgeRowClasses = [
-    "mt-auto flex flex-wrap uppercase tracking-[0.25em] text-surface-subtle",
-    "gap-1 text-[0.5rem] sm:text-[0.55rem]",
+    "mt-auto flex flex-wrap text-surface-subtle",
+    "gap-1 text-[0.55rem] sm:text-[0.6rem]",
   ].join(" ");
 
   const tagsClasses = [
-    "line-clamp-2 text-surface-subtle/70",
+    "line-clamp-2 text-surface-subtle/80",
     isGrid ? "text-[0.55rem] sm:text-[0.6rem]" : "text-[0.6rem] sm:text-[0.65rem]",
   ].join(" ");
 
   return (
-    <a
-      href={manga.url}
-      target="_blank"
-      rel="noreferrer"
-      className={containerClasses}
-    >
-      <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-accent-soft via-surface-muted to-surface">
+    <Link href={`/manga/${manga.id}`} className={containerClasses}>
+      <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/5">
         {manga.coverImage ? (
           <Image
             fill
@@ -60,11 +58,11 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
             priority={false}
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-accent/40 to-surface-muted text-lg font-semibold text-accent">
+          <div className="flex h-full items-center justify-center bg-white/10 text-lg font-semibold text-white">
             {manga.title.charAt(0).toUpperCase()}
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 transition group-hover:opacity-100" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 transition group-hover:opacity-100" />
       </div>
       <div className={bodyClasses}>
         <div className="space-y-1">
@@ -76,17 +74,17 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
         {isGrid ? (
           <div className={badgeRowClasses}>
             {manga.status ? (
-              <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-white/80">
+              <span className="rounded-full border border-white/15 px-1.5 py-0.5 text-white/80">
                 {manga.status}
               </span>
             ) : null}
             {manga.demographic ? (
-              <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-white/60">
+              <span className="rounded-full border border-white/15 px-1.5 py-0.5 text-white/60">
                 {manga.demographic}
               </span>
             ) : null}
             {manga.year ? (
-              <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-white/60">
+              <span className="rounded-full border border-white/15 px-1.5 py-0.5 text-white/60">
                 {manga.year}
               </span>
             ) : null}
@@ -96,6 +94,6 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
           <p className={tagsClasses}>{manga.tags.slice(0, 3).join(" / ")}</p>
         ) : null}
       </div>
-    </a>
+    </Link>
   );
 }
