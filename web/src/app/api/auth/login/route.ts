@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const existingCookie = cookieStore.get(SESSION_COOKIE_NAME);
     if (existingCookie?.value) {
       await deleteSession(existingCookie.value);

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -517,12 +518,14 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
           <label className={labelClass}>
             <span>Avatar</span>
             <div className="flex flex-wrap items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 text-lg font-semibold uppercase text-white/50 sm:h-24 sm:w-24">
+              <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 text-lg font-semibold uppercase text-white/50 sm:h-24 sm:w-24">
                 {profileForm.avatarUrl ? (
-                  <img
+                  <Image
                     src={profileForm.avatarUrl}
                     alt="Avatar preview"
-                    className="h-full w-full object-cover"
+                    fill
+                    className="object-cover"
+                    sizes="96px"
                   />
                 ) : (
                   avatarFallbackInitial.toUpperCase()
