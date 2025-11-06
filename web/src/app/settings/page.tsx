@@ -53,5 +53,5 @@ export default async function SettingsPage() {
 }
 
 export const metadata: Metadata = {
-  title: "Shujia | Settings",
+  title: "Settings",
 };

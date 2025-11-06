@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { UsersList, type UserItemDto } from "@/components/users/users-list";
 
 export const metadata = {
-  title: "Shujia | Users",
+  title: "Users",
 };
 
 export default async function UsersPage() {

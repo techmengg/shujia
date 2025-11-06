@@ -2,7 +2,7 @@
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 
 export const metadata = {
-  title: "Choose a new password • Shujia",
+  title: "Choose a new password",
 };
 
 interface ResetPasswordPageProps {

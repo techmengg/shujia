@@ -61,5 +61,5 @@ export default function RoadmapPage() {
 
 
 export const metadata: Metadata = {
-  title: "Shujia | Roadmap",
+  title: "Roadmap",
 };

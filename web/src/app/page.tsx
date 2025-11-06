@@ -4,6 +4,7 @@ import { RecentlyUpdatedSection } from "@/components/manga/recently-updated-sect
 import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
 import {
   getDemographicHighlights,
+  getPopularNewTitles,
   getRecentlyUpdatedManga,
   getRecentPopularByOriginalLanguage,
 } from "@/lib/mangadex/service";
@@ -18,6 +19,7 @@ export default async function Home() {
     getRecentPopularByOriginalLanguage("ja", 35),
     getRecentPopularByOriginalLanguage("ko", 35),
     getRecentPopularByOriginalLanguage("zh", 35),
+    getPopularNewTitles(18),
     getDemographicHighlights("shounen", 35),
     getDemographicHighlights("seinen", 35),
     getDemographicHighlights("shoujo", 35),
@@ -29,6 +31,7 @@ export default async function Home() {
     trendingManga,
     trendingManhwa,
     trendingManhua,
+    popularNewTitles,
     shounenHighlights,
     seinenHighlights,
     shoujoHighlights,
@@ -173,7 +176,24 @@ export default async function Home() {
 
       {languageTabs.length ? (
         <section className="mt-10 space-y-4">
-          <TabbedCarousel heading="Popular" tabs={languageTabs} />
+          <TabbedCarousel heading="Trending" tabs={languageTabs} />
+        </section>
+      ) : null}
+
+      {popularNewTitles.length ? (
+        <section className="mt-10 space-y-4">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+            Popular New Titles
+          </h2>
+          <MangaCarousel
+            items={popularNewTitles}
+            emptyState={
+              <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
+                We could not load popular new releases right now. Try again in a
+                moment.
+              </p>
+            }
+          />
         </section>
       ) : null}
 

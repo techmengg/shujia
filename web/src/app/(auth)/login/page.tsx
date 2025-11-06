@@ -4,7 +4,7 @@ import { AuthCard } from "@/components/auth/auth-card";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata = {
-  title: "Shujia | Sign in",
+  title: "Sign in",
 };
 
 export default function LoginPage() {

@@ -8,5 +8,5 @@ export default function ReadingListPage() {
 }
 
 export const metadata: Metadata = {
-  title: "Shujia | Reading List",
+  title: "Reading List",
 };

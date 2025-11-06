@@ -83,6 +83,6 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   const { username } = await params;
   const handle = (username ?? "user").trim();
   return {
-    title: `Shujia | @${handle}`,
+    title: `@${handle}`,
   };
 }

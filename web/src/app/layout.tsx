@@ -18,22 +18,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Shujia",
+  title: {
+    default: "shujia.dev",
+    template: "%s | shujia.dev",
+  },
   description:
     "Track manga, manhwa, and manhua releases powered by the MangaDex API.",
   metadataBase: new URL("https://shujia.local"),
   openGraph: {
-    title: "Shujia",
+    title: "shujia.dev",
     description:
       "Discover, follow, and organize series in one place.",
     url: "https://shujia.local",
-    siteName: "Shujia",
+    siteName: "shujia.dev",
     locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Shujia",
+    title: "shujia.dev",
     description:
       "Discover, follow, and organize series in one place.",
   },
@@ -50,9 +53,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col bg-surface text-surface-foreground antialiased`}
       >
         <div className="sticky top-0 z-50">
-          <div className="border-b border-white/10 bg-black">
-            <AnnouncementBar />
-          </div>
+          <AnnouncementBar />
           <SiteHeader />
         </div>
 

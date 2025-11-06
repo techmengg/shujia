@@ -201,6 +201,29 @@ export async function getRecentPopularByOriginalLanguage(
   });
 }
 
+export async function getPopularNewTitles(
+  limit = 18,
+): Promise<MangaSummary[]> {
+  const response = await mangadexFetch<
+    MangaDexCollectionResponse<MangaDexManga>
+  >("/manga", {
+    searchParams: {
+      limit,
+      offset: 0,
+      "includes[]": ["cover_art"],
+      "contentRating[]": ["safe", "suggestive"],
+      "order[createdAt]": "desc",
+      "order[followedCount]": "desc",
+      hasAvailableChapters: true,
+    },
+    next: {
+      revalidate: 60 * 30,
+    },
+  });
+
+  return response.data.map(createMangaSummary);
+}
+
 export async function getDemographicHighlights(
   demographic: string,
   limit = 12,

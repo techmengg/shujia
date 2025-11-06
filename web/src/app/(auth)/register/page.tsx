@@ -2,13 +2,13 @@
 import { RegisterForm } from "@/components/auth/register-form";
 
 export const metadata = {
-  title: "Create account • Shujia",
+  title: "Register",
 };
 
 export default function RegisterPage() {
   return (
     <AuthCard
-      title="Create account"
+      title="Register"
       description="Start tracking your reading journey and curate your personalised shelves."
     >
       <RegisterForm />

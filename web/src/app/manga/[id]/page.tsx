@@ -74,12 +74,12 @@ export async function generateMetadata({
 
   if (!summary) {
     return {
-      title: "Manga Not Found | Shujia",
+      title: "Manga Not Found",
     };
   }
 
   return {
-    title: `Shujia | ${summary.title}`,
+    title: summary.title,
     description: summary.description,
     openGraph: {
       title: summary.title,
