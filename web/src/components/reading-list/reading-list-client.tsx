@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ReadingListItem, ReadingListResponse } from "@/data/reading-list";
 
@@ -609,7 +609,7 @@ export function ReadingListClient() {
         </div>
       </header>
 
-      <section className="space-y-3">
+      <section className="flex flex-col gap-3">
         {importStatus ? (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center text-xs text-white/70">
             {importStatus}
@@ -650,7 +650,8 @@ export function ReadingListClient() {
             </div>
           )
         ) : (
-          sortedItems.map((item) => {
+          <div className="flex flex-col gap-4">
+          {sortedItems.map((item) => {
             const progressLabel =
               item.progress && item.progress.trim().length
                 ? item.progress
@@ -664,8 +665,9 @@ export function ReadingListClient() {
                 : "?";
 
             return (
-              <Fragment key={item.id}><article
-                className="flex items-stretch gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2 transition hover:border-accent/40 sm:gap-3"
+              <div key={item.id} className="flex flex-col gap-2">
+              <article
+                className="flex min-w-0 items-stretch gap-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-2 transition hover:border-accent/40 sm:gap-3"
               >
                 <div className="relative aspect-[2/3] w-14 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-gradient-to-br from-accent-soft via-surface-muted to-surface shadow-[0_10px_24px_rgba(8,11,24,0.32)] sm:w-16">
                   {item.cover ? (
@@ -677,6 +679,7 @@ export function ReadingListClient() {
                       sizes="80px"
                       quality={100}
                       unoptimized
+                      referrerPolicy="no-referrer"
                       className="object-cover"
                     />
                   ) : (
@@ -686,25 +689,29 @@ export function ReadingListClient() {
                   )}
                 </div>
 
-                <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                  <div className="flex-1 space-y-1 sm:space-y-1">
-                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <div className="flex flex-1 flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-start sm:gap-4">
+                  <div className="min-w-0 space-y-1">
+                    {(item.demographic || item.status) ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {item.demographic ? (
+                          <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.16em] text-white/60">
+                            {item.demographic}
+                          </span>
+                        ) : null}
+                        {item.status ? (
+                          <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.16em] text-white/50">
+                            {item.status}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className="flex min-w-0 items-center gap-1.5">
                       <Link
                         href={`/manga/${item.mangaId}`}
-                        className="max-w-full truncate text-sm font-semibold text-white transition hover:text-accent sm:text-base"
+                        className="min-w-0 max-w-[86%] truncate whitespace-nowrap pr-2 text-sm font-semibold text-white transition hover:text-accent sm:max-w-[70%] sm:text-base"
                       >
                         {item.title}
                       </Link>
-                      {item.demographic ? (
-                        <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.16em] text-white/60">
-                          {item.demographic}
-                        </span>
-                      ) : null}
-                      {item.status ? (
-                        <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.16em] text-white/50">
-                          {item.status}
-                        </span>
-                      ) : null}
                     </div>
                     <p className="text-[0.55rem] text-white/60 sm:text-[0.6rem]">
                       {progressLabel}
@@ -739,18 +746,27 @@ export function ReadingListClient() {
                       </div>
                     ) : null}
                     {/* Mobile meta row */}
-                    <div className="flex items-center gap-3 text-[0.6rem] text-white/60 sm:hidden">
-                      <span className="inline-flex items-center gap-1">
-                        <span aria-hidden className="text-white">★</span>
-                        {typeof item.rating === "number" ? item.rating.toFixed(1) : "--"}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        Upd {formatUpdatedAt(item.updatedAt)}
-                      </span>
+                    <div className="flex items-center justify-between gap-3 text-[0.6rem] text-white/60 sm:hidden">
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1">
+                          <span aria-hidden className="text-white">★</span>
+                          {typeof item.rating === "number" ? item.rating.toFixed(1) : "--"}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          Upd {formatUpdatedAt(item.updatedAt)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(item)}
+                        className="inline-flex items-center rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[0.65rem] text-white/80 transition hover:border-white/40 hover:text-white"
+                      >
+                        Edit
+                      </button>
                     </div>
                   </div>
 
-                  <div className="hidden w-full max-w-[8rem] flex-col justify-between gap-1 text-[0.6rem] text-white/70 sm:flex sm:w-32">
+                  <div className="hidden flex-col justify-start gap-1 text-[0.6rem] text-white/70 sm:flex sm:w-[11rem] sm:self-stretch">
                     <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-2 py-0.5">
                       <span className="text-[0.5rem] uppercase tracking-[0.18em] text-white/50">
                         Rating
@@ -778,7 +794,7 @@ export function ReadingListClient() {
                 </div>
               </article>
               {editingId === item.id ? (
-                <div className="-mt-2 mb-2 rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
                   <div className="grid gap-2 sm:grid-cols-3">
                     <label className="flex flex-col gap-1 text-xs text-white/70">
                       <span>Progress</span>
@@ -836,9 +852,10 @@ export function ReadingListClient() {
                   </div>
                 </div>
               ) : null}
-              </Fragment>
+              </div>
             );
-          })
+          })}
+          </div>
         )}
       </section>
     </main>

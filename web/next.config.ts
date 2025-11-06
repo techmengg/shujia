@@ -8,6 +8,16 @@ const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
   },
   {
     protocol: "https",
+    hostname: "mangadex.org",
+    pathname: "/covers/**",
+  },
+  {
+    protocol: "https",
+    hostname: "uploads-cdn.mangadex.org",
+    pathname: "/covers/**",
+  },
+  {
+    protocol: "https",
     hostname: "api.dicebear.com",
     pathname: "/**",
   },

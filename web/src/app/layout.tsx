@@ -50,7 +50,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col bg-surface text-surface-foreground antialiased`}
       >
         <div className="sticky top-0 z-50">
-          <AnnouncementBar />
+          <div className="border-b border-white/10 bg-black">
+            <AnnouncementBar />
+          </div>
           <SiteHeader />
         </div>
 
