@@ -4,7 +4,7 @@ import { AuthCard } from "@/components/auth/auth-card";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata = {
-  title: "Sign in · Shujia",
+  title: "Shujia | Sign in",
 };
 
 export default function LoginPage() {
@@ -12,12 +12,6 @@ export default function LoginPage() {
     <AuthCard
       title="Sign in"
       description="Access your personalised shelf, reading history, and recommendations."
-      footer={
-        <>
-          By continuing you agree to our{" "}
-          <span className="font-semibold text-white">reader&apos;s covenant</span>.
-        </>
-      }
     >
       <Suspense
         fallback={

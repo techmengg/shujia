@@ -1,10 +1,11 @@
+import Link from "next/link";
 import { MangaCarousel } from "@/components/manga/manga-carousel";
 import { RecentlyUpdatedSection } from "@/components/manga/recently-updated-section";
 import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
 import {
   getDemographicHighlights,
   getRecentlyUpdatedManga,
-  getTrendingByOriginalLanguage,
+  getRecentPopularByOriginalLanguage,
 } from "@/lib/mangadex/service";
 import type { MangaSummary } from "@/lib/mangadex/types";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -14,13 +15,13 @@ export default async function Home() {
   const userPromise = getCurrentUser();
 
   const trendsPromise = Promise.all([
-    getTrendingByOriginalLanguage("ja", 16),
-    getTrendingByOriginalLanguage("ko", 16),
-    getTrendingByOriginalLanguage("zh", 16),
-    getDemographicHighlights("shounen", 14),
-    getDemographicHighlights("seinen", 14),
-    getDemographicHighlights("shoujo", 14),
-    getDemographicHighlights("josei", 14),
+    getRecentPopularByOriginalLanguage("ja", 35),
+    getRecentPopularByOriginalLanguage("ko", 35),
+    getRecentPopularByOriginalLanguage("zh", 35),
+    getDemographicHighlights("shounen", 35),
+    getDemographicHighlights("seinen", 35),
+    getDemographicHighlights("shoujo", 35),
+    getDemographicHighlights("josei", 35),
     getRecentlyUpdatedManga(49),
   ]);
 
@@ -124,7 +125,7 @@ export default async function Home() {
   ].filter((tab) => tab.items.length > 0);
 
   return (
-    <main className="relative z-10 mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10 xl:px-12">
+    <main className="relative z-10 mx-auto w-full max-w-7xl px-4 pt-4 pb-6 sm:px-6 lg:px-10 lg:pb-10">
       <h1 className="sr-only">Shujia</h1>
 
       <section className="mt-6 space-y-4">
@@ -143,7 +144,7 @@ export default async function Home() {
           <div
             className={[
               !user
-                ? "pointer-events-none select-none blur-sm brightness-[0.65]"
+                ? "pointer-events-none select-none opacity-60 grayscale"
                 : "",
             ]
               .filter(Boolean)
@@ -159,9 +160,11 @@ export default async function Home() {
             />
           </div>
           {!user ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="rounded-2xl border border-white/20 bg-black/75 px-5 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white">
-                Log in to view
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+              <div className="rounded-2xl border border-white/20 bg-black/70 px-5 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+                <Link href="/login?redirect=/" className="transition hover:text-accent">
+                  Log in to view
+                </Link>
               </div>
             </div>
           ) : null}
@@ -170,46 +173,20 @@ export default async function Home() {
 
       {languageTabs.length ? (
         <section className="mt-10 space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
-            Regions
-          </h2>
-          <TabbedCarousel tabs={languageTabs} />
+          <TabbedCarousel heading="Popular" tabs={languageTabs} />
         </section>
       ) : null}
 
       {demographicTabs.length ? (
         <section className="mt-10 space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
-            Demographic
-          </h2>
-          <TabbedCarousel tabs={demographicTabs} />
+          <TabbedCarousel heading="Demographic" tabs={demographicTabs} />
         </section>
       ) : null}
 
       <section className="mt-10 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
-            Latest
-          </h2>
-          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-surface-subtle">
-            <a
-              href="https://mangadex.org/chapters"
-              target="_blank"
-              rel="noreferrer"
-              className="transition hover:text-white"
-            >
-              Chapters
-            </a>
-            <a
-              href="https://mangadex.org/updates"
-              target="_blank"
-              rel="noreferrer"
-              className="transition hover:text-white"
-            >
-              Calendar
-            </a>
-          </div>
-        </div>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+          Latest
+        </h2>
         <RecentlyUpdatedSection initialItems={recentUpdates} pageSize={49} />
       </section>
     </main>

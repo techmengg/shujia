@@ -14,25 +14,23 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
   const isGrid = variant === "grid";
 
   const containerClasses = [
-    "group flex h-full flex-col overflow-hidden rounded-xl border border-white/15 bg-black transition hover:-translate-y-[4px] hover:border-white",
-    isGrid
-      ? "w-full"
-      : "min-w-[130px] max-w-[130px] sm:min-w-[140px] sm:max-w-[140px] md:min-w-[150px] md:max-w-[150px]",
+    "group flex h-full flex-col overflow-hidden rounded-xl border border-white/15 bg-black transition hover:-translate-y-[3px] hover:border-white",
+    "w-full",
   ].join(" ");
 
   const bodyClasses = [
     "flex flex-1 flex-col",
-    isGrid ? "gap-1.5 p-2" : "gap-2 p-2.5 sm:p-3",
+    "gap-1.5 p-2",
   ].join(" ");
 
   const titleClasses = [
     "line-clamp-2 font-semibold text-white group-hover:text-white",
-    isGrid ? "text-[0.75rem] sm:text-[0.8rem]" : "text-[0.85rem] sm:text-sm",
+    "text-[0.75rem] sm:text-[0.8rem]",
   ].join(" ");
 
   const subtitleClasses = [
     "line-clamp-1 text-surface-subtle",
-    isGrid ? "text-[0.55rem] sm:text-[0.6rem]" : "text-[0.6rem] sm:text-[0.7rem]",
+    "text-[0.55rem] sm:text-[0.6rem]",
   ].join(" ");
 
   const badgeRowClasses = [
@@ -42,7 +40,7 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
 
   const tagsClasses = [
     "line-clamp-2 text-surface-subtle/80",
-    isGrid ? "text-[0.55rem] sm:text-[0.6rem]" : "text-[0.6rem] sm:text-[0.65rem]",
+    "text-[0.55rem] sm:text-[0.6rem]",
   ].join(" ");
 
   return (

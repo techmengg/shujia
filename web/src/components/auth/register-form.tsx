@@ -110,9 +110,7 @@ export function RegisterForm() {
             maxLength={32}
             required
           />
-          <p className="text-[0.6rem] uppercase tracking-[0.25em] text-white/40">
-            Letters, numbers, underscores only.
-          </p>
+
           {fieldErrors.username ? (
             <p className="text-xs text-red-400">{fieldErrors.username.join(" ")}</p>
           ) : null}

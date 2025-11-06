@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 
 interface MangaActionBarProps {
-  mangaUrl: string;
+  title: string;
   shareUrl: string;
 }
 
 type ShareStatus = "idle" | "copied" | "error";
 
-export function MangaActionBar({ mangaUrl, shareUrl }: MangaActionBarProps) {
+export function MangaActionBar({ title, shareUrl }: MangaActionBarProps) {
   const [status, setStatus] = useState<ShareStatus>("idle");
 
   useEffect(() => {
@@ -46,21 +46,21 @@ export function MangaActionBar({ mangaUrl, shareUrl }: MangaActionBarProps) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-2">
       <a
-        href={mangaUrl}
+        href={`https://www.google.com/search?q=${encodeURIComponent(title)}`}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white transition hover:-translate-y-0.5 hover:border-white"
+        className="inline-flex w-full items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white transition-colors active:scale-[0.98] hover:border-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
       >
-        View on MangaDex
+        Search on Google
       </a>
       <button
         type="button"
         onClick={handleShare}
-        className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white transition hover:-translate-y-0.5 hover:border-white"
+        className="inline-flex items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white transition-colors active:scale-[0.98] hover:border-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
       >
-        Share link
+        {status === "copied" ? "Link copied" : "Share link"}
       </button>
       {status === "copied" ? (
         <span className="text-xs text-accent">Link ready to share</span>

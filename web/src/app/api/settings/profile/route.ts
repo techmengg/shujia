@@ -43,6 +43,18 @@ const profileSchema = z.object({
     .optional(),
 });
 
+function containsProhibitedWords(value?: string | null): boolean {
+  if (!value) return false;
+  const text = value.toLowerCase();
+  const banned = [
+    "fuck","shit","bitch","asshole","bastard","cunt","dick","pussy","whore","slut",
+    "rape","rapist","kill","murder","suicide",
+    "nigger","nigga","chink","gook","spic","wetback","faggot","tranny","retard","retarded",
+    "kkk","heil","hitler",
+  ];
+  return banned.some((w) => text.includes(w));
+}
+
 function toNullable(value: string | undefined) {
   if (value === undefined) {
     return undefined;
@@ -88,6 +100,17 @@ export async function PATCH(request: Request) {
   }
 
   const { name, username, bio, timezone, avatarUrl } = parsed.data;
+
+  if (containsProhibitedWords(username) || containsProhibitedWords(name ?? null)) {
+    const errors: Record<string, string[]> = {};
+    if (containsProhibitedWords(username)) {
+      errors.username = ["Choose a different username without offensive words."];
+    }
+    if (name && containsProhibitedWords(name)) {
+      errors.name = ["Choose a different name without offensive words."];
+    }
+    return NextResponse.json({ errors }, { status: 422 });
+  }
 
   const usernameOwner = await prisma.user.findFirst({
     where: {

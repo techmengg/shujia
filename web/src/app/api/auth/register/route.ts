@@ -34,6 +34,21 @@ const registerSchema = z.object({
     .optional(),
 });
 
+function containsProhibitedWords(value?: string | null): boolean {
+  if (!value) return false;
+  const text = value.toLowerCase();
+  const banned = [
+    // Common profanity and slurs (non-exhaustive)
+    "fuck","shit","bitch","asshole","bastard","cunt","dick","pussy","whore","slut",
+    "rape","rapist","kill","murder","suicide",
+    // Slurs (trimmed selection)
+    "nigger","nigga","chink","gook","spic","wetback","faggot","tranny","retard","retarded",
+    // variations
+    "kkk","heil","hitler",
+  ];
+  return banned.some((w) => text.includes(w));
+}
+
 export async function POST(request: Request) {
   if (!isSafeRequestOrigin(request)) {
     return NextResponse.json(
@@ -90,6 +105,17 @@ export async function POST(request: Request) {
     }
 
     const { email, password, name, username } = parsed.data;
+
+    if (containsProhibitedWords(username) || containsProhibitedWords(name ?? null)) {
+      const errors: Record<string, string[]> = {};
+      if (containsProhibitedWords(username)) {
+        errors.username = ["Choose a different username without offensive words."];
+      }
+      if (name && containsProhibitedWords(name)) {
+        errors.name = ["Choose a different name without offensive words."];
+      }
+      return NextResponse.json({ errors }, { status: 422 });
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email },

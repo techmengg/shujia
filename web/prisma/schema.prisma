@@ -92,3 +92,5 @@ model ReadingListEntry {
 
   @@unique([userId, mangaId])
 }
+
+ 

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 import { ProfilePageContent } from "@/components/profile/profile-page-content";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -76,4 +77,12 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
       }))}
     />
   );
+}
+
+export async function generateMetadata({ params }: ProfilePageProps): Promise<Metadata> {
+  const { username } = await params;
+  const handle = (username ?? "user").trim();
+  return {
+    title: `Shujia | @${handle}`,
+  };
 }

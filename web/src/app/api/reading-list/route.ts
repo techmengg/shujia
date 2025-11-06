@@ -218,18 +218,30 @@ export async function DELETE(request: Request) {
       );
     }
 
-    let body: unknown;
-
+    let body: unknown = null;
     try {
       body = await request.json();
     } catch {
+      // ignore parse errors; may be empty body
+    }
+
+    // Support bulk delete when body contains { all: true }
+    if (
+      body &&
+      typeof body === "object" &&
+      (body as Record<string, unknown>).all === true
+    ) {
+      const result = await prisma.readingListEntry.deleteMany({ where: { userId: user.id } });
       return NextResponse.json(
-        { message: "Invalid request payload." },
-        { status: 400 },
+        {
+          data: { removed: result.count },
+          message: result.count ? "Deleted all entries." : "No entries to delete.",
+        },
+        { status: 200 },
       );
     }
 
-    const parsed = removeFromReadingListSchema.safeParse(body);
+    const parsed = removeFromReadingListSchema.safeParse(body ?? {});
 
     if (!parsed.success) {
       const issues = parsed.error.flatten().fieldErrors;

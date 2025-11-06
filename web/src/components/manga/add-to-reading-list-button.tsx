@@ -88,11 +88,12 @@ export function AddToReadingListButton({
       <Link
         href="/login"
         className={[
-          "inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white transition hover:-translate-y-0.5 hover:border-white hover:text-white",
+          "inline-flex items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white transition-colors active:scale-[0.98] hover:border-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black",
           className ?? "",
         ]
           .filter(Boolean)
           .join(" ")}
+        style={{ cursor: "pointer" }}
       >
         Log in to add
       </Link>
@@ -254,7 +255,8 @@ export function AddToReadingListButton({
       <button
         type="button"
         onClick={openDialog}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-accent px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-accent transition hover:-translate-y-0.5 hover:border-white hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+        className="inline-flex w-full items-center justify-center rounded-md border border-accent bg-accent/10 px-3 py-2 text-sm font-medium text-accent transition-colors active:scale-[0.98] hover:border-accent/60 hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+        style={{ cursor: isAdded ? "alias" : "copy" }}
       >
         {isAdded ? "Update reading list" : "Add to reading list"}
       </button>
@@ -431,13 +433,14 @@ function ReadingListDialog({
 
           {error ? <p className="text-xs text-red-300">{error}</p> : null}
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className={`grid gap-2 pt-2 ${canRemove ? "grid-cols-3" : "grid-cols-2"}`}>
             <button
               type="submit"
-              className="inline-flex flex-1 items-center justify-center rounded-full border border-accent bg-accent/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center rounded-md border border-accent bg-accent/10 px-3 py-2 text-sm font-medium text-accent transition-colors hover:border-accent/60 hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ cursor: isSaving ? "progress" : "pointer" }}
               disabled={isSaving || isRemoving}
             >
-              {isSaving ? "Saving..." : "Save changes"}
+              {isSaving ? "Saving..." : "Save"}
             </button>
             {canRemove ? (
               <button
@@ -445,7 +448,8 @@ function ReadingListDialog({
                 onClick={async () => {
                   await onRemove();
                 }}
-                className="inline-flex items-center rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white/70 transition hover:border-red-300 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/80 transition-colors hover:border-red-300 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ cursor: isRemoving ? "progress" : "pointer" }}
                 disabled={isSaving || isRemoving}
               >
                 {isRemoving ? "Removing..." : "Remove"}
@@ -454,7 +458,8 @@ function ReadingListDialog({
             <button
               type="button"
               onClick={requestClose}
-              className="inline-flex items-center rounded-full border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white/70 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/80 transition-colors hover:border-white/40 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ cursor: "pointer" }}
               disabled={isSaving || isRemoving}
             >
               Cancel

@@ -41,13 +41,39 @@ type ApiError = {
 
 const TIMEZONE_OPTIONS = [
   { value: "UTC", label: "UTC" },
+  // North America
   { value: "America/New_York", label: "UTC -05:00 (New York)" },
+  { value: "America/Toronto", label: "UTC -05:00 (Toronto)" },
+  { value: "America/Chicago", label: "UTC -06:00 (Chicago)" },
+  { value: "America/Mexico_City", label: "UTC -06:00 (Mexico City)" },
+  { value: "America/Vancouver", label: "UTC -08:00 (Vancouver)" },
   { value: "America/Los_Angeles", label: "UTC -08:00 (Los Angeles)" },
+  { value: "America/Denver", label: "UTC -07:00 (Denver)" },
+  { value: "America/Phoenix", label: "UTC -07:00 (Phoenix)" },
+  { value: "America/Sao_Paulo", label: "UTC -03:00 (São Paulo)" },
+  // Europe
   { value: "Europe/London", label: "UTC +00:00 (London)" },
   { value: "Europe/Paris", label: "UTC +01:00 (Paris)" },
-  { value: "Asia/Tokyo", label: "UTC +09:00 (Tokyo)" },
+  { value: "Europe/Berlin", label: "UTC +01:00 (Berlin)" },
+  { value: "Europe/Madrid", label: "UTC +01:00 (Madrid)" },
+  { value: "Europe/Istanbul", label: "UTC +03:00 (Istanbul)" },
+  // Middle East / Africa
+  { value: "Asia/Dubai", label: "UTC +04:00 (Dubai)" },
+  // South Asia
+  { value: "Asia/Kolkata", label: "UTC +05:30 (Kolkata)" },
+  // East / Southeast Asia
+  { value: "Asia/Hong_Kong", label: "UTC +08:00 (Hong Kong)" },
   { value: "Asia/Singapore", label: "UTC +08:00 (Singapore)" },
+  { value: "Asia/Shanghai", label: "UTC +08:00 (Shanghai)" },
+  { value: "Asia/Bangkok", label: "UTC +07:00 (Bangkok)" },
+  { value: "Asia/Jakarta", label: "UTC +07:00 (Jakarta)" },
+  { value: "Asia/Seoul", label: "UTC +09:00 (Seoul)" },
+  { value: "Asia/Tokyo", label: "UTC +09:00 (Tokyo)" },
+  // Oceania
   { value: "Australia/Sydney", label: "UTC +10:00 (Sydney)" },
+  { value: "Australia/Melbourne", label: "UTC +10:00 (Melbourne)" },
+  { value: "Australia/Perth", label: "UTC +08:00 (Perth)" },
+  { value: "Pacific/Auckland", label: "UTC +12:00 (Auckland)" },
 ];
 
 const inputClass =
@@ -56,7 +82,6 @@ const textareaClass = `${inputClass} min-h-[120px] resize-vertical`;
 const selectClass = inputClass;
 const labelClass = "flex flex-col gap-2 text-sm font-medium text-white/70";
 const helpTextClass = "text-xs text-white/45";
-const checkboxClass = "h-4 w-4 accent-accent";
 const primaryButtonClass =
   "inline-flex items-center justify-center rounded-lg border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
 const neutralButtonClass =
@@ -150,13 +175,7 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
   const [passwordStatus, setPasswordStatus] = useState<Status>("idle");
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
 
-  const [preferences, setPreferences] = useState({
-    marketingEmails: user.marketingEmails,
-    productUpdates: user.productUpdates,
-    weeklyDigestEmails: user.weeklyDigestEmails,
-  });
-  const [preferencesStatus, setPreferencesStatus] = useState<Status>("idle");
-  const [preferencesMessage, setPreferencesMessage] = useState<string | null>(null);
+  // Notifications removed
 
   const [sessionsStatus, setSessionsStatus] = useState<Status>("idle");
   const [sessionsMessage, setSessionsMessage] = useState<string | null>(null);
@@ -363,36 +382,7 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
     }
   };
 
-  const handleNotificationsSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPreferencesStatus("saving");
-    setPreferencesMessage(null);
-
-    try {
-      const response = await fetch("/api/settings/notifications", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(preferences),
-      });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setPreferencesStatus("error");
-        setPreferencesMessage(extractErrorMessage(result));
-        return;
-      }
-
-      setPreferencesStatus("success");
-      setPreferencesMessage(result?.message ?? "Preferences saved.");
-    } catch (error) {
-      console.error(error);
-      setPreferencesStatus("error");
-      setPreferencesMessage("Unable to update preferences right now.");
-    }
-  };
+  // Notifications removed
 
   const handleSignOutOtherSessions = async () => {
     setSessionsStatus("saving");
@@ -526,6 +516,7 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
                     fill
                     className="object-cover"
                     sizes="96px"
+                    unoptimized
                   />
                 ) : (
                   avatarFallbackInitial.toUpperCase()
@@ -695,78 +686,7 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
         </form>
       </section>
 
-      <section className="space-y-6 border-t border-white/10 pt-10 md:pt-12">
-        <header className="space-y-2">
-          <h2 className="text-base font-semibold text-white">Notifications</h2>
-          <p className="text-sm text-white/60">Choose what reaches your inbox.</p>
-        </header>
-        <form className="space-y-6" onSubmit={handleNotificationsSubmit}>
-          <div className="space-y-5">
-            <label className="flex items-start justify-between gap-6">
-              <div className="space-y-1">
-                <span className="text-sm font-medium text-white">Weekly digest</span>
-                <p className={helpTextClass}>
-                  Highlights of new chapters, curated picks, and community activity.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={preferences.weeklyDigestEmails}
-                onChange={(event) =>
-                  setPreferences((prev) => ({ ...prev, weeklyDigestEmails: event.target.checked }))
-                }
-                className={checkboxClass}
-              />
-            </label>
-            <label className="flex items-start justify-between gap-6">
-              <div className="space-y-1">
-                <span className="text-sm font-medium text-white">Product updates</span>
-                <p className={helpTextClass}>
-                  Be the first to know about new features and roadmap wins.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={preferences.productUpdates}
-                onChange={(event) =>
-                  setPreferences((prev) => ({ ...prev, productUpdates: event.target.checked }))
-                }
-                className={checkboxClass}
-              />
-            </label>
-            <label className="flex items-start justify-between gap-6">
-              <div className="space-y-1">
-                <span className="text-sm font-medium text-white">Announcements &amp; offers</span>
-                <p className={helpTextClass}>
-                  Occasional campaigns, creator collabs, and partner drops.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={preferences.marketingEmails}
-                onChange={(event) =>
-                  setPreferences((prev) => ({ ...prev, marketingEmails: event.target.checked }))
-                }
-                className={checkboxClass}
-              />
-            </label>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            {preferencesMessage ? (
-              <p className={`text-sm ${statusToneClass(preferencesStatus)}`}>
-                {preferencesMessage}
-              </p>
-            ) : null}
-            <button
-              type="submit"
-              className={primaryButtonClass}
-              disabled={preferencesStatus === "saving"}
-            >
-              {preferencesStatus === "saving" ? "Saving..." : "Save preferences"}
-            </button>
-          </div>
-        </form>
-      </section>
+      {/* Notifications section removed */}
 
       <section className="space-y-6 border-t border-white/10 pt-10 md:pt-12">
         <header className="space-y-2">

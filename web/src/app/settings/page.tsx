@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 
 import { SettingsPageContent } from "@/components/settings/settings-page-content";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -36,7 +37,7 @@ export default async function SettingsPage() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 pb-16 pt-10 sm:px-6 lg:px-10">
+    <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10 sm:px-6 lg:px-10">
       <header className="space-y-3">
         <h1 className="text-3xl font-semibold text-white">Settings</h1>
         <p className="max-w-2xl text-sm text-white/65">
@@ -50,3 +51,7 @@ export default async function SettingsPage() {
     </main>
   );
 }
+
+export const metadata: Metadata = {
+  title: "Shujia | Settings",
+};

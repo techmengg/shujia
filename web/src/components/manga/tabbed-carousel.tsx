@@ -15,10 +15,11 @@ interface TabDefinition {
 
 interface TabbedCarouselProps {
   tabs: TabDefinition[];
+  heading?: string;
   emptyState?: React.ReactNode;
 }
 
-export function TabbedCarousel({ tabs, emptyState }: TabbedCarouselProps) {
+export function TabbedCarousel({ tabs, heading, emptyState }: TabbedCarouselProps) {
   const firstAvailableTab = useMemo(() => {
     if (!tabs.length) return undefined;
     return tabs.find((tab) => tab.items.length > 0) ?? tabs[0];
@@ -62,27 +63,35 @@ export function TabbedCarousel({ tabs, emptyState }: TabbedCarouselProps) {
   return (
     <div className="space-y-3 sm:space-y-4">
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTabId(tab.id)}
-              className={[
-                "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-[0.75rem]",
-                isActive
-                  ? "border-white bg-white/10 text-white"
-                  : "border-white/20 bg-transparent text-surface-subtle hover:border-white/60 hover:text-white",
-              ].join(" ")}
-            >
-              {tab.label}
-              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[0.65rem] font-normal text-white/70">
-                {tab.items.length}
-              </span>
-            </button>
-          );
-        })}
+        {heading ? (
+          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">{heading}</h2>
+        ) : null}
+        {heading ? (
+          <span aria-hidden className="mx-1 hidden h-4 w-px bg-white/25 sm:mx-2 sm:inline-block" />
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {tabs.map((tab) => {
+            const isActive = tab.id === activeTab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTabId(tab.id)}
+                className={[
+                  "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-[0.75rem]",
+                  isActive
+                    ? "border-white bg-white/10 text-white"
+                    : "border-white/20 bg-transparent text-surface-subtle hover:border-white/60 hover:text-white",
+                ].join(" ")}
+              >
+                {tab.label}
+                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[0.65rem] font-normal text-white/70">
+                  {tab.items.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {activeTab.description ? (

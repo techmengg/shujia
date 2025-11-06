@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { SearchBar } from "@/components/search/search-bar";
 import { getCurrentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
 
 interface SiteHeaderProps {
   className?: string;
@@ -17,6 +18,10 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
     .join(" ");
 
   const user = await getCurrentUser();
+  const dbUser = user
+    ? await prisma.user.findUnique({ where: { id: user.id }, select: { avatarUrl: true } })
+    : null;
+  const avatar = dbUser?.avatarUrl?.trim() ? dbUser.avatarUrl : "/noprofile.jpg";
 
   const greeting =
     user?.name?.trim() ||
@@ -25,7 +30,7 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
 
   return (
     <header className={combinedClassName}>
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-3 px-4 py-2 sm:px-6 lg:px-10 lg:py-3">
+      <div className="mx-auto flex w-full max-w-7xl flex-nowrap items-center gap-2 px-4 py-1 sm:px-6 lg:px-10 lg:py-2">
         <Link
           href="/"
           className="order-1 group flex items-center gap-2 pr-1 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
@@ -34,23 +39,45 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
           <Image
             src="/shujia.png"
             alt="Shujia logo"
-            width={36}
-            height={36}
-            className="h-8 w-8 rounded-md border border-white/20 object-cover grayscale transition group-hover:grayscale-0 sm:h-9 sm:w-9"
+            width={40}
+            height={40}
+            className="h-9 w-9 rounded-md border border-white/20 object-contain grayscale transition group-hover:grayscale-0 sm:h-10 sm:w-10"
             priority
           />
-          <span className="text-lg font-semibold uppercase tracking-[0.2em] text-white transition group-hover:text-accent sm:text-xl">
-            Shujia
-          </span>
         </Link>
-        <div className="order-3 w-full md:order-2 md:flex-1">
+        <div className="order-2 min-w-0 flex-1 md:order-2">
           <SearchBar isAuthenticated={Boolean(user)} />
         </div>
 
-        <div className="order-2 ml-auto flex items-center gap-2 text-surface-subtle md:order-3">
+        <div className="order-3 ml-auto flex items-center gap-2 text-surface-subtle">
+          <Link
+            href="/users"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-8 sm:w-8"
+            aria-label="Browse users"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 19.127a12.318 12.318 0 006.741-1.94 6.967 6.967 0 00-13.482 0A12.318 12.318 0 0015 19.127z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 13.5a4.5 4.5 0 100-9 4.5 4.5 0 000 9z"
+              />
+            </svg>
+          </Link>
           <Link
             href={user ? "/settings" : "/login?redirect=/settings"}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-9 sm:w-9"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-8 sm:w-8"
             aria-label="Account settings"
           >
             <svg
@@ -76,22 +103,29 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
           {user ? (
             <Link
               href={profileHref}
-              className="inline-flex h-8 items-center justify-center rounded-full border border-white/20 bg-transparent px-3 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white sm:h-9"
+              className="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-transparent transition hover:border-white sm:h-10 sm:w-10"
               aria-label="User profile"
             >
-              {greeting ?? "Profile"}
+              <Image
+                src={avatar}
+                alt="User avatar"
+                width={40}
+                height={40}
+                className="h-full w-full object-cover"
+                unoptimized
+              />
             </Link>
           ) : (
             <>
               <Link
                 href="/login"
-                className="inline-flex items-center rounded-full border border-white/20 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white"
+                className="hidden items-center rounded-full border border-white/20 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-white transition hover:border-white sm:inline-flex"
               >
                 Log in
               </Link>
               <Link
                 href="/register"
-                className="inline-flex items-center rounded-full border border-accent px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-accent transition hover:border-white hover:text-white"
+                className="hidden items-center rounded-full border border-accent px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-accent transition hover:border-white hover:text-white sm:inline-flex"
               >
                 Sign up
               </Link>

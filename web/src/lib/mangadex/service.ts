@@ -67,13 +67,21 @@ function createMangaSummary(manga: MangaDexManga): MangaSummary {
       : undefined;
 
   const altTitles = attributes.altTitles
-    .map((record) => getPreferredLocaleText(record))
+    .map((record) => getPreferredLocaleText(record, ["en", "en-us", "en-gb"]) || getPreferredLocaleText(record))
     .filter((value): value is string => Boolean(value))
     .slice(0, 3);
 
   return {
     id,
     title:
+      getPreferredLocaleText(attributes.title, ["en", "en-us", "en-gb"]) ??
+      // search English across all alt titles first
+      (attributes.altTitles.length
+        ? (attributes.altTitles
+            .map((rec) => getPreferredLocaleText(rec, ["en", "en-us", "en-gb"]))
+            .find((v) => Boolean(v)) as string | undefined)
+        : undefined) ??
+      // then fall back to any locale title
       getPreferredLocaleText(attributes.title) ??
       getPreferredLocaleText(attributes.altTitles[0] ?? {}) ??
       "Untitled series",
@@ -177,6 +185,20 @@ export async function getTrendingByOriginalLanguage(
   limit = 8,
 ): Promise<MangaSummary[]> {
   return fetchTrendingTitles({ originalLanguage, limit });
+}
+
+export async function getRecentPopularByOriginalLanguage(
+  originalLanguage: string,
+  limit = 8,
+): Promise<MangaSummary[]> {
+  // "Recent popular" interpreted as titles with latest uploaded chapters recently,
+  // filtered by original language so it surfaces active/popular releases per region.
+  return fetchTrendingTitles({
+    originalLanguage,
+    limit,
+    orderField: "latestUploadedChapter",
+    orderDirection: "desc",
+  });
 }
 
 export async function getDemographicHighlights(

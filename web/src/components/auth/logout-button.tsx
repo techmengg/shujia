@@ -20,8 +20,10 @@ export function LogoutButton() {
       } catch (error) {
         console.error("Logout failed", error);
       } finally {
-        router.refresh();
-        router.push("/");
+        router.replace("/");
+        setTimeout(() => {
+          router.refresh();
+        }, 0);
       }
     });
   };
