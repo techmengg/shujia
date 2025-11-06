@@ -1,237 +1,181 @@
+# shujia
 
-  <h1>Shujia</h1>
-  <p>
-    A tracker for manga, manhwa, and manhua powered by a bunch of API's.
-  </p>
+a full-stack tracker for manga, manhwa, and manhua built and maintained by me. powered by public apis for now, with more integrations and media expansion on the way.
 
 ---
 
-## Table of Contents
+## table of contents
 
-1. [Overview](#overview)
-2. [Features](#features)
-3. [Architecture](#architecture)
-4. [Getting Started](#getting-started)
-5. [Environment Variables](#environment-variables)
-6. [Database & Migrations](#database--migrations)
-7. [Development Workflow](#development-workflow)
-8. [Testing & Quality](#testing--quality)
-9. [Deployment](#deployment)
-10. [Roadmap](#roadmap)
-11. [Contributing](#contributing)
-12. [License](#license)
-
----
-
-## Overview
-
-Shujia is a full-stack web application for keeping track of serialized comics across multiple regions and languages. Readers can authenticate, follow series, monitor release schedules, and manage a personal reading list with rich metadata. The project is optimized for deployment on **Vercel** with a managed **PostgreSQL** backend and uses modern React/Next.js patterns.
+1. [overview](#overview)
+2. [features](#features)
+3. [architecture](#architecture)
+4. [getting started](#getting-started)
+5. [environment variables](#environment-variables)
+6. [database & migrations](#database--migrations)
+7. [development workflow](#development-workflow)
+8. [testing & quality](#testing--quality)
+9. [deployment](#deployment)
+10. [roadmap](#roadmap)
+11. [license](#license)
 
 ---
 
-## Features
+## overview
 
-### Reader Experience
+shujia is a full-stack web app for tracking serialized comics across different regions and languages. you can sign in, follow titles, see new chapters, and keep a reading list that syncs with live updates.
 
-- **Home Dashboard**: Surfaced sections for latest updates, trending series by region, demographic highlights, and a rich carousel UI.
-- **Reading List**: Authenticated users can curate a personal bookshelf, sort entries, view metadata, and monitor progress.
-- **Manga Detail Pages**: Deep dive into a title with creators, tags, statistics, and quick actions (MangaDex links, sharing, add-to-list).
-- **Search**: Top-level search bar for instant lookups across the MangaDex catalogue.
-- **Roadmap Page**: Public page communicating upcoming product phases and strategic direction.
+i’m building this solo — everything from ui design to api integration and backend logic. right now it mainly runs off **mangadex**, but i’ll be adding more sources like **mangahook**, **jikan**, and **consumet** soon. if those apis end up being under-documented or incomplete, i’ll just scrape **google results** or **filtered html** to fill in the gaps.
 
-### Account & Personalization
-
-- **Authentication**: Custom credential-based auth backed by Prisma and encrypted cookies.
-- **Profile Management**:
-  - Unique usernames (used for vanity URLs at `/profile/:username`).
-  - Avatar uploads (PNG/JPG) with server-side validation and optimized delivery.
-  - Bio, timezone, and email preferences.
-  - Reading statistics and latest activity feed visible on profile pages.
-- **Sessions Management**: View and invalidate active sessions to secure your account.
-- **Notification Settings**: Fine-grained opt-ins for weekly digests, product updates, and marketing messages.
-
-### Content Pipeline
-
-- **MangaDex Integration**: REST clients for trending titles, demographic highlights, and recent updates.
-- **Comick API**: Secondary source hinted in the environment template for future integrations.
-- **Prisma ORM**: Persistent data for users, reading lists, sessions, and auth flows.
+eventually, i want to expand shujia beyond manga into **anime, tv shows, and dramas**, while keeping the experience minimal and consistent.
 
 ---
 
-## Architecture
+## features
 
-| Layer            | Technologies & Tools                                                                                 |
-| ---------------- | ---------------------------------------------------------------------------------------------------- |
-| Frontend         | Next.js 15 (App Router), React Server Components, Tailwind CSS utility classes, shadcn-inspired UI   |
-| Backend          | Next.js Route Handlers, Prisma Client, custom auth/session handling                                   |
-| Database         | PostgreSQL (tested with Amazon RDS)                                                                  |
-| Auth             | Cookie-based sessions, bcrypt hashing, rate-limited endpoints                                        |
-| Storage          | File uploads served from `/public/uploads/avatars` (place behind object storage in production)       |
-| Styling          | Tailwind CSS with custom gradients, blur effects, and typography tokens                              |
-| Tooling          | TypeScript, Turbopack (during `next dev`), ESLint (Next.js default), npm                             |
+### reader experience
 
-Directory highlights:
+* home dashboard with latest updates, trending series, and regional highlights
+* personal reading list for logged-in users
+* detailed manga pages with creators, tags, and metadata
+* quick search across mangadex’s catalogue
+* roadmap page showing current and planned development
 
-- `src/app/**`: App Router entry points, layouts, and API route handlers.
-- `src/components/**`: Reusable UI components (layout, manga widgets, settings forms, etc.).
-- `src/lib/**`: Auth helpers, Prisma client, MangaDex service adapters.
-- `prisma/**`: Schema definition and migrations.
+### account & personalization
+
+* email-based authentication using encrypted cookies
+* editable profile (username, avatar, bio, timezone)
+* vanity urls at `/profile/:username`
+* session management and account security controls
+* notification preferences (updates, digests, marketing)
+
+### content pipeline
+
+* mangadex rest integration for trending and metadata
+* partial comick integration for future testing
+* prisma orm for user data, reading lists, and sessions
 
 ---
 
-## Getting Started
+## architecture
 
-### Prerequisites
+| layer    | stack                                                                              |
+| :------- | :--------------------------------------------------------------------------------- |
+| frontend | next.js 15 (app router), react server components, tailwind css, shadcn-inspired ui |
+| backend  | next.js route handlers, prisma client, custom auth/session logic                   |
+| database | postgresql                                                                         |
+| auth     | cookie-based sessions with bcrypt                                                  |
+| storage  | vercel blob                                                                        |
+| tooling  | typescript, turbopack, eslint, npm                                                 |
 
-- **Node.js** ≥ 18.17
-- **npm** ≥ 9 (or your preferred Node package manager)
-- **PostgreSQL** instance (local Docker container or managed service)
-- MangaDex/Comick APIs are public; no API key required.
+directory overview:
 
-### Installation
+* `src/app/**`: app router routes, layouts, and api handlers
+* `src/components/**`: reusable ui components
+* `src/lib/**`: prisma client, auth helpers, and api adapters
+* `prisma/**`: schema and migrations
+
+---
+
+## getting started
+
+### prerequisites
+
+* **node.js** ≥ 18
+* **npm** ≥ 9
+* **postgresql** (local or hosted)
+* mangadex and comick apis are public
+
+### setup
 
 ```bash
 git clone https://github.com/<your-username>/shujia.git
 cd shujia/web
 npm install
-```
-
-Copy the example environment file and update the values:
-
-```bash
 cp .env.example .env
 ```
 
-Update `DATABASE_URL`, `APP_BASE_URL`, and SMTP details if you need email flows.
+update your `.env` file with database, blob, and base url values.
 
 ---
 
-## Environment Variables
+## environment variables
 
-| Variable                         | Description                                                                 | Required | Default                            |
-| -------------------------------- | --------------------------------------------------------------------------- | -------- | ---------------------------------- |
-| `NEXT_PUBLIC_MANGADEX_API_BASE`  | Base URL for MangaDex API requests                                         | ✔        | `https://api.mangadex.org`         |
-| `NEXT_PUBLIC_COMICK_API_BASE`    | Base URL for Comick API (future integrations)                              | ✔        | `https://api.comick.io/v1.0`       |
-| `NEXT_PUBLIC_BLOB_BASE_URL`      | Public Vercel Blob URL (e.g. `https://...public.blob.vercel-storage.com`)  | ✔        | —                                  |
-| `DATABASE_URL`                   | PostgreSQL connection string                                                | ✔        | —                                  |
-| `BLOB_READ_WRITE_TOKEN`          | Server-side token with read/write access to your Blob store                | ✔        | —                                  |
-| `APP_BASE_URL`                   | Public URL of the application (used in metadata, sharing, redirects)       | ✔        | `http://localhost:3000`           |
-| `CSRF_ALLOWED_ORIGINS`           | Comma-separated whitelist for CSRF validation (optional)                   |          | empty                              |
-| `EMAIL_FROM`                     | Default "from" email address                                                |          | empty                              |
-| `SMTP_HOST`, `SMTP_PORT`         | SMTP server details                                                         |          | empty                              |
-| `SMTP_USER`, `SMTP_PASS`         | SMTP credentials (if sending email)                                        |          | empty                              |
-| `SMTP_SECURE`                    | `true` if TLS is required                                                   |          | `false`                            |
+| variable                        | description                   | required |
+| :------------------------------ | :---------------------------- | :------- |
+| `NEXT_PUBLIC_MANGADEX_API_BASE` | base url for mangadex api     | ✔        |
+| `NEXT_PUBLIC_COMICK_API_BASE`   | base url for comick api       | ✔        |
+| `NEXT_PUBLIC_BLOB_BASE_URL`     | public vercel blob url        | ✔        |
+| `DATABASE_URL`                  | postgresql connection string  | ✔        |
+| `BLOB_READ_WRITE_TOKEN`         | server token for blob storage | ✔        |
+| `APP_BASE_URL`                  | app’s public url              | ✔        |
+
+optional: smtp and csrf configs for email and security.
 
 ---
 
-## Database & Migrations
+## database & migrations
 
-Prisma manages the schema. Common commands:
+prisma handles the schema and migration flow.
 
 ```bash
-# Apply and create a new migration (development)
 npx prisma migrate dev --name <migration_name>
-
-# Synchronize schema without generating new migration (production)
-npx prisma migrate deploy
-
-# Regenerate Prisma Client after schema changes
 npx prisma generate
 ```
 
-> **Note:** The app depends on the `User.username` column introduced in the `20251105020129_add_username_to_user` migration. Ensure your production database has this migration applied before deploying the latest code.
+make sure to apply the `username` column migration before deploying.
 
 ---
 
-## Development Workflow
+## development workflow
 
 ```bash
-# Start Next.js in development mode (Turbopack)
-npm run dev
-
-# Type-check the project
-npm run typecheck
-
-# Lint (Next.js provides a default ESLint config)
-npm run lint
-
-# Build for production
-npm run build
-
-# Start production build locally
-npm run start
+npm run dev        # start dev server  
+npm run build      # build for production  
+npm run start      # run production build  
+npm run lint       # eslint check  
+npm run typecheck  # typescript validation  
 ```
 
-Recommended workflow:
-
-1. Start the dev server with `npm run dev`.
-2. Make changes; Tailwind + Turbopack will hot-reload.
-3. Run `npx prisma studio` to inspect database contents if needed.
-4. Ensure migrations are committed alongside schema changes.
+use `npx prisma studio` to view or edit data locally.
 
 ---
 
-## Testing & Quality
+## testing & quality
 
-- Linting: `npm run lint`
-- Type Safety: `npm run typecheck` (leverages `tsc --noEmit`)
-- Manual QA: verify login, registration, reading list updates, and profile changes.
-
-Automated tests are not yet implemented; see the Roadmap for planned additions.
+no automated tests yet — i manually test login, registration, reading lists, and profile flows.
+type checking + linting keep things stable for now.
 
 ---
 
-## Deployment
+## deployment
 
-### Vercel Hosting (Recommended)
+### vercel (recommended)
 
-1. **Database**: Provision a managed PostgreSQL instance (e.g., Vercel Postgres, Supabase, RDS). Update `DATABASE_URL` in Vercel project settings.
-2. **Environment Variables**: Mirror all keys from your local `.env` into the Vercel dashboard.
-3. **Build Command**: Vercel auto-detects Next.js. Ensure the build command runs migrations:
+1. connect repo to vercel
+2. set env vars
+3. set build command
 
    ```bash
    npx prisma migrate deploy && npx prisma generate && next build
    ```
+4. configure blob + db
+5. deploy
 
-4. **Static Files & Uploads**: Avatars are stored in [Vercel Blob](https://vercel.com/docs/storage/vercel-blob). Provide `BLOB_READ_WRITE_TOKEN` (server) and `NEXT_PUBLIC_BLOB_BASE_URL` (client) so uploads work in production. Local development falls back to the writable `/public/uploads/avatars` directory.
-5. **Deploy**: Connect the repository to Vercel, trigger a deployment, and verify all routes.
+### custom hosting
 
-### Alternative Hosting
-
-- **Docker**: Wrap the app in a Node 20 image, install dependencies, run `next build`, and serve with `next start`.
-- **Custom Node Server**: Ensure migrations are applied before running `npm run start`.
+docker or custom node setups work too — just apply migrations before starting the server.
 
 ---
 
-## Roadmap
+## roadmap
 
-The `/roadmap` route is updated in-app, but on a high level upcoming work includes:
-
-1. **Core Stabilization**: Password reset flows, richer notifications, and comprehensive rate limiting.
-2. **Data Expansion**: Integrate Jikan/other APIs and explore a custom content aggregation pipeline.
-3. **Media Growth**: Extend beyond comics into anime and live-action while preserving focused UX.
-4. **Reader Polish**: Enhanced readers, offline queues, richer chapter tracking.
-5. **Community Layer**: Collaborative lists, social sharing, and friend activity feeds.
-6. **Multi-Platform**: Native mobile apps and a public API surface for third-party clients.
+* full integrations with mangahook, jikan, and consumet
+* fallback scraping for missing or incomplete data
+* expansion into anime, tv, and dramas
+* improved chapter reader and offline mode
+* password resets and richer notification options
+* native mobile app prototype later on
 
 ---
 
-## Contributing
-
-1. Fork the repository and create a feature branch.
-2. Copy `.env.example` to `.env` and configure local secrets.
-3. Run `npm install` and `npm run dev`.
-4. Create or update migrations when touching the schema.
-5. Submit a pull request with a clear summary, testing notes, and screenshots where relevant.
-
-Please open issues for bugs or feature discussions before large changes.
-
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-Happy reading! If you build something awesome on top of Shujia, let us know.
+— techmeng :)
