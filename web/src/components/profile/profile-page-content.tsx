@@ -116,7 +116,7 @@ function getTopTags(readingList: ReadingListEntryDto[], limit = 10) {
     .slice(0, limit);
 }
 
-export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageContentProps) {
+export function ProfilePageContent({ user, readingList }: ProfilePageContentProps) {
   const memberSince = formatMemberSince(user.memberSince);
   const avatar = user.avatarUrl?.trim() ? user.avatarUrl : FALLBACK_AVATAR;
   const bio = user.bio?.trim();

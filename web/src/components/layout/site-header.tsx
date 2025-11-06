@@ -22,10 +22,6 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
     ? await prisma.user.findUnique({ where: { id: user.id }, select: { avatarUrl: true } })
     : null;
   const avatar = dbUser?.avatarUrl?.trim() ? dbUser.avatarUrl : "/noprofile.jpg";
-
-  const greeting =
-    user?.name?.trim() ||
-    (user?.username ? `@${user.username}` : user?.email ? user.email.split("@")[0] : undefined);
   const profileHref = user?.username ? `/profile/${user.username}` : "/profile";
 
   return (

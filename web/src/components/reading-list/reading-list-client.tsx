@@ -6,6 +6,25 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ReadingListItem, ReadingListResponse } from "@/data/reading-list";
 
+function getMessage(body: unknown): string | undefined {
+  if (typeof body === "object" && body !== null && "message" in body) {
+    const m = (body as Record<string, unknown>).message;
+    return typeof m === "string" ? m : undefined;
+  }
+  return undefined;
+}
+
+function getFirstIdFromSearch(body: unknown): string | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+  const obj = body as Record<string, unknown>;
+  const data = obj.data as unknown;
+  if (!Array.isArray(data)) return undefined;
+  const first = data[0] as unknown;
+  if (typeof first !== "object" || first === null) return undefined;
+  const id = (first as Record<string, unknown>).id;
+  return typeof id === "string" ? id : undefined;
+}
+
 type SortOption = "recent" | "alphabetical" | "rating" | "random";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -176,8 +195,9 @@ export function ReadingListClient() {
       });
 
       if (!resp.ok) {
-        const body = await resp.json().catch(() => ({}));
-        setEditStatus((body as any)?.message || "Failed to save changes.");
+        const bodyUnknown: unknown = await resp.json().catch(() => ({}));
+        const msg = getMessage(bodyUnknown);
+        setEditStatus(msg || "Failed to save changes.");
         return;
       }
 
@@ -203,7 +223,7 @@ export function ReadingListClient() {
         setEditingId(null);
         setEditStatus(null);
       }, 900);
-    } catch (e) {
+    } catch {
       setEditStatus("Network error while saving.");
     }
   };
@@ -281,7 +301,6 @@ export function ReadingListClient() {
   } | string;
 
   const parseCsv = (text: string): ImportItem[] => {
-    const rows: string[][] = [];
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
     if (!lines.length) return [];
     // CSV line parser supporting quotes
@@ -397,9 +416,8 @@ export function ReadingListClient() {
             const res = await fetch(`/api/manga/search?q=${encodeURIComponent(title)}&limit=1`, {
               cache: "no-store",
             });
-            const data = await res.json().catch(() => ({ data: [] }));
-            const found = Array.isArray((data as any).data) && (data as any).data[0];
-            mangaId = found?.id as string | undefined;
+            const dataUnknown: unknown = await res.json().catch(() => ({ data: [] }));
+            mangaId = getFirstIdFromSearch(dataUnknown);
           }
 
           if (!mangaId) {
@@ -436,7 +454,7 @@ export function ReadingListClient() {
       } catch {
         // ignore refresh errors
       }
-    } catch (e) {
+    } catch {
       setImportStatus("Failed to import file.");
     }
   };
@@ -455,19 +473,20 @@ export function ReadingListClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ all: true }),
       });
-      const data = await resp.json().catch(() => ({}));
+      const dataUnknown: unknown = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        setDeleteStatus((data as any)?.message || "Failed to delete list.");
+        const msg = getMessage(dataUnknown);
+        setDeleteStatus(msg || "Failed to delete list.");
         return;
       }
       setItems([]);
-      setDeleteStatus((data as any)?.message || "Deleted.");
+      setDeleteStatus(getMessage(dataUnknown) || "Deleted.");
       setTimeout(() => {
         setShowDeleteAll(false);
         setDeleteConfirm("");
         setDeleteStatus(null);
       }, 900);
-    } catch (e) {
+    } catch {
       setDeleteStatus("Network error. Try again.");
     }
   };

@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 const roadmapItems = [
   {
     description:
@@ -41,7 +43,7 @@ export default function RoadmapPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold text-white">Roadmap</h1>
         <small className="block text-sm text-white/60 pt-2">
-          everything is built by me and only me, so it might take a bit... :')
+          everything is built by me and only me, so it might take a bit... :&apos;)
         </small>
       </header>
 
@@ -61,4 +63,3 @@ export default function RoadmapPage() {
 export const metadata: Metadata = {
   title: "Shujia | Roadmap",
 };
-import type { Metadata } from "next";

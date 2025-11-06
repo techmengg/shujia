@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import useEmblaCarousel, { type EmblaOptionsType } from "embla-carousel-react";
+import useEmblaCarousel from "embla-carousel-react";
+import type { EmblaOptionsType } from "embla-carousel";
 
 interface CarouselProps {
   children: React.ReactNode;
@@ -60,4 +61,3 @@ export function Carousel({ children, options, className }: CarouselProps) {
     </div>
   );
 }
-
