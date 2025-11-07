@@ -56,7 +56,7 @@ export default function RoadmapPage() {
         ))}
       </ol>
         <small className="block text-sm text-white/60 pt-10">
-          reach me on twitter: <a href="https://x.com/s4lvaholic" className="text-blue-400">@s4lvaholic</a> or discord: &quot;@skrz.&quot; if you have any questions or suggestions.
+          reach me on x: <a href="https://x.com/s4lvaholic" className="text-blue-400">@s4lvaholic</a> if you have any questions or suggestions.
         </small>
     </main>
   );
