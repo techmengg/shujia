@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const storedState = cookieStore.get(getStateCookieName())?.value;
   cookieStore.delete(getStateCookieName());
 
