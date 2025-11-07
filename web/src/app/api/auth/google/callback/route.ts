@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
     const normalizedEmail = profile.email.toLowerCase();
 
-    let user = await prisma.user.findUnique({
+    let user = await prisma.user.findFirst({
       where: { googleId },
     });
 
