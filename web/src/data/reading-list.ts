@@ -20,8 +20,16 @@ export interface ReadingListItem {
     updatedAt: string;
 }
 
+export interface ReadingListOwner {
+    id: string;
+    username: string | null;
+    name: string | null;
+    isOwner: boolean;
+}
+
 export interface ReadingListResponse {
     data: ReadingListItem[];
+    owner?: ReadingListOwner;
 }
 
 export interface AddReadingListPayload {

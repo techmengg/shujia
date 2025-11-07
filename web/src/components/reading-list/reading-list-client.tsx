@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ReadingListItem, ReadingListResponse } from "@/data/reading-list";
 
@@ -36,6 +36,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 
 const IMPORT_CONCURRENCY = 6;
 const PROGRESS_UPDATE_INTERVAL = 5;
+const TABLE_COLUMNS = 6;
 
 function sortReadingList(items: ReadingListItem[], sort: SortOption, seed = 0) {
   const list = [...items];
@@ -91,7 +92,6 @@ export function ReadingListClient() {
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
-  const [expandedTags, setExpandedTags] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let isSubscribed = true;
@@ -231,15 +231,69 @@ export function ReadingListClient() {
     }
   };
 
-  const toggleTags = (id: string) =>
-    setExpandedTags((prev) => ({ ...prev, [id]: !prev[id] }));
-
   const handleSortChange = (option: SortOption) => {
     if (option === "random") {
       setRandomKey((key) => key + 1);
     }
     setSort(option);
   };
+
+  const renderEditFields = (item: ReadingListItem) => (
+    <>
+      <div className="grid gap-3 md:grid-cols-3">
+        <label className="flex flex-col gap-1 text-xs text-white/70">
+          <span>Progress</span>
+          <input
+            type="text"
+            value={editForm.progress}
+            onChange={(e) => setEditForm((f) => ({ ...f, progress: e.target.value }))}
+            className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
+            placeholder="e.g. Chapter 12"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-white/70">
+          <span>Rating</span>
+          <input
+            type="number"
+            min={0}
+            max={10}
+            step={0.5}
+            value={editForm.rating}
+            onChange={(e) => setEditForm((f) => ({ ...f, rating: e.target.value }))}
+            className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
+            placeholder="8.5"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-white/70 md:col-span-3">
+          <span>Notes</span>
+          <textarea
+            rows={2}
+            value={editForm.notes}
+            onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+            className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
+            placeholder="Optional notes"
+          />
+        </label>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => saveEdit(item)}
+          className="inline-flex items-center justify-center rounded-md border border-accent bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent transition hover:border-accent/60 hover:bg-accent/20"
+        >
+          Save
+        </button>
+        <button
+          type="button"
+          onClick={cancelEdit}
+          className="inline-flex items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/80 transition hover:border-white/40 hover:text-white"
+        >
+          Cancel
+        </button>
+        {editStatus ? <span className="text-xs text-white/60">{editStatus}</span> : null}
+      </div>
+    </>
+  );
 
   const exportRows = useMemo(
     () =>
@@ -791,213 +845,231 @@ export function ReadingListClient() {
             </div>
           )
         ) : (
-          <div className="flex flex-col gap-4">
-          {sortedItems.map((item) => {
-            const progressLabel =
-              item.progress && item.progress.trim().length
-                ? item.progress
-                : "Not started yet";
-            const ratingDisplay =
-              typeof item.rating === "number" ? item.rating.toFixed(1) : "--";
-            const tags = item.tags?.length ? item.tags : [];
-            const titleInitial =
-              item.title && item.title.trim().length
-                ? item.title.trim().charAt(0).toUpperCase()
-                : "?";
+          <div className="space-y-4">
+            <div className="hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_25px_50px_rgba(2,6,23,0.35)] md:block">
+            <table className="w-full table-fixed border-collapse text-sm text-white/80">
+              <thead className="bg-white/5 text-[0.65rem] uppercase tracking-[0.2em] text-white/50">
+                <tr>
+                  <th className="w-[42%] px-4 py-3 text-left font-medium">Series</th>
+                  <th className="w-[16%] px-4 py-3 text-left font-medium">Progress</th>
+                  <th className="w-[10%] px-4 py-3 text-left font-medium">Rating</th>
+                  <th className="w-[12%] px-4 py-3 text-left font-medium">Updated</th>
+                  <th className="w-[14%] px-4 py-3 text-left font-medium">Notes</th>
+                  <th className="w-[8%] px-4 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedItems.map((item) => {
+                  const progressLabel =
+                    item.progress && item.progress.trim().length
+                      ? item.progress
+                      : "Not started yet";
+                  const ratingDisplay =
+                    typeof item.rating === "number" ? item.rating.toFixed(1) : "--";
+                  const tags = item.tags?.length ? item.tags : [];
+                  const tagsPreview = tags.slice(0, 3);
+                  const remainingTags = Math.max(tags.length - tagsPreview.length, 0);
+                  const titleInitial =
+                    item.title && item.title.trim().length
+                      ? item.title.trim().charAt(0).toUpperCase()
+                      : "?";
+                  const editFields = renderEditFields(item);
 
-            return (
-              <div key={item.id} className="flex flex-col gap-2">
-              <article
-                className="flex min-w-0 items-stretch gap-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-2 transition hover:border-accent/40 sm:gap-3"
-              >
-                <div className="relative aspect-[2/3] w-14 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-gradient-to-br from-accent-soft via-surface-muted to-surface shadow-[0_10px_24px_rgba(8,11,24,0.32)] sm:w-16">
-                  {item.cover ? (
-                    <Image
-                      src={item.cover}
-                      alt={item.title}
-                      fill
-                      priority={false}
-                      sizes="80px"
-                      quality={100}
-                      unoptimized
-                      referrerPolicy="no-referrer"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-black/40 text-lg font-semibold text-white">
-                      {titleInitial}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-1 flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-start sm:gap-4">
-                  <div className="min-w-0 space-y-1">
-                    {(item.demographic || item.status) ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {item.demographic ? (
-                          <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.16em] text-white/60">
-                            {item.demographic}
-                          </span>
-                        ) : null}
-                        {item.status ? (
-                          <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.16em] text-white/50">
-                            {item.status}
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <Link
-                        href={`/manga/${item.mangaId}`}
-                        className="min-w-0 max-w-[86%] truncate whitespace-nowrap pr-2 text-sm font-semibold text-white transition hover:text-accent sm:max-w-[70%] sm:text-base"
-                      >
-                        {item.title}
-                      </Link>
-                    </div>
-                    <p className="text-[0.55rem] text-white/60 sm:text-[0.6rem]">
-                      {progressLabel}
-                    </p>
-                    {item.notes ? (
-                      <p className="max-w-3xl text-[0.7rem] text-white/70 line-clamp-1 sm:text-[0.8rem]">
-                        {item.notes}
-                      </p>
-                    ) : null}
-                    {tags.length ? (
-                      <div className="flex flex-wrap items-center gap-1">
-                        {tags.map((tag, idx) => {
-                          const hiddenOnMobile = idx >= 3 && !expandedTags[item.id];
-                          return (
-                            <span
-                              key={tag}
-                              className={`${hiddenOnMobile ? "hidden sm:inline-flex" : "inline-flex"} items-center rounded-md border border-white/10 bg-white/5 px-1 py-0.5 text-[0.5rem] font-semibold uppercase tracking-[0.14em] text-white/60`}
+                  return (
+                    <Fragment key={item.id}>
+                      <tr className="border-t border-white/5 text-white/80 transition hover:bg-white/5 first:border-t-0">
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex items-stretch gap-3">
+                            <div className="relative h-20 w-14 overflow-hidden rounded-md border border-white/10 bg-white/10 sm:h-24 sm:w-16">
+                              {item.cover ? (
+                                <Image
+                                  src={item.cover}
+                                  alt={item.title}
+                                  fill
+                                  sizes="60px"
+                                  quality={90}
+                                  unoptimized
+                                  referrerPolicy="no-referrer"
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-white/5 text-sm font-semibold text-white">
+                                  {titleInitial}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <Link
+                                href={`/manga/${item.mangaId}`}
+                                className="block min-w-0 truncate text-[0.95rem] font-semibold text-white transition hover:text-accent md:max-w-[32rem] xl:max-w-[40rem]"
+                              >
+                                {item.title}
+                              </Link>
+                              {(item.demographic || item.status) ? (
+                                <p className="text-[0.65rem] uppercase tracking-[0.12em] text-white/50">
+                                  {[item.demographic, item.status].filter(Boolean).join(" / ")}
+                                </p>
+                              ) : null}
+                              {tagsPreview.length ? (
+                                <div className="flex flex-wrap gap-1 text-[0.6rem] text-white/60">
+                                  {tagsPreview.map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className="rounded-full bg-white/5 px-2 py-0.5 uppercase tracking-[0.14em]"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                  {remainingTags > 0 ? (
+                                    <span className="text-white/40">+{remainingTags} more</span>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 align-top text-[0.85rem] text-white/80">
+                          {progressLabel}
+                        </td>
+                        <td className="px-4 py-3 align-top text-center text-base font-semibold text-accent">
+                          {ratingDisplay}
+                        </td>
+                        <td className="px-4 py-3 align-top text-xs text-white/60">
+                          {formatUpdatedAt(item.updatedAt)}
+                        </td>
+                        <td className="px-4 py-3 align-top text-xs text-white/70">
+                          {item.notes ? (
+                            <p className="max-w-[14rem] text-white/80 line-clamp-2">
+                              {item.notes.split(" ").slice(0, 25).join(" ")}
+                              {item.notes.split(" ").length > 25 ? "…" : ""}
+                            </p>
+                          ) : (
+                            <span className="text-white/30">--</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex justify-end gap-2 text-[0.75rem]">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(item)}
+                              className="rounded-full border border-white/15 px-3 py-1 text-white/80 transition hover:border-accent/40 hover:text-white"
                             >
-                              {tag}
-                            </span>
-                          );
-                        })}
-                        {tags.length > 3 ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleTags(item.id)}
-                            className="sm:hidden inline-flex items-center rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[0.55rem] font-semibold uppercase tracking-[0.14em] text-white/70 transition hover:border-white/40 hover:text-white"
-                          >
-                            {expandedTags[item.id] ? "Show less" : "Show more"}
-                          </button>
+                              Edit
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {editingId === item.id ? (
+                        <tr className="border-t border-white/5 bg-white/5">
+                          <td className="px-4 pb-5 pt-3" colSpan={TABLE_COLUMNS}>
+                            {editFields}
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="space-y-3 md:hidden">
+            {sortedItems.map((item) => {
+              const progressLabel =
+                item.progress && item.progress.trim().length
+                  ? item.progress
+                  : "Not started yet";
+              const ratingDisplay =
+                typeof item.rating === "number" ? item.rating.toFixed(1) : "--";
+              const tags = item.tags?.length ? item.tags : [];
+              const tagsPreview = tags.slice(0, 3);
+              const remainingTags = Math.max(tags.length - tagsPreview.length, 0);
+              const titleInitial =
+                item.title && item.title.trim().length
+                  ? item.title.trim().charAt(0).toUpperCase()
+                  : "?";
+              const editFields = renderEditFields(item);
+
+              return (
+                <Fragment key={`mobile-${item.id}`}>
+                  <article className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-[0_20px_45px_rgba(3,7,18,0.45)]">
+                    <div className="flex gap-3">
+                      <div className="relative h-28 w-20 overflow-hidden rounded-lg border border-white/10 bg-white/10">
+                        {item.cover ? (
+                          <Image
+                            src={item.cover}
+                            alt={item.title}
+                            fill
+                            sizes="120px"
+                            quality={90}
+                            unoptimized
+                            referrerPolicy="no-referrer"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-white/5 text-lg font-semibold text-white">
+                            {titleInitial}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <Link
+                          href={`/manga/${item.mangaId}`}
+                          className="block min-w-0 truncate text-base font-semibold text-white transition hover:text-accent"
+                        >
+                          {item.title}
+                        </Link>
+                        {(item.demographic || item.status) ? (
+                          <p className="text-[0.65rem] uppercase tracking-[0.12em] text-white/50">
+                            {[item.demographic, item.status].filter(Boolean).join(" / ")}
+                          </p>
+                        ) : null}
+                        <p className="text-[0.8rem] text-white/70">{progressLabel}</p>
+                        {tagsPreview.length ? (
+                          <div className="flex flex-wrap gap-1 text-[0.65rem] text-white/60">
+                            {tagsPreview.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-full bg-white/5 px-2 py-0.5 uppercase tracking-[0.12em]"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {remainingTags > 0 ? (
+                              <span className="text-white/40">+{remainingTags} more</span>
+                            ) : null}
+                          </div>
                         ) : null}
                       </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between text-[0.7rem] text-white/60">
+                      <span className="inline-flex items-center gap-1 font-semibold text-accent">
+                        Rating {ratingDisplay}
+                      </span>
+                      <span>Updated {formatUpdatedAt(item.updatedAt)}</span>
+                    </div>
+                    {item.notes ? (
+                      <p className="mt-2 text-[0.75rem] text-white/70 line-clamp-2">{item.notes}</p>
                     ) : null}
-                    {/* Mobile meta row */}
-                    <div className="flex items-center justify-between gap-3 text-[0.6rem] text-white/60 sm:hidden">
-                      <div className="flex items-center gap-3">
-                        <span className="inline-flex items-center gap-1">
-                          <span aria-hidden className="text-white">★</span>
-                          {typeof item.rating === "number" ? item.rating.toFixed(1) : "--"}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          Upd {formatUpdatedAt(item.updatedAt)}
-                        </span>
-                      </div>
+                    <div className="mt-3 flex justify-end">
                       <button
                         type="button"
                         onClick={() => openEdit(item)}
-                        className="inline-flex items-center rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[0.65rem] text-white/80 transition hover:border-white/40 hover:text-white"
+                        className="rounded-full border border-white/15 px-4 py-1.5 text-sm text-white/80 transition hover:border-accent/40 hover:text-white"
                       >
                         Edit
                       </button>
                     </div>
-                  </div>
-
-                  <div className="hidden flex-col justify-start gap-1 text-[0.6rem] text-white/70 sm:flex sm:w-[11rem] sm:self-stretch">
-                    <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-2 py-0.5">
-                      <span className="text-[0.5rem] uppercase tracking-[0.18em] text-white/50">
-                        Rating
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-accent">
-                        * {ratingDisplay}
-                      </span>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/5 px-2 py-0.5">
-                      <p className="text-[0.5rem] uppercase tracking-[0.18em] text-white/50">
-                        Updated
-                      </p>
-                      <p className="text-[0.65rem] text-white/70">
-                        {formatUpdatedAt(item.updatedAt)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openEdit(item)}
-                      className="mt-1 inline-flex items-center justify-center rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[0.65rem] text-white/80 transition hover:border-white/40 hover:text-white"
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </div>
-              </article>
-              {editingId === item.id ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <label className="flex flex-col gap-1 text-xs text-white/70">
-                      <span>Progress</span>
-                      <input
-                        type="text"
-                        value={editForm.progress}
-                        onChange={(e) => setEditForm((f) => ({ ...f, progress: e.target.value }))}
-                        className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
-                        placeholder="e.g. Chapter 12"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/70">
-                      <span>Rating</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        step={0.5}
-                        value={editForm.rating}
-                        onChange={(e) => setEditForm((f) => ({ ...f, rating: e.target.value }))}
-                        className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
-                        placeholder="8.5"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-white/70 sm:col-span-1 sm:hidden"></label>
-                    <label className="flex flex-col gap-1 text-xs text-white/70 sm:col-span-3">
-                      <span>Notes</span>
-                      <textarea
-                        rows={2}
-                        value={editForm.notes}
-                        onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-                        className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
-                        placeholder="Optional notes"
-                      />
-                    </label>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => saveEdit(item)}
-                      className="inline-flex items-center justify-center rounded-md border border-accent bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent transition hover:border-accent/60 hover:bg-accent/20"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="inline-flex items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/80 transition hover:border-white/40 hover:text-white"
-                    >
-                      Cancel
-                    </button>
-                    {editStatus ? (
-                      <span className="text-xs text-white/60">{editStatus}</span>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-              </div>
-            );
-          })}
+                  </article>
+                  {editingId === item.id ? (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{editFields}</div>
+                  ) : null}
+                </Fragment>
+              );
+            })}
           </div>
+        </div>
         )}
+
       </section>
     </main>
   );
