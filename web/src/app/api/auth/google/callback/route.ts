@@ -66,25 +66,19 @@ export async function GET(request: Request) {
 
     const normalizedEmail = profile.email.toLowerCase();
 
-    let user = await prisma.user.findFirst({
-      where: { googleId },
+    let user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
     });
 
-    if (!user) {
-      user = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
+    if (user) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          googleId,
+          avatarUrl: profile.picture ?? user.avatarUrl,
+          name: profile.name?.slice(0, 100) ?? user.name,
+        },
       });
-
-      if (user) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            googleId,
-            avatarUrl: profile.picture ?? user.avatarUrl,
-            name: profile.name?.slice(0, 100) ?? user.name,
-          },
-        });
-      }
     }
 
     if (!user) {
