@@ -8,7 +8,12 @@ import { prisma } from "@/lib/prisma";
 const CLEANUP_WINDOW_MS = 1000 * 60 * 60 * 24; // 24 hours
 const CLEANUP_SAMPLING_RATE = 0.05;
 
-type RateLimitCategory = "login" | "register" | "forgotPassword" | "resetPassword";
+type RateLimitCategory =
+  | "login"
+  | "register"
+  | "forgotPassword"
+  | "resetPassword"
+  | "verifyEmail";
 
 type Threshold = {
   max: number;
@@ -44,9 +49,9 @@ const RATE_LIMIT_POLICIES: Record<RateLimitCategory, RateLimitPolicy> = {
       message: "Too many sign-up attempts from this network. Please try again later.",
     },
     identifier: {
-      max: 2,
-      windowMs: 60 * 60_000,
-      message: "Too many sign-up attempts for this email. Please try again later.",
+      max: 10,
+      windowMs: 5 * 60 * 60_000,
+      message: "Too many sign-up attempts for this email. Please try again in about 5 hours.",
     },
   },
   forgotPassword: {
@@ -68,6 +73,19 @@ const RATE_LIMIT_POLICIES: Record<RateLimitCategory, RateLimitPolicy> = {
       max: 10,
       windowMs: 10 * 60_000,
       message: "Too many password reset submissions. Please wait a while and try again.",
+    },
+  },
+  verifyEmail: {
+    attemptType: AuthAttemptType.VERIFY_EMAIL,
+    ip: {
+      max: 10,
+      windowMs: 10 * 60_000,
+      message: "Too many verification attempts from this network. Please wait before trying again.",
+    },
+    identifier: {
+      max: 5,
+      windowMs: 10 * 60_000,
+      message: "Too many attempts for this verification link. Please request a new one.",
     },
   },
 };
@@ -118,79 +136,72 @@ export async function enforceRateLimit({
   const normalizedIdentifier =
     identifier?.trim().toLowerCase() || undefined;
 
-  const createData: Array<{
-    type: AuthAttemptType;
-    scope: AuthThrottleScope;
-    hash: string;
-  }> = [];
-
   const now = Date.now();
 
+  type PendingCheck = {
+    scope: AuthThrottleScope;
+    threshold: Threshold;
+    hash: string;
+  };
+
+  const checks: PendingCheck[] = [];
+
   if (ip && policy.ip) {
-    const ipHash = hashValue(ip);
-    const ipWindowStart = new Date(now - policy.ip.windowMs);
-    const ipCount = await prisma.authAttempt.count({
-      where: {
-        type: policy.attemptType,
-        scope: AuthThrottleScope.IP,
-        hash: ipHash,
-        createdAt: {
-          gte: ipWindowStart,
-        },
-      },
-    });
-
-    if (ipCount >= policy.ip.max) {
-      return {
-        ok: false,
-        response: NextResponse.json(
-          { message: policy.ip.message },
-          { status: 429 },
-        ),
-      };
-    }
-
-    createData.push({
-      type: policy.attemptType,
+    checks.push({
       scope: AuthThrottleScope.IP,
-      hash: ipHash,
+      threshold: policy.ip,
+      hash: hashValue(ip),
     });
   }
 
   if (normalizedIdentifier && policy.identifier) {
-    const identifierHash = hashValue(normalizedIdentifier);
-    const identifierWindowStart = new Date(now - policy.identifier.windowMs);
-    const identifierCount = await prisma.authAttempt.count({
-      where: {
-        type: policy.attemptType,
-        scope: AuthThrottleScope.IDENTIFIER,
-        hash: identifierHash,
-        createdAt: {
-          gte: identifierWindowStart,
-        },
-      },
-    });
-
-    if (identifierCount >= policy.identifier.max) {
-      return {
-        ok: false,
-        response: NextResponse.json(
-          { message: policy.identifier.message },
-          { status: 429 },
-        ),
-      };
-    }
-
-    createData.push({
-      type: policy.attemptType,
+    checks.push({
       scope: AuthThrottleScope.IDENTIFIER,
-      hash: identifierHash,
+      threshold: policy.identifier,
+      hash: hashValue(normalizedIdentifier),
     });
   }
 
-  if (createData.length > 0) {
+  if (checks.length > 0) {
+    const results = await Promise.all(
+      checks.map(async (check) => {
+        const windowStart = new Date(now - check.threshold.windowMs);
+        const count = await prisma.authAttempt.count({
+          where: {
+            type: policy.attemptType,
+            scope: check.scope,
+            hash: check.hash,
+            createdAt: {
+              gte: windowStart,
+            },
+          },
+        });
+
+        return {
+          check,
+          count,
+        };
+      }),
+    );
+
+    for (const { check, count } of results) {
+      if (count >= check.threshold.max) {
+        return {
+          ok: false,
+          response: NextResponse.json(
+            { message: check.threshold.message },
+            { status: 429 },
+          ),
+        };
+      }
+    }
+
     await prisma.authAttempt.createMany({
-      data: createData,
+      data: results.map(({ check }) => ({
+        type: policy.attemptType,
+        scope: check.scope,
+        hash: check.hash,
+      })),
     });
   }
 

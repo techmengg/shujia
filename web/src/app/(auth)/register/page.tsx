@@ -9,7 +9,7 @@ export default function RegisterPage() {
   return (
     <AuthCard
       title="Register"
-      description="Start tracking your reading journey and curate your personalised shelves."
+      description="Start tracking your reading journey. We'll send a verification email to finish sign-up."
     >
       <RegisterForm />
     </AuthCard>

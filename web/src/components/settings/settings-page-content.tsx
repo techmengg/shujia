@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import QRCode from "qrcode";
 import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -17,6 +18,7 @@ export interface SettingsUser {
   marketingEmails: boolean;
   productUpdates: boolean;
   weeklyDigestEmails: boolean;
+  twoFactorEnabled: boolean;
 }
 
 interface SettingsPageContentProps {
@@ -174,6 +176,36 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
   });
   const [passwordStatus, setPasswordStatus] = useState<Status>("idle");
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [twoFactorEnabledState, setTwoFactorEnabledState] = useState(
+    user.twoFactorEnabled,
+  );
+  const [twoFactorStatus, setTwoFactorStatus] = useState<Status>("idle");
+  const [twoFactorMessage, setTwoFactorMessage] = useState<string | null>(null);
+  const [twoFactorSetupVisible, setTwoFactorSetupVisible] = useState(false);
+  const [twoFactorSetupData, setTwoFactorSetupData] = useState<{
+    secret: string;
+    otpauthUrl: string;
+    qrCode: string | null;
+  } | null>(null);
+  const [twoFactorVerifyForm, setTwoFactorVerifyForm] = useState({
+    code: "",
+    currentPassword: "",
+  });
+  const [twoFactorDisableVisible, setTwoFactorDisableVisible] = useState(false);
+  const [twoFactorDisableForm, setTwoFactorDisableForm] = useState({
+    currentPassword: "",
+    code: "",
+    recoveryCode: "",
+  });
+  const [twoFactorRecoveryForm, setTwoFactorRecoveryForm] = useState({
+    code: "",
+  });
+  const [twoFactorRecoveryCodes, setTwoFactorRecoveryCodes] = useState<
+    string[] | null
+  >(null);
+  const [showRecoveryForm, setShowRecoveryForm] = useState(false);
+  const [showEmailEditor, setShowEmailEditor] = useState(false);
+  const [showPasswordEditor, setShowPasswordEditor] = useState(false);
 
   // Notifications removed
 
@@ -382,6 +414,204 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
     }
   };
 
+  const startTwoFactorSetup = async () => {
+    setTwoFactorStatus("saving");
+    setTwoFactorMessage(null);
+    setTwoFactorRecoveryCodes(null);
+    setShowRecoveryForm(false);
+    setTwoFactorDisableVisible(false);
+
+    try {
+      const response = await fetch("/api/settings/two-factor/setup", {
+        method: "POST",
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setTwoFactorStatus("error");
+        setTwoFactorMessage(extractErrorMessage(result));
+        return;
+      }
+
+      const { secret, otpauthUrl } = result as {
+        secret: string;
+        otpauthUrl: string;
+      };
+
+      let qrCode: string | null = null;
+      try {
+        qrCode = await QRCode.toDataURL(otpauthUrl, {
+          width: 220,
+          margin: 1,
+          color: {
+            dark: "#ffffff",
+            light: "#111827",
+          },
+        });
+      } catch (error) {
+        console.error("QR code generation failed", error);
+      }
+
+      setTwoFactorSetupData({
+        secret,
+        otpauthUrl,
+        qrCode,
+      });
+      setTwoFactorVerifyForm({
+        code: "",
+        currentPassword: "",
+      });
+      setTwoFactorSetupVisible(true);
+      setTwoFactorStatus("idle");
+      setTwoFactorMessage(
+        "Scan the QR code with your authenticator, then enter a code to confirm.",
+      );
+    } catch (error) {
+      console.error("2FA setup error", error);
+      setTwoFactorStatus("error");
+      setTwoFactorMessage(
+        "Unable to start two-factor setup. Please try again.",
+      );
+    }
+  };
+
+  const handleVerifyTwoFactor = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setTwoFactorStatus("saving");
+    setTwoFactorMessage(null);
+    setTwoFactorRecoveryCodes(null);
+
+    try {
+      const response = await fetch("/api/settings/two-factor/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(twoFactorVerifyForm),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setTwoFactorStatus("error");
+        setTwoFactorMessage(extractErrorMessage(result));
+        return;
+      }
+
+      const recoveryCodes = Array.isArray(result?.recoveryCodes)
+        ? (result.recoveryCodes as string[])
+        : [];
+
+      setTwoFactorStatus("success");
+      setTwoFactorMessage("Two-factor authentication is now enabled.");
+      setTwoFactorEnabledState(true);
+      setTwoFactorRecoveryCodes(recoveryCodes);
+      setTwoFactorSetupVisible(false);
+      setTwoFactorSetupData(null);
+      setShowRecoveryForm(true);
+      setTwoFactorVerifyForm({
+        code: "",
+        currentPassword: "",
+      });
+    } catch (error) {
+      console.error("2FA verify error", error);
+      setTwoFactorStatus("error");
+      setTwoFactorMessage("Unable to verify your code. Please try again.");
+    }
+  };
+
+  const handleDisableTwoFactor = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setTwoFactorStatus("saving");
+    setTwoFactorMessage(null);
+
+    try {
+      const response = await fetch("/api/settings/two-factor/disable", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(twoFactorDisableForm),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setTwoFactorStatus("error");
+        setTwoFactorMessage(extractErrorMessage(result));
+        return;
+      }
+
+      setTwoFactorStatus("success");
+      setTwoFactorMessage("Two-factor authentication has been disabled.");
+      setTwoFactorEnabledState(false);
+      setTwoFactorDisableVisible(false);
+      setTwoFactorSetupVisible(false);
+      setTwoFactorSetupData(null);
+      setTwoFactorRecoveryCodes(null);
+      setShowRecoveryForm(false);
+      setTwoFactorDisableForm({
+        currentPassword: "",
+        code: "",
+        recoveryCode: "",
+      });
+    } catch (error) {
+      console.error("2FA disable error", error);
+      setTwoFactorStatus("error");
+      setTwoFactorMessage("Unable to disable two-factor right now.");
+    }
+  };
+
+  const handleRegenerateRecoveryCodes = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setTwoFactorStatus("saving");
+    setTwoFactorMessage(null);
+
+    try {
+      const response = await fetch(
+        "/api/settings/two-factor/recovery-codes",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(twoFactorRecoveryForm),
+        },
+      );
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setTwoFactorStatus("error");
+        setTwoFactorMessage(extractErrorMessage(result));
+        return;
+      }
+
+      const recoveryCodes = Array.isArray(result?.recoveryCodes)
+        ? (result.recoveryCodes as string[])
+        : [];
+
+      setTwoFactorStatus("success");
+      setTwoFactorMessage("Generated a fresh set of recovery codes.");
+      setTwoFactorRecoveryCodes(recoveryCodes);
+      setTwoFactorRecoveryForm({ code: "" });
+      setShowRecoveryForm(true);
+    } catch (error) {
+      console.error("2FA recovery code error", error);
+      setTwoFactorStatus("error");
+      setTwoFactorMessage(
+        "Unable to generate new recovery codes right now.",
+      );
+    }
+  };
+
   // Notifications removed
 
   const handleSignOutOtherSessions = async () => {
@@ -448,7 +678,7 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
 
   return (
     <div className="flex flex-col gap-12 md:gap-16">
-      <section className="space-y-6">
+      <section id="profile-section" className="space-y-6">
         <header className="space-y-2">
           <h2 className="text-base font-semibold text-white">Profile</h2>
           <p className="text-sm text-white/60">
@@ -580,110 +810,422 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
       <section className="space-y-6 border-t border-white/10 pt-10 md:pt-12">
         <header className="space-y-2">
           <h2 className="text-base font-semibold text-white">Account</h2>
-          <p className="text-sm text-white/60">Manage how you sign in to Shujia.</p>
+          <p className="text-sm text-white/60">
+            Manage how you sign in to Shujia. Need to tune your public details instead?{" "}
+            <a href="#profile-section" className="text-accent transition hover:text-white">
+              Jump to your profile
+            </a>
+            .
+          </p>
         </header>
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
-          <span>Need to take a break? You can sign out of this device anytime.</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+          <span>Signed in on this device. You can instantly sign out if you’re on a shared computer.</span>
           <LogoutButton />
         </div>
-        <form className="space-y-6" onSubmit={handleEmailSubmit}>
-          <div className="grid gap-6 md:grid-cols-2">
-            <label className={labelClass}>
-              <span>Email address</span>
-              <input
-                type="email"
-                value={emailForm.email}
-                onChange={(event) =>
-                  setEmailForm((prev) => ({ ...prev, email: event.target.value }))
-                }
-                className={inputClass}
-                autoComplete="email"
-                required
-              />
-            </label>
-            <label className={labelClass}>
-              <span>Current password</span>
-              <input
-                type="password"
-                value={emailForm.currentPassword}
-                onChange={(event) =>
-                  setEmailForm((prev) => ({ ...prev, currentPassword: event.target.value }))
-                }
-                className={inputClass}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            {emailMessage ? (
-              <p className={`text-sm ${statusToneClass(emailStatus)}`}>{emailMessage}</p>
-            ) : null}
-            <button
-              type="submit"
-              className={primaryButtonClass}
-              disabled={emailStatus === "saving"}
-            >
-              {emailStatus === "saving" ? "Saving..." : "Update email"}
-            </button>
-          </div>
-        </form>
 
-        <form className="space-y-6" onSubmit={handlePasswordSubmit}>
-          <div className="grid gap-6 md:grid-cols-3">
-            <label className={`${labelClass} md:col-span-1`}>
-              <span>Current password</span>
-              <input
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(event) =>
-                  setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))
-                }
-                className={inputClass}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-            <label className={labelClass}>
-              <span>New password</span>
-              <input
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(event) =>
-                  setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))
-                }
-                className={inputClass}
-                autoComplete="new-password"
-                required
-              />
-            </label>
-            <label className={labelClass}>
-              <span>Confirm new password</span>
-              <input
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(event) =>
-                  setPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
-                }
-                className={inputClass}
-                autoComplete="new-password"
-                required
-              />
-            </label>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-white">Primary email</p>
+              <p className="text-lg font-medium text-white">{user.email}</p>
+              <p className="text-sm text-white/60">
+                We’ll send security alerts, receipts, and verification links to this address.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+              <span>Want to switch inboxes?</span>
+              <button
+                type="button"
+                onClick={() => setShowEmailEditor((prev) => !prev)}
+                className={neutralButtonClass}
+              >
+                {showEmailEditor ? "Close email editor" : "Change email"}
+              </button>
+            </div>
+            {showEmailEditor ? (
+              <form
+                className="space-y-6 border-t border-white/10 pt-6"
+                onSubmit={handleEmailSubmit}
+              >
+                <div className="grid gap-6 md:grid-cols-2">
+                  <label className={labelClass}>
+                    <span>New email address</span>
+                    <input
+                      type="email"
+                      value={emailForm.email}
+                      onChange={(event) =>
+                        setEmailForm((prev) => ({ ...prev, email: event.target.value }))
+                      }
+                      className={inputClass}
+                      autoComplete="email"
+                      required
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    <span>Current password</span>
+                    <input
+                      type="password"
+                      value={emailForm.currentPassword}
+                      onChange={(event) =>
+                        setEmailForm((prev) => ({
+                          ...prev,
+                          currentPassword: event.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {emailMessage ? (
+                    <p className={`text-sm ${statusToneClass(emailStatus)}`}>{emailMessage}</p>
+                  ) : null}
+                  <button
+                    type="submit"
+                    className={primaryButtonClass}
+                    disabled={emailStatus === "saving"}
+                  >
+                    {emailStatus === "saving" ? "Saving..." : "Update email"}
+                  </button>
+                </div>
+              </form>
+            ) : null}
           </div>
-          {passwordMessage ? (
-            <p className={`text-sm ${statusToneClass(passwordStatus)}`}>{passwordMessage}</p>
-          ) : null}
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className={primaryButtonClass}
-              disabled={passwordStatus === "saving"}
-            >
-              {passwordStatus === "saving" ? "Updating..." : "Change password"}
-            </button>
+
+          <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-white">Password</p>
+              <p className="text-sm text-white/60">
+                Choose a strong, unique password to keep your reading progress safe.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+              <span>Haven’t updated it in a while?</span>
+              <button
+                type="button"
+                onClick={() => setShowPasswordEditor((prev) => !prev)}
+                className={neutralButtonClass}
+              >
+                {showPasswordEditor ? "Close password editor" : "Change password"}
+              </button>
+            </div>
+            {showPasswordEditor ? (
+              <form
+                className="space-y-6 border-t border-white/10 pt-6"
+                onSubmit={handlePasswordSubmit}
+              >
+                <div className="grid gap-6 md:grid-cols-3">
+                  <label className={`${labelClass} md:col-span-1`}>
+                    <span>Current password</span>
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          currentPassword: event.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    <span>New password</span>
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))
+                      }
+                      className={inputClass}
+                      autoComplete="new-password"
+                      required
+                    />
+                  </label>
+                  <label className={labelClass}>
+                    <span>Confirm new password</span>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(event) =>
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          confirmPassword: event.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                      autoComplete="new-password"
+                      required
+                    />
+                  </label>
+                </div>
+                {passwordMessage ? (
+                  <p className={`text-sm ${statusToneClass(passwordStatus)}`}>{passwordMessage}</p>
+                ) : null}
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className={primaryButtonClass}
+                    disabled={passwordStatus === "saving"}
+                  >
+                    {passwordStatus === "saving" ? "Updating..." : "Change password"}
+                  </button>
+                </div>
+              </form>
+            ) : null}
           </div>
-        </form>
+
+          <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-white">Two-factor authentication</p>
+              <p className="text-sm text-white/60">
+                Add a rotating code from an authenticator app for another layer of security.
+              </p>
+            </div>
+            {twoFactorMessage ? (
+              <p className={`text-sm ${statusToneClass(twoFactorStatus)}`}>{twoFactorMessage}</p>
+            ) : null}
+            {!twoFactorEnabledState ? (
+              <div className="space-y-4">
+                <button
+                  type="button"
+                  onClick={startTwoFactorSetup}
+                  className={primaryButtonClass}
+                  disabled={twoFactorStatus === "saving" && !twoFactorSetupVisible}
+                >
+                  {twoFactorStatus === "saving" && !twoFactorSetupVisible
+                    ? "Preparing..."
+                    : "Set up authenticator"}
+                </button>
+                {twoFactorSetupVisible && twoFactorSetupData ? (
+                  <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                    {twoFactorSetupData.qrCode ? (
+                      <div className="flex justify-center">
+                        <Image
+                          src={twoFactorSetupData.qrCode}
+                          alt="Scan this QR code with your authenticator app"
+                          width={176}
+                          height={176}
+                          unoptimized
+                          className="h-44 w-44 rounded-lg border border-white/10 bg-white/5 p-2 object-contain"
+                        />
+                      </div>
+                    ) : null}
+                    <div className="space-y-2 text-sm text-white/70">
+                      <p>Secret key (manual entry):</p>
+                      <p className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 font-mono text-xs text-white">
+                        {twoFactorSetupData.secret}
+                      </p>
+                    </div>
+                    <form className="space-y-4" onSubmit={handleVerifyTwoFactor}>
+                      <label className={labelClass}>
+                        <span>6-digit code</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={twoFactorVerifyForm.code}
+                          onChange={(event) =>
+                            setTwoFactorVerifyForm((prev) => ({
+                              ...prev,
+                              code: event.target.value,
+                            }))
+                          }
+                          className={inputClass}
+                          placeholder="123 456"
+                          required
+                        />
+                      </label>
+                      <label className={labelClass}>
+                        <span>Confirm with your password</span>
+                        <input
+                          type="password"
+                          value={twoFactorVerifyForm.currentPassword}
+                          onChange={(event) =>
+                            setTwoFactorVerifyForm((prev) => ({
+                              ...prev,
+                              currentPassword: event.target.value,
+                            }))
+                          }
+                          className={inputClass}
+                          autoComplete="current-password"
+                          required
+                        />
+                      </label>
+                      <div className="flex justify-end">
+                        <button
+                          type="submit"
+                          className={primaryButtonClass}
+                          disabled={twoFactorStatus === "saving"}
+                        >
+                          {twoFactorStatus === "saving" ? "Verifying..." : "Enable 2FA"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+                  <p>
+                    Status:{" "}
+                    <span className="font-semibold text-emerald-300">Enabled</span>
+                  </p>
+                  <p>Your authenticator will be required next time you sign in.</p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTwoFactorDisableVisible((prev) => !prev);
+                      setTwoFactorMessage(null);
+                    }}
+                    className={neutralButtonClass}
+                  >
+                    {twoFactorDisableVisible ? "Close disable form" : "Disable 2FA"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRecoveryForm((prev) => !prev);
+                      setTwoFactorMessage(null);
+                    }}
+                    className={neutralButtonClass}
+                  >
+                    {showRecoveryForm ? "Hide recovery options" : "Recovery codes"}
+                  </button>
+                </div>
+
+                {twoFactorDisableVisible ? (
+                  <form
+                    className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4"
+                    onSubmit={handleDisableTwoFactor}
+                  >
+                    <label className={labelClass}>
+                      <span>Current password</span>
+                      <input
+                        type="password"
+                        value={twoFactorDisableForm.currentPassword}
+                        onChange={(event) =>
+                          setTwoFactorDisableForm((prev) => ({
+                            ...prev,
+                            currentPassword: event.target.value,
+                          }))
+                        }
+                        className={inputClass}
+                        autoComplete="current-password"
+                        required
+                      />
+                    </label>
+                    <label className={labelClass}>
+                      <span>Authenticator code</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={twoFactorDisableForm.code}
+                        onChange={(event) =>
+                          setTwoFactorDisableForm((prev) => ({
+                            ...prev,
+                            code: event.target.value,
+                          }))
+                        }
+                        className={inputClass}
+                        placeholder="123 456"
+                      />
+                      <span className={helpTextClass}>
+                        Or enter one of your recovery codes below.
+                      </span>
+                    </label>
+                    <label className={labelClass}>
+                      <span>Recovery code (optional)</span>
+                      <input
+                        type="text"
+                        value={twoFactorDisableForm.recoveryCode}
+                        onChange={(event) =>
+                          setTwoFactorDisableForm((prev) => ({
+                            ...prev,
+                            recoveryCode: event.target.value,
+                          }))
+                        }
+                        className={inputClass}
+                        placeholder="ABCD-EFGH"
+                      />
+                    </label>
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        className={dangerButtonClass}
+                        disabled={twoFactorStatus === "saving"}
+                      >
+                        {twoFactorStatus === "saving" ? "Disabling..." : "Disable 2FA"}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+
+                {showRecoveryForm ? (
+                  <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                    <div className="space-y-2 text-sm text-white/70">
+                      <p>
+                        Store these one-time recovery codes somewhere safe. Each code can only be used
+                        once.
+                      </p>
+                    </div>
+                    {twoFactorRecoveryCodes ? (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {twoFactorRecoveryCodes.map((code) => (
+                          <p
+                            key={code}
+                            className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 font-mono text-sm tracking-widest text-white"
+                          >
+                            {code}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-white/60">
+                        Generate a new set whenever you need to refresh them.
+                      </p>
+                    )}
+                    <form
+                      className="space-y-4 border-t border-white/10 pt-4"
+                      onSubmit={handleRegenerateRecoveryCodes}
+                    >
+                      <label className={labelClass}>
+                        <span>Authenticator code</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={twoFactorRecoveryForm.code}
+                          onChange={(event) =>
+                            setTwoFactorRecoveryForm({ code: event.target.value })
+                          }
+                          className={inputClass}
+                          placeholder="123 456"
+                          required
+                        />
+                      </label>
+                      <div className="flex justify-end">
+                        <button
+                          type="submit"
+                          className={primaryButtonClass}
+                          disabled={twoFactorStatus === "saving"}
+                        >
+                          {twoFactorStatus === "saving" ? "Generating..." : "Generate new codes"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Notifications section removed */}

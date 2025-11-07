@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 import { hashToken } from "./session";
 
-const RESET_TOKEN_TTL_MS = 1000 * 60 * 60; // 1 hour
+const RESET_TOKEN_TTL_MS = 1000 * 60 * 30; // 30 minutes
 
 export async function createPasswordResetToken(userId: string) {
   const token = crypto.randomBytes(32).toString("hex");

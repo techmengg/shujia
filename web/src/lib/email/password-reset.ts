@@ -23,7 +23,7 @@ export function buildPasswordResetEmail(resetUrl: string) {
         Click the button below to choose a new password. The link expires in 30 minutes.
       </p>
       <p>
-        <a href="${resetUrl}" style="display:inline-block;padding:12px 20px;background-color:#6366f1;color:#ffffff;border-radius:9999px;text-decoration:none;font-weight:600;">Reset password</a>
+        <a href="${resetUrl}" class="button">Reset password</a>
       </p>
       <p style="color:#94a3b8;">
         If you did not request this, you can safely ignore this email.

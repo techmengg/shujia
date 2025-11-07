@@ -34,6 +34,9 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "random", label: "Random" },
 ];
 
+const IMPORT_CONCURRENCY = 6;
+const PROGRESS_UPDATE_INTERVAL = 5;
+
 function sortReadingList(items: ReadingListItem[], sort: SortOption, seed = 0) {
   const list = [...items];
 
@@ -238,58 +241,81 @@ export function ReadingListClient() {
     setSort(option);
   };
 
-  const handleExport = () => {
-    const payload = items.map((i) => ({
-      mangaId: i.mangaId,
-      title: i.title,
-      url: i.url,
-      progress: i.progress ?? undefined,
-      rating: i.rating ?? undefined,
-      notes: i.notes ?? undefined,
-    }));
-    const blob = new Blob([JSON.stringify({ source: "shujia", version: 1, items: payload }, null, 2)], {
-      type: "application/json",
+  const exportRows = useMemo(
+    () =>
+      items.map((item) => ({
+        mangaId: item.mangaId,
+        title: item.title,
+        url: item.url,
+        progress: item.progress?.trim() || "",
+        rating: typeof item.rating === "number" ? item.rating : "",
+        notes: (item.notes ?? "").replace(/\r?\n/g, " ").trim(),
+      })),
+    [items],
+  );
+
+  const jsonExportContent = useMemo(() => {
+    if (!exportRows.length) {
+      return null;
+    }
+    return JSON.stringify({
+      source: "shujia",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      items: exportRows,
     });
+  }, [exportRows]);
+
+  const csvExportContent = useMemo(() => {
+    if (!exportRows.length) {
+      return null;
+    }
+    const headers = ["mangaId", "title", "url", "progress", "rating", "notes"];
+    const escape = (value: string | number) => {
+      const str = String(value ?? "");
+      return /[,"\\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const lines = [headers.join(",")];
+    for (const row of exportRows) {
+      lines.push(
+        [
+          row.mangaId,
+          row.title,
+          row.url,
+          row.progress,
+          row.rating,
+          row.notes,
+        ]
+          .map((value) => escape(value as string | number))
+          .join(","),
+      );
+    }
+    return lines.join("\n");
+  }, [exportRows]);
+
+  const downloadExport = (content: string | null, mime: string, extension: string) => {
+    if (!content) {
+      const message = "Nothing to export yet.";
+      setImportStatus(message);
+      window.setTimeout(() => {
+        setImportStatus((current) => (current === message ? null : current));
+      }, 4000);
+      return;
+    }
+    const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `reading-list-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `reading-list-${new Date().toISOString().slice(0,10)}.${extension}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
   };
 
-  const handleExportCsv = () => {
-    const headers = ["mangaId", "title", "url", "progress", "rating", "notes"];
-    const escape = (v: unknown) => {
-      const s = v === null || v === undefined ? "" : String(v);
-      if (/[,"\n]/.test(s)) {
-        return '"' + s.replace(/"/g, '""') + '"';
-      }
-      return s;
-    };
-    const lines = [headers.join(",")];
-    for (const i of items) {
-      lines.push([
-        i.mangaId,
-        i.title,
-        i.url,
-        i.progress ?? "",
-        typeof i.rating === "number" ? i.rating : "",
-        (i.notes ?? "").replace(/\r?\n/g, " "),
-      ].map(escape).join(","));
-    }
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `reading-list-${new Date().toISOString().slice(0,10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
+  const handleExport = () => downloadExport(jsonExportContent, "application/json", "json");
+
+  const handleExportCsv = () => downloadExport(csvExportContent, "text/csv;charset=utf-8", "csv");
 
   type ImportItem = {
     title?: string;
@@ -299,6 +325,14 @@ export function ReadingListClient() {
     notes?: string;
     progress?: string;
   } | string;
+
+  type NormalizedImportItem = {
+    title?: string;
+    mangaId?: string;
+    rating?: number;
+    notes?: string;
+    progress?: string;
+  };
 
   const parseCsv = (text: string): ImportItem[] => {
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
@@ -383,70 +417,177 @@ export function ReadingListClient() {
         return;
       }
 
-      let added = 0;
+      const normalized: NormalizedImportItem[] = [];
       let skipped = 0;
-      setImportStatus("Importing...");
 
       for (const entry of list) {
-        let title: string | undefined;
-        let mmaId: string | undefined;
-        let importedRating: number | undefined;
-        let importedNotes: string | undefined;
-        let importedProgress: string | undefined;
         if (typeof entry === "string") {
-          title = entry.trim();
-        } else {
-          title = (entry.title || "").toString().trim();
-          mmaId = (entry.mangaId || "").toString().trim();
-          if (entry.rating !== undefined && entry.rating !== null) {
-            const r = typeof entry.rating === "number" ? entry.rating : Number.parseFloat(String(entry.rating));
-            if (Number.isFinite(r)) importedRating = r as number;
-          }
-          if (entry.notes) importedNotes = String(entry.notes);
-          if (entry.progress) importedProgress = String(entry.progress);
-        }
-
-        try {
-          let mangaId = mmaId;
-          if (!mangaId) {
-            if (!title) {
-              skipped += 1;
-              continue;
-            }
-            const res = await fetch(`/api/manga/search?q=${encodeURIComponent(title)}&limit=1`, {
-              cache: "no-store",
-            });
-            const dataUnknown: unknown = await res.json().catch(() => ({ data: [] }));
-            mangaId = getFirstIdFromSearch(dataUnknown);
-          }
-
-          if (!mangaId) {
-            skipped += 1;
-            continue;
-          }
-
-          const resp = await fetch("/api/reading-list", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              mangaId,
-              ...(importedProgress ? { progress: importedProgress } : {}),
-              ...(typeof importedRating === "number" ? { rating: importedRating } : {}),
-              ...(importedNotes ? { notes: importedNotes } : {}),
-            }),
-          });
-          if (resp.ok) {
-            added += 1;
+          const title = entry.trim();
+          if (title) {
+            normalized.push({ title });
           } else {
             skipped += 1;
           }
-        } catch {
+          continue;
+        }
+
+        const normalizedItem: NormalizedImportItem = {};
+        const title = (entry.title || "").toString().trim();
+        let mangaId = (entry.mangaId || "").toString().trim();
+        if (!mangaId && entry.url) {
+          const match = String(entry.url).match(/title\/([0-9a-f-]{6,})/i);
+          if (match?.[1]) {
+            mangaId = match[1];
+          }
+        }
+        if (title) normalizedItem.title = title;
+        if (mangaId) normalizedItem.mangaId = mangaId;
+        if (entry.rating !== undefined && entry.rating !== null) {
+          const parsedRating =
+            typeof entry.rating === "number"
+              ? entry.rating
+              : Number.parseFloat(String(entry.rating));
+          if (Number.isFinite(parsedRating)) {
+            normalizedItem.rating = parsedRating as number;
+          }
+        }
+        if (entry.notes) {
+          normalizedItem.notes = String(entry.notes);
+        }
+        if (entry.progress) {
+          normalizedItem.progress = String(entry.progress).trim();
+        }
+
+        if (normalizedItem.title || normalizedItem.mangaId) {
+          normalized.push(normalizedItem);
+        } else {
           skipped += 1;
         }
       }
 
+      if (!normalized.length) {
+        setImportStatus("No valid items found in file.");
+        return;
+      }
+
+      const uniqueItems: NormalizedImportItem[] = [];
+      const seen = new Set<string>();
+      for (const item of normalized) {
+        const key =
+          (item.mangaId ? `id:${item.mangaId.toLowerCase()}` : null) ??
+          (item.title ? `title:${item.title.toLowerCase()}` : null);
+        if (!key) {
+          skipped += 1;
+          continue;
+        }
+        if (seen.has(key)) {
+          skipped += 1;
+          continue;
+        }
+        seen.add(key);
+        uniqueItems.push(item);
+      }
+
+      if (!uniqueItems.length) {
+        setImportStatus("No new items left to import.");
+        return;
+      }
+
+      let added = 0;
+      let processed = 0;
+      const total = uniqueItems.length;
+      const searchCache = new Map<string, string | null>();
+
+      const updateProgress = () => {
+        setImportStatus(
+          `Importing (${processed}/${total}). Please do not refresh or close this tab.`,
+        );
+      };
+      updateProgress();
+
+      const getNextIndex = (() => {
+        let cursor = 0;
+        return () => {
+          if (cursor >= uniqueItems.length) {
+            return null;
+          }
+          const current = cursor;
+          cursor += 1;
+          return current;
+        };
+      })();
+
+      const resolveMangaId = async (item: NormalizedImportItem) => {
+        if (item.mangaId) {
+          return item.mangaId;
+        }
+        if (!item.title) {
+          return null;
+        }
+        const normalizedTitle = item.title.toLowerCase();
+        if (searchCache.has(normalizedTitle)) {
+          return searchCache.get(normalizedTitle) ?? null;
+        }
+        try {
+          const res = await fetch(
+            `/api/manga/search?q=${encodeURIComponent(item.title)}&limit=1`,
+            { cache: "no-store" },
+          );
+          const dataUnknown: unknown = await res.json().catch(() => ({ data: [] }));
+          const resolved = res.ok ? getFirstIdFromSearch(dataUnknown) ?? null : null;
+          searchCache.set(normalizedTitle, resolved);
+          return resolved;
+        } catch {
+          searchCache.set(normalizedTitle, null);
+          return null;
+        }
+      };
+
+      const runImportWorker = async () => {
+        while (true) {
+          const index = getNextIndex();
+          if (index === null) {
+            break;
+          }
+          const currentItem = uniqueItems[index];
+          const mangaId = await resolveMangaId(currentItem);
+          if (!mangaId) {
+            skipped += 1;
+          } else {
+            try {
+              const resp = await fetch("/api/reading-list", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  mangaId,
+                  ...(currentItem.progress ? { progress: currentItem.progress } : {}),
+                  ...(typeof currentItem.rating === "number"
+                    ? { rating: currentItem.rating }
+                    : {}),
+                  ...(currentItem.notes ? { notes: currentItem.notes } : {}),
+                }),
+              });
+              if (resp.ok) {
+                added += 1;
+              } else {
+                skipped += 1;
+              }
+            } catch {
+              skipped += 1;
+            }
+          }
+
+          processed += 1;
+          if (processed === total || processed % PROGRESS_UPDATE_INTERVAL === 0) {
+            updateProgress();
+          }
+        }
+      };
+
+      const workerCount = Math.min(IMPORT_CONCURRENCY, uniqueItems.length);
+      await Promise.all(Array.from({ length: workerCount }, () => runImportWorker()));
+
       setImportStatus(`Import complete. Added ${added}, skipped ${skipped}.`);
-      // Refresh list after import
       try {
         const response = await fetch("/api/reading-list", { method: "GET", cache: "no-store" });
         const payload = (await response.json()) as ReadingListResponse;

@@ -13,6 +13,10 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
 
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -25,12 +29,22 @@ export function LoginForm() {
 
     startTransition(async () => {
       try {
+        const payload: Record<string, unknown> = { email, password };
+
+        if (twoFactorRequired) {
+          if (useRecoveryCode) {
+            payload.recoveryCode = recoveryCode;
+          } else {
+            payload.totp = twoFactorCode;
+          }
+        }
+
         const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify(payload),
         });
 
         const data = await response.json().catch(() => ({}));
@@ -39,11 +53,22 @@ export function LoginForm() {
           if (response.status === 422) {
             setFieldErrors((data as { errors?: FieldErrors }).errors ?? {});
             setFormError("Please correct the highlighted fields.");
+          } else if ((data as { requiresTwoFactor?: boolean }).requiresTwoFactor) {
+            setTwoFactorRequired(true);
+            setFormError(
+              (data as { message?: string }).message ??
+                "Enter the code from your authenticator app.",
+            );
           } else {
             setFormError((data as { message?: string }).message ?? "Unable to sign in.");
           }
           return;
         }
+
+        setTwoFactorRequired(false);
+        setTwoFactorCode("");
+        setRecoveryCode("");
+        setUseRecoveryCode(false);
 
         const username =
           typeof (data as { user?: { username?: string | null } }).user?.username === "string"
@@ -120,6 +145,45 @@ export function LoginForm() {
           </p>
         ) : null}
       </div>
+
+      {twoFactorRequired ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
+            <label htmlFor="two-factor-code">
+              {useRecoveryCode ? "Recovery code" : "Authenticator code"}
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setUseRecoveryCode((prev) => !prev);
+                setTwoFactorCode("");
+                setRecoveryCode("");
+              }}
+              className="text-[0.6rem] font-semibold uppercase tracking-[0.25em] text-accent transition hover:text-white"
+            >
+              Use {useRecoveryCode ? "authenticator" : "recovery"} code
+            </button>
+          </div>
+          <input
+            id="two-factor-code"
+            type="text"
+            inputMode={useRecoveryCode ? "text" : "numeric"}
+            autoComplete="one-time-code"
+            value={useRecoveryCode ? recoveryCode : twoFactorCode}
+            onChange={(event) =>
+              useRecoveryCode
+                ? setRecoveryCode(event.target.value.toUpperCase())
+                : setTwoFactorCode(event.target.value)
+            }
+            className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            placeholder={useRecoveryCode ? "ABCD-EFGH" : "123 456"}
+            required
+          />
+          <p className="text-[0.6rem] uppercase tracking-[0.25em] text-white/50">
+            Keep this browser handy—we’ll ask for a code whenever two-factor is enabled.
+          </p>
+        </div>
+      ) : null}
 
       {formError ? (
         <p className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">

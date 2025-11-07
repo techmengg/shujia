@@ -25,6 +25,7 @@ export default async function SettingsPage() {
       marketingEmails: true,
       productUpdates: true,
       weeklyDigestEmails: true,
+      twoFactorEnabled: true,
     },
   });
 

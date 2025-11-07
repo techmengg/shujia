@@ -5,10 +5,9 @@ import { z } from "zod";
 import { enforceRateLimit } from "@/lib/auth/rate-limit";
 import { isSafeRequestOrigin } from "@/lib/security/origin";
 import { prisma } from "@/lib/prisma";
-import {
-  buildSessionCookie,
-  createSession,
-} from "@/lib/auth/session";
+import { isEmailConfigured } from "@/lib/email/transport";
+import { createRegistrationVerification } from "@/lib/auth/registration-verification";
+import { dispatchEmailVerificationEmail } from "@/lib/email/verify-email";
 
 const registerSchema = z.object({
   email: z
@@ -117,9 +116,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors }, { status: 422 });
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const [existingUser, existingUsername, pendingUsername] =
+      await Promise.all([
+        prisma.user.findUnique({
+          where: { email },
+        }),
+        prisma.user.findUnique({
+          where: { username },
+        }),
+        prisma.registrationVerification.findUnique({
+          where: { username },
+        }),
+      ]);
 
     if (existingUser) {
       return NextResponse.json(
@@ -128,10 +136,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingUsername = await prisma.user.findUnique({
-      where: { username },
-    });
-
     if (existingUsername) {
       return NextResponse.json(
         { message: "That username is already taken." },
@@ -139,35 +143,73 @@ export async function POST(request: Request) {
       );
     }
 
+    if (pendingUsername && pendingUsername.email !== email) {
+      return NextResponse.json(
+        {
+          message:
+            "That username is currently reserved while another person completes verification. Choose a different one.",
+        },
+        { status: 409 },
+      );
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        username,
-        name: name ?? null,
-        password: passwordHash,
-      },
+    const { token } = await createRegistrationVerification({
+      email,
+      username,
+      name: name ?? null,
+      passwordHash,
     });
 
-    const session = await createSession(user.id);
+    const origin = request.headers.get("origin") ?? "";
+    const baseUrl =
+      origin || process.env.APP_BASE_URL || new URL(request.url).origin;
+    const verifyUrl = `${baseUrl.replace(/\/+$/, "")}/verify-email?token=${token}`;
 
-    const response = NextResponse.json(
-      {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          username: (user as { username?: string | null }).username ?? null,
+    if (!isEmailConfigured()) {
+      if (process.env.NODE_ENV === "production") {
+        return NextResponse.json(
+          {
+            message:
+              "Unable to send verification email right now. Please try again later.",
+          },
+          { status: 503 },
+        );
+      }
+
+      return NextResponse.json(
+        {
+          message:
+            "Email delivery is not configured. Use the link below to verify your account in development.",
+          verificationUrl: verifyUrl,
         },
+        { status: 200 },
+      );
+    }
+
+    try {
+      await dispatchEmailVerificationEmail({
+        to: email,
+        verifyUrl,
+      });
+    } catch (error) {
+      console.error("Verification email error", error);
+      return NextResponse.json(
+        {
+          message:
+            "Unable to send verification email right now. Please try again later.",
+        },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        message: "Check your inbox to verify your email before signing in.",
       },
-      { status: 201 },
+      { status: 200 },
     );
-
-    const cookie = buildSessionCookie(session.token, session.expiresAt);
-    response.cookies.set(cookie.name, cookie.value, cookie.options);
-
-    return response;
   } catch (error) {
     console.error("Registration error", error);
     return NextResponse.json(

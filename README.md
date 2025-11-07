@@ -43,6 +43,9 @@ eventually, i want to expand shujia beyond manga into **anime, tv shows, and dra
 ### account & personalization
 
 * email-based authentication using encrypted cookies
+* google oauth sign-in option for faster onboarding
+* optional two-factor authentication with authenticator apps + recovery codes
+* verified sign-ups with email confirmation before account creation
 * editable profile (username, avatar, bio, timezone)
 * vanity urls at `/profile/:username`
 * session management and account security controls
@@ -100,16 +103,22 @@ update your `.env` file with database, blob, and base url values.
 
 ## environment variables
 
-| variable                        | description                   | required |
-| :------------------------------ | :---------------------------- | :------- |
-| `NEXT_PUBLIC_MANGADEX_API_BASE` | base url for mangadex api     | ✔        |
-| `NEXT_PUBLIC_COMICK_API_BASE`   | base url for comick api       | ✔        |
-| `NEXT_PUBLIC_BLOB_BASE_URL`     | public vercel blob url        | ✔        |
-| `DATABASE_URL`                  | postgresql connection string  | ✔        |
-| `BLOB_READ_WRITE_TOKEN`         | server token for blob storage | ✔        |
-| `APP_BASE_URL`                  | app’s public url              | ✔        |
+| variable                        | description                           | required |
+| :------------------------------ | :------------------------------------ | :------- |
+| `NEXT_PUBLIC_MANGADEX_API_BASE` | base url for mangadex api             | yes      |
+| `NEXT_PUBLIC_COMICK_API_BASE`   | base url for comick api               | yes      |
+| `NEXT_PUBLIC_BLOB_BASE_URL`     | public vercel blob url                | yes      |
+| `DATABASE_URL`                  | postgresql connection string          | yes      |
+| `BLOB_READ_WRITE_TOKEN`         | server token for blob storage         | yes      |
+| `APP_BASE_URL`                  | app’s public url                      | yes      |
+| `EMAIL_FROM`                    | from header (e.g. `Shujia <noreply@shujia.dev>`) | email only |
+| `RESEND_API_KEY`                | resend api key for transactional mail | email only |
+| `GOOGLE_CLIENT_ID`              | oauth client id from google cloud     | social auth |
+| `GOOGLE_CLIENT_SECRET`          | oauth client secret from google cloud | social auth |
 
-optional: smtp and csrf configs for email and security.
+Email delivery defaults to [Resend](https://resend.com). Provide `EMAIL_FROM` plus `RESEND_API_KEY`, then add the SPF record `v=spf1 include:amazonses.com ~all` under your domain so `noreply@shujia.dev` stays verified. If you prefer your own SMTP relay, leave `RESEND_API_KEY` empty and continue supplying the existing `SMTP_*` variables. CSRF scope/origin settings remain optional.
+
+For Google sign-in, create an OAuth client in Google Cloud Console with the authorized redirect set to `${APP_BASE_URL}/api/auth/google/callback`, then drop the client id + secret into the env values above.
 
 ---
 

@@ -15,6 +15,11 @@ model User {
   avatarUrl String?
   bio       String?
   timezone  String                @default("UTC")
+  googleId  String?               @unique
+  twoFactorEnabled Boolean        @default(false)
+  twoFactorSecret  String?
+  twoFactorTempSecret String?
+  twoFactorRecoveryCodes String[] @default([])
   marketingEmails   Boolean       @default(true)
   productUpdates    Boolean       @default(true)
   weeklyDigestEmails Boolean      @default(true)
@@ -60,6 +65,7 @@ enum AuthAttemptType {
   REGISTER
   FORGOT_PASSWORD
   RESET_PASSWORD
+  VERIFY_EMAIL
 }
 
 enum AuthThrottleScope {
@@ -91,6 +97,17 @@ model ReadingListEntry {
   updatedAt     DateTime @updatedAt
 
   @@unique([userId, mangaId])
+}
+
+model RegistrationVerification {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  name         String?
+  passwordHash String
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
 }
 
  

@@ -12,6 +12,10 @@ import {
   deleteSession,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/session";
+import {
+  consumeRecoveryCode,
+  verifyTotpCode,
+} from "@/lib/auth/two-factor";
 
 const loginSchema = z.object({
   email: z
@@ -20,6 +24,8 @@ const loginSchema = z.object({
     .email("Enter a valid email address")
     .transform((value) => value.toLowerCase()),
   password: z.string().min(1, "Password is required"),
+  totp: z.string().optional(),
+  recoveryCode: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -77,7 +83,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors }, { status: 422 });
     }
 
-    const { email, password } = parsed.data;
+    const { email, password, totp, recoveryCode } = parsed.data;
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -97,6 +103,63 @@ export async function POST(request: Request) {
         { message: "Invalid email or password." },
         { status: 401 },
       );
+    }
+
+    if (user.twoFactorEnabled) {
+      const hasSecret = Boolean(user.twoFactorSecret);
+
+      if (!hasSecret) {
+        console.warn(`User ${user.id} has 2FA enabled without a secret.`);
+      }
+
+      const normalizedTotp = typeof totp === "string" ? totp.trim() : "";
+      const normalizedRecovery =
+        typeof recoveryCode === "string" ? recoveryCode.trim() : "";
+
+      if (hasSecret && !normalizedTotp && !normalizedRecovery) {
+        return NextResponse.json(
+          {
+            message: "Enter the 6-digit code from your authenticator.",
+            requiresTwoFactor: true,
+          },
+          { status: 401 },
+        );
+      }
+
+      let verified = false;
+
+      if (hasSecret && normalizedTotp) {
+        verified = verifyTotpCode(user.twoFactorSecret!, normalizedTotp);
+      }
+
+      if (!verified && normalizedRecovery) {
+        const { matched, remaining } = consumeRecoveryCode(
+          user.twoFactorRecoveryCodes ?? [],
+          normalizedRecovery,
+        );
+
+        if (matched) {
+          verified = true;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              twoFactorRecoveryCodes: remaining,
+            },
+          });
+        }
+      }
+
+      if (!verified) {
+        return NextResponse.json(
+          {
+            message: normalizedTotp
+              ? "Invalid authentication code."
+              : "Invalid recovery code.",
+            requiresTwoFactor: true,
+          },
+          { status: 401 },
+        );
+      }
     }
 
     const cookieStore = await cookies();
