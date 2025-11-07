@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
 import { SiteHeader } from "@/components/layout/site-header";
+import {
+  THEME_COOKIE_NAME,
+  THEME_DEFAULT,
+  isThemeName,
+} from "@/lib/theme/config";
 
 import { Analytics } from "@vercel/analytics/next"
 
@@ -42,20 +48,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const themeCookie = cookieStore.get(THEME_COOKIE_NAME)?.value;
+  const theme = isThemeName(themeCookie) ? themeCookie : THEME_DEFAULT;
+
   return (
-    <html lang="en">
+    <html lang="en" data-theme={theme}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col bg-surface text-surface-foreground antialiased`}
       >
-        <div className="sticky top-0 z-50">
-          <AnnouncementBar />
-          <SiteHeader />
-        </div>
+        <AnnouncementBar />
+        <SiteHeader />
 
         <div className="flex flex-1 flex-col">{children}</div>
 

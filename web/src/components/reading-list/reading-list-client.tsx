@@ -6,6 +6,12 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ReadingListItem, ReadingListResponse } from "@/data/reading-list";
 
+type ReadingListClientProps = {
+  username?: string;
+  viewerIsOwner?: boolean;
+  initialOwnerLabel?: string;
+};
+
 function getMessage(body: unknown): string | undefined {
   if (typeof body === "object" && body !== null && "message" in body) {
     const m = (body as Record<string, unknown>).message;
@@ -76,7 +82,11 @@ function formatUpdatedAt(timestamp: string) {
   }).format(new Date(timestamp));
 }
 
-export function ReadingListClient() {
+export function ReadingListClient({
+  username,
+  viewerIsOwner,
+  initialOwnerLabel,
+}: ReadingListClientProps) {
   const [items, setItems] = useState<ReadingListItem[]>([]);
   const [sort, setSort] = useState<SortOption>("recent");
   const [randomKey, setRandomKey] = useState(0);

@@ -1,13 +1,248 @@
 @import "tailwindcss";
 
-:root {
+:root,
+:root[data-theme="dark"] {
+  --surface: #010409;
+  --surface-muted: #0a0f1c;
+  --surface-foreground: #f4f6fb;
+  --surface-subtle: #9aa4c4;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.18);
+}
+
+:root[data-theme="void"] {
   --surface: #000000;
-  --surface-muted: #0d0d0d;
-  --surface-foreground: #f1f1f1;
-  --surface-subtle: #8f8f8f;
-  /* Accent used for links and highlights */
-  --accent: #3b82f6; /* blue-500 */
-  --accent-soft: rgba(59, 130, 246, 0.14);
+  --surface-muted: #050505;
+  --surface-foreground: #f6f6f6;
+  --surface-subtle: #8e99b8;
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.3);
+}
+
+:root[data-theme="dim"] {
+  --surface: #1f232c;
+  --surface-muted: #272c36;
+  --surface-foreground: #f2f4f8;
+  --surface-subtle: #b5bece;
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.18);
+}
+
+:root[data-theme="light"] {
+  --surface: #f5f7fb;
+  --surface-muted: #e7ecf6;
+  --surface-foreground: #111322;
+  --surface-subtle: #4b5568;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.15);
+}
+
+:root[data-theme="light"] .bg-black {
+  background-color: #ffffff !important;
+}
+
+:root[data-theme="light"] .bg-black\/40 {
+  background-color: rgba(17, 19, 34, 0.04) !important;
+}
+:root[data-theme="light"] .bg-black\/30 {
+  background-color: rgba(17, 19, 34, 0.03) !important;
+}
+
+:root[data-theme="light"] .bg-black\/50 {
+  background-color: rgba(17, 19, 34, 0.06) !important;
+}
+
+:root[data-theme="light"] .bg-black\/60 {
+  background-color: rgba(17, 19, 34, 0.08) !important;
+}
+
+:root[data-theme="light"] .bg-black\/80 {
+  background-color: rgba(17, 19, 34, 0.12) !important;
+}
+
+:root[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+:root[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root[data-theme="light"] .bg-white\/15 {
+  background-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+:root[data-theme="light"] .border-white\/5 {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+:root[data-theme="light"] .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+:root[data-theme="light"] .border-white\/12 {
+  border-color: rgba(15, 23, 42, 0.16) !important;
+}
+
+:root[data-theme="light"] .border-white\/15 {
+  border-color: rgba(15, 23, 42, 0.18) !important;
+}
+
+:root[data-theme="light"] .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.24) !important;
+}
+
+:root[data-theme="light"] .border-white\/30 {
+  border-color: rgba(15, 23, 42, 0.35) !important;
+}
+
+:root[data-theme="light"] .bg-surface,
+:root[data-theme="light"] .bg-surface-muted {
+  background-color: var(--surface) !important;
+}
+
+:root[data-theme="light"] .bg-accent {
+  background-color: var(--accent) !important;
+}
+
+:root[data-theme="light"] .text-white {
+  color: #111322 !important;
+}
+
+:root[data-theme="light"] .text-white\/80 {
+  color: rgba(17, 19, 34, 0.8) !important;
+}
+
+:root[data-theme="light"] .text-white\/70 {
+  color: rgba(17, 19, 34, 0.7) !important;
+}
+
+:root[data-theme="light"] .text-white\/65 {
+  color: rgba(17, 19, 34, 0.65) !important;
+}
+
+:root[data-theme="light"] .text-white\/60 {
+  color: rgba(17, 19, 34, 0.6) !important;
+}
+
+:root[data-theme="light"] .text-white\/55 {
+  color: rgba(17, 19, 34, 0.55) !important;
+}
+
+:root[data-theme="light"] .text-white\/50 {
+  color: rgba(17, 19, 34, 0.5) !important;
+}
+
+:root[data-theme="light"] .text-white\/45 {
+  color: rgba(17, 19, 34, 0.45) !important;
+}
+
+:root[data-theme="light"] .text-white\/40 {
+  color: rgba(17, 19, 34, 0.4) !important;
+}
+
+:root[data-theme="light"] .text-white\/35 {
+  color: rgba(17, 19, 34, 0.35) !important;
+}
+
+:root[data-theme="light"] .text-white\/30 {
+  color: rgba(17, 19, 34, 0.3) !important;
+}
+
+:root[data-theme="light"] .text-white\/25 {
+  color: rgba(17, 19, 34, 0.25) !important;
+}
+
+.primary-button,
+.neutral-button,
+.danger-button {
+  transition-property: color, background-color, border-color;
+  transition-duration: 200ms;
+}
+
+:root[data-theme="light"] .primary-button:hover {
+  color: var(--surface-foreground) !important;
+  border-color: var(--accent) !important;
+  background-color: rgba(37, 99, 235, 0.12) !important;
+}
+
+:root[data-theme="light"] .neutral-button {
+  color: rgba(17, 19, 34, 0.75) !important;
+  border-color: rgba(17, 19, 34, 0.2) !important;
+}
+
+:root[data-theme="light"] .neutral-button:hover {
+  color: var(--surface-foreground) !important;
+  border-color: rgba(17, 19, 34, 0.35) !important;
+  background-color: rgba(17, 19, 34, 0.05) !important;
+}
+
+:root[data-theme="light"] .danger-button {
+  color: #9f1239 !important;
+  border-color: rgba(225, 29, 72, 0.65) !important;
+}
+
+:root[data-theme="light"] .danger-button:hover {
+  color: #7f1d1d !important;
+  border-color: rgba(190, 18, 60, 0.85) !important;
+  background-color: rgba(248, 113, 113, 0.2) !important;
+}
+
+.site-logo {
+  filter: grayscale(100%);
+  transition: filter 200ms ease;
+}
+
+.group:hover .site-logo {
+  filter: grayscale(0%);
+}
+
+:root[data-theme="light"] .text-white {
+  color: #111322 !important;
+}
+
+:root[data-theme="light"] .text-white\/80 {
+  color: rgba(17, 19, 34, 0.8) !important;
+}
+
+:root[data-theme="light"] .text-white\/70 {
+  color: rgba(17, 19, 34, 0.7) !important;
+}
+
+:root[data-theme="light"] .text-white\/65 {
+  color: rgba(17, 19, 34, 0.65) !important;
+}
+
+:root[data-theme="light"] .text-white\/60 {
+  color: rgba(17, 19, 34, 0.6) !important;
+}
+
+:root[data-theme="light"] .text-white\/55 {
+  color: rgba(17, 19, 34, 0.55) !important;
+}
+
+:root[data-theme="light"] .text-white\/50 {
+  color: rgba(17, 19, 34, 0.5) !important;
+}
+
+:root[data-theme="light"] .text-white\/45 {
+  color: rgba(17, 19, 34, 0.45) !important;
+}
+
+:root[data-theme="light"] .text-white\/40 {
+  color: rgba(17, 19, 34, 0.4) !important;
+}
+
+:root[data-theme="light"] .text-white\/35 {
+  color: rgba(17, 19, 34, 0.35) !important;
+}
+
+:root[data-theme="light"] .text-white\/30 {
+  color: rgba(17, 19, 34, 0.3) !important;
+}
+
+:root[data-theme="light"] .text-white\/25 {
+  color: rgba(17, 19, 34, 0.25) !important;
 }
 
 @theme inline {

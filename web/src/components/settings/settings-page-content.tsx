@@ -6,6 +6,8 @@ import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
+import { THEME_OPTIONS, ThemeName } from "@/lib/theme/config";
+import type { SettingsContentSection } from "@/types/settings";
 
 export interface SettingsUser {
   id: string;
@@ -24,6 +26,7 @@ export interface SettingsUser {
 interface SettingsPageContentProps {
   user: SettingsUser;
   sessionCount: number;
+  sections?: SettingsContentSection[];
 }
 
 type ProfileFormState = {
@@ -40,6 +43,19 @@ type ApiError = {
   message?: string;
   errors?: Record<string, string[]>;
 };
+
+type AppearanceFormState = {
+  theme: ThemeName;
+};
+
+const SECTION_ORDER: SettingsContentSection[] = [
+  "profile",
+  "account",
+  "appearance",
+  "security",
+  "sessions",
+  "danger",
+];
 
 const TIMEZONE_OPTIONS = [
   { value: "UTC", label: "UTC" },
@@ -85,11 +101,11 @@ const selectClass = inputClass;
 const labelClass = "flex flex-col gap-2 text-sm font-medium text-white/70";
 const helpTextClass = "text-xs text-white/45";
 const primaryButtonClass =
-  "inline-flex items-center justify-center rounded-lg border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
+  "primary-button inline-flex items-center justify-center rounded-lg border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
 const neutralButtonClass =
-  "inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
+  "neutral-button inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
 const dangerButtonClass =
-  "inline-flex items-center justify-center rounded-lg border border-red-400 px-4 py-2 text-sm font-medium text-red-200 transition hover:border-red-300 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60";
+  "danger-button inline-flex items-center justify-center rounded-lg border border-red-400 px-4 py-2 text-sm font-medium text-red-200 transition hover:border-red-300 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60";
 
 function statusToneClass(status: Status): string {
   if (status === "error") return "text-red-300";
@@ -118,8 +134,26 @@ function extractErrorMessage(payload: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-export function SettingsPageContent({ user, sessionCount }: SettingsPageContentProps) {
+export function SettingsPageContent({ user, sessionCount, sections }: SettingsPageContentProps) {
   const router = useRouter();
+  const sectionsToRender =
+    sections && sections.length > 0 ? sections : SECTION_ORDER;
+  const firstVisibleSection =
+    SECTION_ORDER.find((section) => sectionsToRender.includes(section)) ??
+    sectionsToRender[0];
+  const shouldRender = (section: SettingsContentSection) =>
+    sectionsToRender.includes(section);
+  const sectionClassName = (
+    section: SettingsContentSection,
+    baseClass = "space-y-6",
+  ) => {
+    if (!firstVisibleSection || section === firstVisibleSection) {
+      return baseClass;
+    }
+
+    const borderColor = section === "danger" ? "border-red-500/30" : "border-white/10";
+    return `${baseClass} border-t ${borderColor} pt-10 md:pt-12`;
+  };
 
   const [profileForm, setProfileForm] = useState<ProfileFormState>({
     name: user.name ?? "",
@@ -206,6 +240,11 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
   const [showRecoveryForm, setShowRecoveryForm] = useState(false);
   const [showEmailEditor, setShowEmailEditor] = useState(false);
   const [showPasswordEditor, setShowPasswordEditor] = useState(false);
+  const [appearanceForm, setAppearanceForm] = useState<AppearanceFormState>({
+    theme: user.theme,
+  });
+  const [appearanceStatus, setAppearanceStatus] = useState<Status>("idle");
+  const [appearanceMessage, setAppearanceMessage] = useState<string | null>(null);
 
   // Notifications removed
 
@@ -612,6 +651,45 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
     }
   };
 
+  const handleAppearanceSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setAppearanceStatus("saving");
+    setAppearanceMessage(null);
+
+    try {
+      const response = await fetch("/api/settings/appearance", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(appearanceForm),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setAppearanceStatus("error");
+        setAppearanceMessage(extractErrorMessage(payload));
+        return;
+      }
+
+      const nextTheme = (payload?.data?.theme as ThemeName) ?? appearanceForm.theme;
+      if (typeof document !== "undefined") {
+        document.documentElement.dataset.theme = nextTheme;
+      }
+
+      setAppearanceStatus("success");
+      setAppearanceMessage(payload?.message ?? "Appearance preferences updated.");
+      router.refresh();
+    } catch (error) {
+      console.error("Appearance update error", error);
+      setAppearanceStatus("error");
+      setAppearanceMessage("Unable to save appearance preferences right now.");
+    }
+  };
+
   // Notifications removed
 
   const handleSignOutOtherSessions = async () => {
@@ -678,7 +756,8 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
 
   return (
     <div className="flex flex-col gap-12 md:gap-16">
-      <section id="profile-section" className="space-y-6">
+      {shouldRender("profile") ? (
+        <section id="profile-section" className={sectionClassName("profile")}>
         <header className="space-y-2">
           <h2 className="text-base font-semibold text-white">Profile</h2>
           <p className="text-sm text-white/60">
@@ -805,17 +884,25 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
             </button>
           </div>
         </form>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="space-y-6 border-t border-white/10 pt-10 md:pt-12">
+      {shouldRender("account") ? (
+        <section className={sectionClassName("account")}>
         <header className="space-y-2">
           <h2 className="text-base font-semibold text-white">Account</h2>
           <p className="text-sm text-white/60">
-            Manage how you sign in to Shujia. Need to tune your public details instead?{" "}
-            <a href="#profile-section" className="text-accent transition hover:text-white">
-              Jump to your profile
-            </a>
-            .
+            Manage how you sign in to Shujia.
+            {shouldRender("profile") ? (
+              <>
+                {" "}
+                Need to tune your public details instead?{" "}
+                <a href="#profile-section" className="text-accent transition hover:text-white">
+                  Jump to your profile
+                </a>
+                .
+              </>
+            ) : null}
           </p>
         </header>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
@@ -823,7 +910,7 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
           <LogoutButton />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
             <div className="space-y-2">
               <p className="text-sm font-semibold text-white">Primary email</p>
@@ -974,18 +1061,25 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
                   >
                     {passwordStatus === "saving" ? "Updating..." : "Change password"}
                   </button>
-                </div>
-              </form>
-            ) : null}
-          </div>
-
-          <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-white">Two-factor authentication</p>
-              <p className="text-sm text-white/60">
-                Add a rotating code from an authenticator app for another layer of security.
-              </p>
+                  </div>
+                </form>
+              ) : null}
             </div>
+        </div>
+      </section>
+      ) : null}
+
+      {/* Notifications section removed */}
+
+      {shouldRender("security") ? (
+        <section className={sectionClassName("security")}>
+          <header className="space-y-2">
+            <h2 className="text-base font-semibold text-white">Two-factor authentication</h2>
+            <p className="text-sm text-white/60">
+              Lock down your account with a rotating code, and manage recovery options if you ever lose your device.
+            </p>
+          </header>
+          <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
             {twoFactorMessage ? (
               <p className={`text-sm ${statusToneClass(twoFactorStatus)}`}>{twoFactorMessage}</p>
             ) : null}
@@ -1172,8 +1266,7 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
                   <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
                     <div className="space-y-2 text-sm text-white/70">
                       <p>
-                        Store these one-time recovery codes somewhere safe. Each code can only be used
-                        once.
+                        Store these one-time recovery codes somewhere safe. Each code can only be used once.
                       </p>
                     </div>
                     {twoFactorRecoveryCodes ? (
@@ -1225,12 +1318,79 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
               </div>
             )}
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
-      {/* Notifications section removed */}
+      {shouldRender("appearance") ? (
+        <section className={sectionClassName("appearance")}>
+          <header className="space-y-2">
+            <h2 className="text-base font-semibold text-white">Appearance</h2>
+            <p className="text-sm text-white/60">
+              Choose the theme that fits your workspace. Changes apply instantly across Shujia.
+            </p>
+          </header>
 
-      <section className="space-y-6 border-t border-white/10 pt-10 md:pt-12">
+          <form className="space-y-6" onSubmit={handleAppearanceSubmit}>
+            <div className="grid gap-4 md:grid-cols-2">
+              {THEME_OPTIONS.map((option) => {
+                const isSelected = appearanceForm.theme === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={`group flex cursor-pointer flex-col gap-3 rounded-2xl border p-4 transition ${
+                      isSelected
+                        ? "border-accent/70 bg-accent/5"
+                        : "border-white/10 hover:border-white/30"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="theme"
+                      value={option.value}
+                      checked={isSelected}
+                      onChange={(event) =>
+                        setAppearanceForm({ theme: event.target.value as ThemeName })
+                      }
+                      className="sr-only"
+                    />
+                    <div
+                      className="h-20 rounded-xl bg-gradient-to-br shadow-inner"
+                      style={{
+                        backgroundImage: `linear-gradient(135deg, ${option.preview.from}, ${option.preview.to})`,
+                      }}
+                    />
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-white">{option.label}</p>
+                      <p className="text-xs text-white/65">{option.description}</p>
+                    </div>
+                    {isSelected ? (
+                      <span className="text-xs font-medium text-accent">Selected</span>
+                    ) : null}
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {appearanceMessage ? (
+                <p className={`text-sm ${statusToneClass(appearanceStatus)}`}>
+                  {appearanceMessage}
+                </p>
+              ) : null}
+              <button
+                type="submit"
+                className={primaryButtonClass}
+                disabled={appearanceStatus === "saving"}
+              >
+                {appearanceStatus === "saving" ? "Saving..." : "Save appearance"}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      {shouldRender("sessions") ? (
+        <section className={sectionClassName("sessions")}>
         <header className="space-y-2">
           <h2 className="text-base font-semibold text-white">Sessions</h2>
           <p className="text-sm text-white/60">
@@ -1251,9 +1411,11 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
             {sessionsStatus === "saving" ? "Revoking..." : "Sign out others"}
           </button>
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="space-y-6 border-t border-red-500/30 pt-10 md:pt-12">
+      {shouldRender("danger") ? (
+        <section className={sectionClassName("danger")}>
         <header className="space-y-2">
           <h2 className="text-base font-semibold text-red-200">Danger zone</h2>
           <p className="text-sm text-red-200/80">
@@ -1306,7 +1468,8 @@ export function SettingsPageContent({ user, sessionCount }: SettingsPageContentP
             </button>
           </div>
         </form>
-      </section>
+        </section>
+      ) : null}
     </div>
   );
 }

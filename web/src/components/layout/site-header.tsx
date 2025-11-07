@@ -1,9 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 import { SearchBar } from "@/components/search/search-bar";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import {
+  THEME_COOKIE_NAME,
+  THEME_DEFAULT,
+  isThemeName,
+} from "@/lib/theme/config";
 
 interface SiteHeaderProps {
   className?: string;
@@ -16,6 +22,11 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
   ]
     .filter(Boolean)
     .join(" ");
+
+  const cookieStore = await cookies();
+  const themeCookie = cookieStore.get(THEME_COOKIE_NAME)?.value;
+  const theme = isThemeName(themeCookie) ? themeCookie : THEME_DEFAULT;
+  const logoSrc = theme === "light" ? "/shujia-white.png" : "/shujia.png";
 
   const user = await getCurrentUser();
   const dbUser = user
@@ -33,11 +44,11 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
           aria-label="Go to Shujia home"
         >
           <Image
-            src="/shujia.png"
+            src={logoSrc}
             alt="Shujia logo"
             width={40}
             height={40}
-            className="h-9 w-9 rounded-lg object-contain grayscale transition group-hover:grayscale-0 sm:h-10 sm:w-10"
+            className="site-logo h-9 w-9 rounded-lg object-contain sm:h-10 sm:w-10"
             priority
           />
         </Link>

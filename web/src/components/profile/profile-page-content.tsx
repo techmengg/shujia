@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
 const FALLBACK_AVATAR = "/noprofile.jpg";
+const SHOWCASE_LOCAL_STORAGE_PREFIX = "shujia.ten-showcase";
+const SHOWCASE_LIMIT = 8;
 
 interface ProfileUser {
   name: string | null;
@@ -38,6 +41,194 @@ interface ProfilePageContentProps {
   user: ProfileUser;
   readingList: ReadingListEntryDto[];
   isOwner: boolean;
+}
+
+interface RatedTenShowcaseProps {
+  entries: ReadingListEntryDto[];
+  userKey: string;
+  isOwner: boolean;
+}
+
+function RatedTenShowcase({ entries, userKey, isOwner }: RatedTenShowcaseProps) {
+  const storageKey = `${SHOWCASE_LOCAL_STORAGE_PREFIX}:${userKey}`;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftIds, setDraftIds] = useState<string[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (!userKey) return;
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as string[];
+        if (Array.isArray(parsed)) {
+          setSelectedIds(parsed);
+        }
+      } else if (entries.length) {
+        const initial = entries.slice(0, SHOWCASE_LIMIT).map((entry) => entry.id);
+        setSelectedIds(initial);
+      }
+    } catch (error) {
+      console.warn("Failed to load showcase selections", error);
+    } finally {
+      setHydrated(true);
+    }
+  }, [entries, storageKey, userKey]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    setSelectedIds((current) => current.filter((id) => entries.some((entry) => entry.id === id)));
+  }, [entries, hydrated]);
+
+  const selectedEntries = useMemo(() => {
+    const map = new Map(entries.map((entry) => [entry.id, entry]));
+    const ordered = selectedIds
+      .map((id) => map.get(id))
+      .filter((entry): entry is ReadingListEntryDto => Boolean(entry));
+    if (ordered.length) {
+      return ordered;
+    }
+    return entries.slice(0, SHOWCASE_LIMIT);
+  }, [entries, selectedIds]);
+
+  const remainingSlots = SHOWCASE_LIMIT - draftIds.length;
+
+  const toggleDraft = (entryId: string) => {
+    setDraftIds((current) => {
+      if (current.includes(entryId)) {
+        return current.filter((id) => id !== entryId);
+      }
+      if (current.length >= SHOWCASE_LIMIT) {
+        return current;
+      }
+      return [...current, entryId];
+    });
+  };
+
+  const startEditing = () => {
+    setDraftIds(selectedIds.length ? selectedIds : entries.slice(0, SHOWCASE_LIMIT).map((entry) => entry.id));
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setDraftIds([]);
+    setIsEditing(false);
+  };
+
+  const saveDraft = () => {
+    setSelectedIds(draftIds);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(storageKey, JSON.stringify(draftIds));
+    }
+    setIsEditing(false);
+  };
+
+  const cards = (list: ReadingListEntryDto[]) => (
+    <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
+      {list.map((item) => (
+        <li key={item.id} className="min-w-0">
+          <Link href={`/manga/${item.mangaId}`} className="group block">
+            <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-white/5">
+              {item.coverImage ? (
+                <Image
+                  src={item.coverImage}
+                  alt={item.title}
+                  fill
+                  sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 30vw"
+                  className="object-cover transition duration-200 group-hover:scale-[1.02]"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/70">
+                  {item.title.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <p className="mt-1 line-clamp-2 text-center text-[0.55rem] text-white/70 sm:text-[0.6rem]">{item.title}</p>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+
+  return (
+    <section className="space-y-3">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-white">Showcase</h2>
+        </div>
+        {isOwner ? (
+          <div className="flex flex-wrap gap-2 text-xs">
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  disabled={!draftIds.length}
+                  className="rounded-md border border-accent px-3 py-1 font-medium text-accent transition enabled:hover:border-accent/70 enabled:hover:text-white disabled:border-white/15 disabled:text-white/40"
+                >
+                  Save selection
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="rounded-md border border-white/20 px-3 py-1 font-medium text-white/70 transition hover:border-white/40 hover:text-white"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={startEditing}
+                className="rounded-md border border-white/20 px-3 py-1 font-medium text-white/70 transition hover:border-white/40 hover:text-white"
+              >
+                Edit showcase
+              </button>
+            )}
+          </div>
+        ) : null}
+      </header>
+
+      {!entries.length ? (
+        <p className="text-sm text-white/60">Start rating series with a perfect score to curate this space.</p>
+      ) : null}
+
+      {!isEditing ? (
+        cards(selectedEntries)
+      ) : (
+        <div className="space-y-3">
+          <p className="text-[0.7rem] text-white/60">
+            Pick up to {SHOWCASE_LIMIT} titles. {remainingSlots > 0 ? `${remainingSlots} slot${remainingSlots === 1 ? "" : "s"} open.` : "All slots filled."}
+          </p>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {entries.map((entry) => {
+              const selected = draftIds.includes(entry.id);
+              return (
+                <li key={entry.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleDraft(entry.id)}
+                    className={`flex w-full min-h-[3.25rem] items-start gap-3 rounded-xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+                      selected
+                        ? "border-accent bg-accent/10 text-white shadow-[0_10px_25px_rgba(0,0,0,0.25)]"
+                        : "border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white"
+                    }`}
+                  >
+                    <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${selected ? "bg-accent" : "bg-white/30"}`} aria-hidden />
+                    <span className="flex-1 text-xs font-medium leading-snug text-white line-clamp-2 break-words">
+                      {entry.title}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function formatMemberSince(isoDate: string): string {
@@ -116,10 +307,11 @@ function getTopTags(readingList: ReadingListEntryDto[], limit = 10) {
     .slice(0, limit);
 }
 
-export function ProfilePageContent({ user, readingList }: ProfilePageContentProps) {
+export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageContentProps) {
   const memberSince = formatMemberSince(user.memberSince);
   const avatar = user.avatarUrl?.trim() ? user.avatarUrl : FALLBACK_AVATAR;
   const bio = user.bio?.trim();
+  const showcaseUserKey = user.email || user.username || user.name || "guest";
 
   const totalSeries = readingList.length;
   const completedCount = readingList.filter(
@@ -132,12 +324,52 @@ export function ProfilePageContent({ user, readingList }: ProfilePageContentProp
     (entry) => normalizeStatus(entry.status) === "planned",
   ).length;
 
+  const getPercentLabel = (count: number) => {
+    if (!totalSeries) return "0%";
+    return `${Math.round((count / totalSeries) * 100)}%`;
+  };
+
+  const primaryStatusSegments = [
+    { label: "Completed", value: completedCount, barClass: "bg-emerald-400", dotClass: "bg-emerald-400" },
+    { label: "In progress", value: inProgressCount, barClass: "bg-sky-500", dotClass: "bg-sky-500" },
+    { label: "Planned", value: plannedCount, barClass: "bg-amber-400", dotClass: "bg-amber-400" },
+  ].map((segment) => ({
+    ...segment,
+    percentLabel: getPercentLabel(segment.value),
+  }));
+
+  const remainderCount = Math.max(
+    totalSeries - primaryStatusSegments.reduce((sum, segment) => sum + segment.value, 0),
+    0,
+  );
+  const statusBarSegments =
+    remainderCount > 0
+      ? [
+          ...primaryStatusSegments,
+          {
+            label: "Other",
+            value: remainderCount,
+            barClass: "bg-white/20",
+            dotClass: "bg-white/40",
+            percentLabel: getPercentLabel(remainderCount),
+          },
+        ]
+      : primaryStatusSegments;
+  const statusBarDenominator = statusBarSegments.reduce((sum, segment) => sum + segment.value, 0) || 1;
+
   const ratings = readingList
     .map((entry) => entry.rating)
     .filter((rating): rating is number => typeof rating === "number");
   const averageRating = ratings.length
     ? (ratings.reduce((total, rating) => total + rating, 0) / ratings.length).toFixed(1)
     : null;
+  const ratedCount = ratings.length;
+  const unratedCount = Math.max(totalSeries - ratedCount, 0);
+  const completionRateLabel = getPercentLabel(completedCount);
+  const backlogCount = inProgressCount + plannedCount;
+  const backlogRateLabel = getPercentLabel(backlogCount);
+  const ratedShareLabel = ratedCount ? `${getPercentLabel(ratedCount)} of library` : "No ratings yet";
+  const unratedShareLabel = unratedCount ? `${getPercentLabel(unratedCount)} remaining` : "All rated";
 
   const latestUpdates = readingList.slice(0, 3);
   const ratedTens = readingList.filter((entry) => typeof entry.rating === "number" && entry.rating === 10);
@@ -260,9 +492,101 @@ export function ProfilePageContent({ user, readingList }: ProfilePageContentProp
         </ul>
       </section>
 
+      <section className="space-y-3 sm:space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+          <div className="space-y-1">
+            <p className="text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-white/45">Library pulse</p>
+            <div className="flex items-baseline gap-1.5">
+              <p className="text-2xl font-semibold text-white sm:text-3xl">{totalSeries || "-"}</p>
+              <span className="text-xs text-white/45">series tracked</span>
+            </div>
+          </div>
+          <div className="flex flex-nowrap gap-4 overflow-x-auto text-[0.65rem] text-white/65 scrollbar-none sm:gap-6 sm:text-xs">
+            <div className="min-w-[6.5rem]">
+              <p className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Average rating</p>
+              <p className="text-sm font-semibold text-white sm:text-base">{averageRating ?? "-"}</p>
+            </div>
+            <div className="min-w-[6.5rem]">
+              <p className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Backlog</p>
+              <p className="text-sm font-semibold text-white sm:text-base">
+                {backlogCount}
+                <span className="ml-1.5 text-[0.6rem] text-white/50 sm:ml-2 sm:text-[0.65rem]">{backlogRateLabel}</span>
+              </p>
+            </div>
+            <div className="min-w-[6.5rem]">
+              <p className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Rated</p>
+              <p className="text-sm font-semibold text-white sm:text-base">
+                {ratedCount}
+                <span className="ml-1.5 text-[0.6rem] text-white/50 sm:ml-2 sm:text-[0.65rem]">{ratedShareLabel}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center justify-between text-[0.58rem] font-semibold uppercase tracking-[0.24em] text-white/40">
+            <span>Collection mix</span>
+            <span className="text-white/55">{totalSeries ? `${totalSeries} total` : "No entries yet"}</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
+            <div className="flex h-full w-full">
+              {statusBarSegments.map((segment) => (
+                <div
+                  key={segment.label}
+                  className={`${segment.barClass} h-full`}
+                  style={{ width: `${(segment.value / statusBarDenominator) * 100}%` }}
+                  title={`${segment.label}: ${segment.value}`}
+                  aria-label={`${segment.label}: ${segment.value}`}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-nowrap gap-3 overflow-x-auto text-[0.65rem] text-white/65 scrollbar-none sm:text-[0.75rem]">
+            {primaryStatusSegments.map((segment) => (
+              <span key={segment.label} className="flex min-w-[7rem] items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${segment.dotClass}`} />
+                <span className="text-white/80">{segment.label}</span>
+                <span className="text-white/50">{segment.value}</span>
+                <span className="text-white/40">{segment.percentLabel}</span>
+              </span>
+            ))}
+            {remainderCount > 0 ? (
+              <span className="flex min-w-[7rem] items-center gap-2 text-white/60">
+                <span className="h-2 w-2 rounded-full bg-white/40" />
+                <span>Other</span>
+                <span>{remainderCount}</span>
+                <span className="text-white/40">{getPercentLabel(remainderCount)}</span>
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        <dl className="flex flex-nowrap gap-4 overflow-x-auto border-t border-white/10 pt-3 text-[0.65rem] text-white/65 scrollbar-none sm:grid sm:grid-cols-2 sm:gap-4 sm:text-xs lg:grid-cols-3">
+          <div className="min-w-[8.5rem]">
+            <dt className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Completion</dt>
+            <dd className="text-sm font-semibold text-white sm:text-base">{completionRateLabel}</dd>
+            <p className="text-white/50">{completedCount} finished</p>
+          </div>
+          <div className="min-w-[8.5rem]">
+            <dt className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Active</dt>
+            <dd className="text-sm font-semibold text-white sm:text-base">{inProgressCount}</dd>
+            <p className="text-white/50">{getPercentLabel(inProgressCount)} of library</p>
+          </div>
+          <div className="min-w-[8.5rem]">
+            <dt className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Unrated</dt>
+            <dd className="text-sm font-semibold text-white sm:text-base">{unratedCount}</dd>
+            <p className="text-white/50">{unratedShareLabel}</p>
+          </div>
+        </dl>
+      </section>
+
+      {(ratedTens.length || isOwner) ? (
+        <RatedTenShowcase entries={ratedTens} userKey={showcaseUserKey} isOwner={isOwner} />
+      ) : null}
+
       {ratedTens.length ? (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-white">Rated 10</h2>
+          <h2 className="text-base font-semibold text-white">Recently Rated 10</h2>
           <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
             {ratedTens.slice(0, 8).map((item) => (
               <li key={item.id} className="min-w-0">
