@@ -199,7 +199,7 @@ export default async function Home() {
 
       {demographicTabs.length ? (
         <section className="mt-10 space-y-4">
-          <TabbedCarousel heading="Demographic highlights" tabs={demographicTabs} />
+          <TabbedCarousel heading="Demographic Highlights" tabs={demographicTabs} />
         </section>
       ) : null}
 
