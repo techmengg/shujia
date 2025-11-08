@@ -17,7 +17,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
         </p>
       </header>
 
-      <div className="mt-10 grid gap-10 lg:grid-cols-[220px_1fr]">
+      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[220px_1fr]">
         <SettingsSidebar />
         <div className="flex-1">{children}</div>
       </div>

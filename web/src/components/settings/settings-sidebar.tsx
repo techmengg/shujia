@@ -12,7 +12,7 @@ export function SettingsSidebar() {
     SETTINGS_NAV_ITEMS.find((item) => item.slug === selected)?.slug ?? fallbackSlug;
 
   return (
-    <aside className="rounded-2xl border border-white/5 bg-black/30 p-4 lg:sticky lg:top-24">
+    <aside className="rounded-2xl border border-white/5 bg-black/30 p-4 lg:sticky lg:top-24 lg:h-fit lg:self-start">
       <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-white/50">
         Sections
       </p>
