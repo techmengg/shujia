@@ -21,6 +21,7 @@ export interface SettingsUser {
   productUpdates: boolean;
   weeklyDigestEmails: boolean;
   twoFactorEnabled: boolean;
+  theme: ThemeName;
 }
 
 interface SettingsPageContentProps {
