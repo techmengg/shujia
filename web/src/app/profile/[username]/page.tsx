@@ -5,7 +5,7 @@ import { ProfilePageContent } from "@/components/profile/profile-page-content";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
-interface ProfilePageProps {
+export interface ProfilePageProps {
   params: Promise<{
     username: string;
   }>;
