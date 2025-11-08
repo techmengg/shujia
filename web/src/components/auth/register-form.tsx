@@ -79,7 +79,7 @@ export function RegisterForm() {
     <form className="space-y-5" onSubmit={handleSubmit}>
       <div className="space-y-4">
         <Link
-          href="/api/auth/google"
+          href="/api/auth/google?context=register"
           prefetch={false}
           className="flex items-center justify-center gap-3 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white transition hover:border-white/30 hover:bg-white/10"
         >

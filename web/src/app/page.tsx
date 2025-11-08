@@ -132,13 +132,13 @@ export default async function Home() {
       <h1 className="sr-only">Shujia</h1>
 
       <section className="mt-6 space-y-4">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <h2 className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-white sm:text-sm sm:tracking-[0.35em]">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+          <h2 className="text-sm font-semibold text-white sm:text-lg">
             Latest Updates from Your Followed List
           </h2>
           <Link
             href="/reading-list"
-            className="text-[0.65rem] uppercase tracking-[0.2em] text-surface-subtle transition hover:text-white sm:text-xs sm:tracking-[0.3em]"
+            className="text-[0.7rem] uppercase tracking-[0.15em] text-surface-subtle transition hover:text-white sm:text-xs sm:tracking-[0.2em]"
           >
             View list
           </Link>
@@ -182,7 +182,7 @@ export default async function Home() {
 
       {popularNewTitles.length ? (
         <section className="mt-10 space-y-4">
-          <h2 className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-white sm:text-sm sm:tracking-[0.35em]">
+          <h2 className="text-sm font-semibold text-white sm:text-lg">
             Popular New Titles
           </h2>
           <MangaCarousel
@@ -199,12 +199,12 @@ export default async function Home() {
 
       {demographicTabs.length ? (
         <section className="mt-10 space-y-4">
-          <TabbedCarousel heading="Demographic" tabs={demographicTabs} />
+          <TabbedCarousel heading="Demographic highlights" tabs={demographicTabs} />
         </section>
       ) : null}
 
       <section className="mt-10 space-y-4">
-        <h2 className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-white sm:text-sm sm:tracking-[0.35em]">
+        <h2 className="text-sm font-semibold text-white sm:text-lg">
           Latest
         </h2>
         <RecentlyUpdatedSection initialItems={recentUpdates} pageSize={49} />

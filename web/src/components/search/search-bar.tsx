@@ -418,7 +418,7 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
     <>
       <div ref={containerRef} className="relative w-full">
         <div className="group relative flex w-full items-center overflow-hidden rounded-full bg-white/5 pl-3 pr-2 shadow-[0_6px_20px_rgba(2,6,23,0.35)] transition focus-within:bg-white/10 sm:pl-4 sm:pr-3">
-          <div className="flex items-center gap-2 text-surface-subtle transition group-focus-within:text-white">
+          <div className="flex items-center text-surface-subtle transition group-focus-within:text-white">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -434,9 +434,6 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
                 d="M21 21l-4.35-4.35m0 0A6 6 0 1010.65 6.3a6 6 0 006 10.35z"
               />
             </svg>
-            <span className="text-[0.7rem] uppercase tracking-[0.2em] text-white/50 sm:text-[0.75rem]">
-              Search
-            </span>
           </div>
           <input
             type="search"

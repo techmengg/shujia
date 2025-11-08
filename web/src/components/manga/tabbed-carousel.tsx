@@ -65,9 +65,7 @@ export function TabbedCarousel({ tabs, heading, emptyState }: TabbedCarouselProp
       <div className="flex w-full items-center gap-1 sm:gap-3">
         {heading ? (
           <>
-            <h2 className="shrink-0 text-[0.65rem] font-semibold uppercase tracking-[0.15em] text-white sm:text-sm sm:tracking-[0.35em]">
-              {heading}
-            </h2>
+            <h2 className="shrink-0 text-sm font-semibold text-white sm:text-lg">{heading}</h2>
             <span aria-hidden className="h-3 w-px bg-white/25 sm:h-4" />
           </>
         ) : null}

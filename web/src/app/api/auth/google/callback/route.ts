@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
+import { Buffer } from "node:buffer";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -28,23 +29,160 @@ async function createRandomPasswordHash() {
   return bcrypt.hash(randomSecret, 12);
 }
 
+type GoogleOAuthContext = "login" | "register";
+
+interface StatePayload {
+  token: string;
+  context: GoogleOAuthContext;
+  redirect?: string | null;
+}
+
+interface StateCookiePayload {
+  state: string;
+  context: GoogleOAuthContext;
+  redirect?: string | null;
+}
+
+function sanitizeRedirectPath(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  if (!value.startsWith("/")) {
+    return null;
+  }
+  try {
+    const url = new URL(`http://placeholder${value}`);
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return null;
+  }
+}
+
+function decodeStateParam(value: string | null): StatePayload | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    const decoded = Buffer.from(value, "base64url").toString("utf-8");
+    const parsed = JSON.parse(decoded) as Partial<StatePayload>;
+    if (!parsed || typeof parsed.token !== "string") {
+      return null;
+    }
+
+    return {
+      token: parsed.token,
+      context: parsed.context === "login" ? "login" : "register",
+      redirect: sanitizeRedirectPath(parsed.redirect),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function decodeStateCookie(value: string | undefined): StateCookiePayload | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const decoded = Buffer.from(value, "base64url").toString("utf-8");
+    const parsed = JSON.parse(decoded) as Partial<StateCookiePayload>;
+    if (!parsed || typeof parsed.state !== "string") {
+      return null;
+    }
+
+    return {
+      state: parsed.state,
+      context: parsed.context === "login" ? "login" : "register",
+      redirect: sanitizeRedirectPath(parsed.redirect),
+    };
+  } catch {
+    // Fallback for legacy state cookie values that only stored the random token
+    return {
+      state: value,
+      context: "register",
+      redirect: null,
+    };
+  }
+}
+
+function buildFailureRedirect(
+  baseUrl: string,
+  context: GoogleOAuthContext,
+  errorCode: string,
+) {
+  const path = context === "login" ? "/login" : "/register";
+  const separator = path.includes("?") ? "&" : "?";
+  return `${baseUrl}${path}${separator}error=${errorCode}`;
+}
+
+function resolveSuccessDestination(
+  baseUrl: string,
+  redirectPath: string | null,
+  user: { username: string | null },
+) {
+  if (redirectPath) {
+    if (redirectPath.startsWith("/profile")) {
+      if (!user.username) {
+        return `${baseUrl}/settings?onboarding=complete-profile`;
+      }
+      if (redirectPath === "/profile") {
+        return `${baseUrl}/profile/${user.username}`;
+      }
+      return `${baseUrl}/profile/${user.username}${redirectPath.slice("/profile".length)}`;
+    }
+    return `${baseUrl}${redirectPath}`;
+  }
+
+  if (user.username) {
+    return `${baseUrl}/profile/${user.username}`;
+  }
+  return `${baseUrl}/settings?onboarding=complete-profile`;
+}
+
 export async function GET(request: Request) {
   if (!isGoogleOAuthConfigured()) {
-    const destination = `${buildAppBaseUrl(request)}/register?error=google-oauth-disabled`;
+    const destination = buildFailureRedirect(
+      buildAppBaseUrl(request),
+      "register",
+      "google-oauth-disabled",
+    );
     return NextResponse.redirect(destination);
   }
 
   const url = new URL(request.url);
-  const state = url.searchParams.get("state");
+  const stateParam = url.searchParams.get("state");
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
+  const statePayload = decodeStateParam(stateParam);
 
   const cookieStore = await cookies();
-  const storedState = cookieStore.get(getStateCookieName())?.value;
+  const storedStatePayload = decodeStateCookie(
+    cookieStore.get(getStateCookieName())?.value,
+  );
   cookieStore.delete(getStateCookieName());
 
-  if (error || !state || !code || !storedState || state !== storedState) {
-    const destination = `${buildAppBaseUrl(request)}/register?error=google-oauth-failed`;
+  const baseUrl = buildAppBaseUrl(request);
+  const context = statePayload?.context ?? storedStatePayload?.context ?? "register";
+  const redirectPath =
+    statePayload?.redirect ??
+    storedStatePayload?.redirect ??
+    null;
+  const storedState = storedStatePayload?.state;
+  const providedState = statePayload?.token;
+
+  if (
+    error ||
+    !code ||
+    !storedState ||
+    !providedState ||
+    providedState !== storedState
+  ) {
+    const destination = buildFailureRedirect(
+      baseUrl,
+      context,
+      "google-oauth-failed",
+    );
     return NextResponse.redirect(destination);
   }
 
@@ -54,13 +192,21 @@ export async function GET(request: Request) {
     const profile = await fetchGoogleUserInfo(tokens.access_token);
 
     if (!profile.email || profile.email_verified === false) {
-      const destination = `${buildAppBaseUrl(request)}/register?error=google-email-unverified`;
+      const destination = buildFailureRedirect(
+        baseUrl,
+        context,
+        "google-email-unverified",
+      );
       return NextResponse.redirect(destination);
     }
 
     const googleId = profile.sub;
     if (!googleId) {
-      const destination = `${buildAppBaseUrl(request)}/register?error=google-profile-missing`;
+    const destination = buildFailureRedirect(
+      baseUrl,
+      context,
+      "google-profile-missing",
+    );
       return NextResponse.redirect(destination);
     }
 
@@ -95,10 +241,11 @@ export async function GET(request: Request) {
     }
 
     const session = await createSession(user.id);
-    const base = buildAppBaseUrl(request);
-    const destination = user.username
-      ? `${base}/profile/${user.username}`
-      : `${base}/settings?onboarding=complete-profile`;
+    const destination = resolveSuccessDestination(
+      baseUrl,
+      redirectPath,
+      { username: (user as { username?: string | null }).username ?? null },
+    );
 
     const response = NextResponse.redirect(destination);
     const cookie = buildSessionCookie(session.token, session.expiresAt);
@@ -106,7 +253,11 @@ export async function GET(request: Request) {
     return response;
   } catch (callbackError) {
     console.error("Google OAuth callback failed", callbackError);
-    const destination = `${buildAppBaseUrl(request)}/register?error=google-oauth-failed`;
+    const destination = buildFailureRedirect(
+      baseUrl,
+      context,
+      "google-oauth-failed",
+    );
     return NextResponse.redirect(destination);
   }
 }

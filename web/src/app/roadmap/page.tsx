@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 const roadmapItems = [
   {
     description:
-      "stabilize the core systems. fix session handling, password resets, and notifications so user data stays consistent across devices. improve reliability for everyday actions like login, list updates, and syncing. (pretty much done)",
+      "stabilize the core systems. fix session handling, password resets, and notifications so user data stays consistent across devices. improve reliability for everyday actions like login, list updates, and syncing.",
   },
   {
     description:
@@ -16,10 +16,6 @@ const roadmapItems = [
   {
     description:
       "introduce collaborative features. shared reading lists, reactions, and simple comment threads. focus on lightweight interaction that enhances discovery without clutter or spam.",
-  },
-  {
-    description:
-      "open the platform. design a clean public API, release mobile clients, and document endpoints for third-party integrations. ensure strong authentication, caching, and rate limiting for stable performance.",
   },
   {
     description:
@@ -44,13 +40,23 @@ export default function RoadmapPage() {
       </header>
 
       <ol className="mt-10 space-y-8">
-        {roadmapItems.map((item, index) => (
-          <li key={index} className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/40">{index + 1}</p>
-            <p className="text-sm leading-relaxed text-white/65">{item.description}</p>
-          </li>
-        ))}
-      </ol>
+  {roadmapItems.map((item, index) => (
+    <li key={index} className="space-y-3">
+      <p className="text-xs uppercase tracking-[0.3em] text-white/40">
+        {index + 1}
+      </p>
+      <p
+        className={`text-sm leading-relaxed text-white/65 ${
+          index === 0 ? "line-through text-white/40" : ""
+        }`}
+      >
+        {item.description}
+      </p>
+    </li>
+    
+  ))}
+</ol>
+
         <small className="block text-sm text-white/60 pt-10">
           reach me on x: <a href="https://x.com/s4lvaholic" className="text-blue-400">@s4lvaholic</a> if you have any questions or suggestions.
         </small>

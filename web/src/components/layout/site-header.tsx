@@ -52,8 +52,41 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
             priority
           />
         </Link>
-        <div className="order-2 min-w-0 flex-1 md:order-2">
-          <SearchBar isAuthenticated={Boolean(user)} />
+        <div className="order-2 flex w-full items-center gap-3 md:order-2 md:flex-1">
+          <Link
+            href="/explore"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-white/80 transition hover:border-white hover:text-white sm:h-8 sm:w-8"
+            aria-label="Explore"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M2.458 12C3.732 7.943 7.522 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.478 0-8.268-2.943-9.542-7z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 3c2 3 2 15 0 18M3 12h18"
+              />
+            </svg>
+          </Link>
+          <div className="min-w-0 flex-1">
+            <SearchBar isAuthenticated={Boolean(user)} />
+          </div>
         </div>
 
         <div className="order-3 ml-auto flex items-center gap-2 text-surface-subtle">
