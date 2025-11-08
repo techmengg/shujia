@@ -4,22 +4,6 @@ a full-stack tracker for manga, manhwa, and manhua built and maintained by me. p
 
 ---
 
-## table of contents
-
-1. [overview](#overview)
-2. [features](#features)
-3. [architecture](#architecture)
-4. [getting started](#getting-started)
-5. [environment variables](#environment-variables)
-6. [database & migrations](#database--migrations)
-7. [development workflow](#development-workflow)
-8. [testing & quality](#testing--quality)
-9. [deployment](#deployment)
-10. [roadmap](#roadmap)
-11. [license](#license)
-
----
-
 ## overview
 
 shujia is a full-stack web app for tracking serialized comics across different regions and languages. you can sign in, follow titles, see new chapters, and keep a reading list that syncs with live updates.
