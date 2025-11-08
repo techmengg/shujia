@@ -78,8 +78,9 @@ export function RegisterForm() {
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
       <div className="space-y-4">
-        <a
+        <Link
           href="/api/auth/google"
+          prefetch={false}
           className="flex items-center justify-center gap-3 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white transition hover:border-white/30 hover:bg-white/10"
         >
           <span className="text-base">
@@ -109,7 +110,7 @@ export function RegisterForm() {
             </svg>
           </span>
           Continue with Google
-        </a>
+        </Link>
         <div className="flex items-center gap-3 text-[0.65rem] uppercase tracking-[0.35em] text-white/40">
           <span className="h-px flex-1 bg-white/10" aria-hidden="true" />
           or

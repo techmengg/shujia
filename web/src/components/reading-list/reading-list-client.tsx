@@ -103,6 +103,21 @@ export function ReadingListClient({
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
 
+  const isOwner = Boolean(viewerIsOwner);
+  const normalizedUsername = username?.trim().replace(/^@/, "") || null;
+  const displayOwnerLabel =
+    initialOwnerLabel ?? (normalizedUsername ? `@${normalizedUsername}` : null);
+  const headingTitle = displayOwnerLabel
+    ? `${displayOwnerLabel} Reading List`
+    : isOwner
+      ? "Your Reading List"
+      : "Curated Reading List";
+  const emptyListMessage = isOwner
+    ? "Your reading list is empty. Use the search bar to add a series."
+    : displayOwnerLabel
+      ? `${displayOwnerLabel} has not added any series yet.`
+      : "This reading list is empty.";
+
   useEffect(() => {
     let isSubscribed = true;
 
@@ -702,9 +717,12 @@ export function ReadingListClient({
 
         <div className="flex flex-col gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white sm:text-3xl">
-              Curated Reading List
-            </h1>
+            <h1 className="text-2xl font-semibold text-white sm:text-3xl">{headingTitle}</h1>
+            {!isOwner && displayOwnerLabel ? (
+              <p className="mt-1 text-sm text-white/60">
+                Viewing {displayOwnerLabel}&rsquo;s saved series.
+              </p>
+            ) : null}
           </div>
           {/* Row 1: Sort only */}
           <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/45">
@@ -844,10 +862,10 @@ export function ReadingListClient({
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center text-sm text-red-200">
             {error}
           </div>
-        ) : sortedItems.length === 0 ? (
+          ) : sortedItems.length === 0 ? (
           items.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/70">
-              Your reading list is empty. Use the search bar to add a series.
+              {emptyListMessage}
             </div>
           ) : (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/70">

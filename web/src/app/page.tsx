@@ -136,12 +136,12 @@ export default async function Home() {
           <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
             Latest Updates from Your Followed List
           </h2>
-          <a
+          <Link
             href="/reading-list"
             className="text-xs uppercase tracking-[0.3em] text-surface-subtle transition hover:text-white"
           >
             View list
-          </a>
+          </Link>
         </div>
         <div className="relative">
           <div
