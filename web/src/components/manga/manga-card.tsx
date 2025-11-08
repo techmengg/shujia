@@ -18,29 +18,26 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
     "w-full",
   ].join(" ");
 
-  const bodyClasses = [
-    "flex flex-1 flex-col",
-    "gap-1.5 p-2",
-  ].join(" ");
+  const bodyClasses = ["flex flex-1 flex-col", "gap-1.5 p-1.5 sm:p-2"].join(" ");
 
   const titleClasses = [
     "line-clamp-2 font-semibold text-white group-hover:text-white",
-    "text-[0.75rem] sm:text-[0.8rem]",
+    "text-[0.7rem] sm:text-[0.8rem]",
   ].join(" ");
 
   const subtitleClasses = [
     "line-clamp-1 text-surface-subtle",
-    "text-[0.55rem] sm:text-[0.6rem]",
+    "text-[0.5rem] sm:text-[0.6rem]",
   ].join(" ");
 
   const badgeRowClasses = [
     "mt-auto flex flex-wrap text-surface-subtle",
-    "gap-1 text-[0.55rem] sm:text-[0.6rem]",
+    "gap-1 text-[0.5rem] sm:text-[0.6rem]",
   ].join(" ");
 
   const tagsClasses = [
     "line-clamp-2 text-surface-subtle/80",
-    "text-[0.55rem] sm:text-[0.6rem]",
+    "text-[0.5rem] sm:text-[0.6rem]",
   ].join(" ");
 
   return (

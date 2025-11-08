@@ -96,17 +96,17 @@ const TIMEZONE_OPTIONS = [
 ];
 
 const inputClass =
-  "rounded-lg border border-white/12 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/35 focus:border-accent focus:outline-none focus:ring-0 transition";
+  "rounded-lg border border-white/12 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/35 focus:border-accent focus:outline-none focus:ring-0 transition sm:px-3.5";
 const textareaClass = `${inputClass} min-h-[120px] resize-vertical`;
 const selectClass = inputClass;
-const labelClass = "flex flex-col gap-2 text-sm font-medium text-white/70";
-const helpTextClass = "text-xs text-white/45";
+const labelClass = "flex flex-col gap-1.5 text-[0.85rem] font-medium text-white/70 sm:text-sm";
+const helpTextClass = "text-[0.7rem] text-white/45 sm:text-xs";
 const primaryButtonClass =
-  "primary-button inline-flex items-center justify-center rounded-lg border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
+  "primary-button inline-flex items-center justify-center rounded-lg border border-accent px-3.5 py-2 text-sm font-medium text-accent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
 const neutralButtonClass =
-  "neutral-button inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
+  "neutral-button inline-flex items-center justify-center rounded-lg border border-white/20 px-3.5 py-2 text-sm font-medium text-white/80 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-60";
 const dangerButtonClass =
-  "danger-button inline-flex items-center justify-center rounded-lg border border-red-400 px-4 py-2 text-sm font-medium text-red-200 transition hover:border-red-300 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60";
+  "danger-button inline-flex items-center justify-center rounded-lg border border-red-400 px-3.5 py-2 text-sm font-medium text-red-200 transition hover:border-red-300 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60";
 
 function statusToneClass(status: Status): string {
   if (status === "error") return "text-red-300";
@@ -760,13 +760,13 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       {shouldRender("profile") ? (
         <section id="profile-section" className={sectionClassName("profile")}>
         <header className="space-y-2">
-          <h2 className="text-base font-semibold text-white">Profile</h2>
-          <p className="text-sm text-white/60">
+          <h2 className="text-[0.95rem] font-semibold text-white sm:text-base">Profile</h2>
+          <p className="text-[0.8rem] text-white/60 sm:text-sm">
             Update your public profile information and how other readers see you.
           </p>
         </header>
-        <form className="space-y-6" onSubmit={handleProfileSubmit}>
-          <div className="grid gap-6 md:grid-cols-2">
+        <form className="space-y-5 sm:space-y-6" onSubmit={handleProfileSubmit}>
+          <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
             <label className={labelClass}>
               <span>Display name</span>
               <input
@@ -809,7 +809,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
               className={selectClass}
             >
               {TIMEZONE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} className="bg-black">
+                <option key={option.value} value={option.value} className="bg-black text-sm">
                   {option.label}
                 </option>
               ))}
@@ -872,13 +872,13 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             />
             <span className={helpTextClass}>{profileForm.bio.length}/500 characters</span>
           </label>
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             {profileMessage ? (
               <p className={`text-sm ${statusToneClass(profileStatus)}`}>{profileMessage}</p>
             ) : null}
             <button
               type="submit"
-              className={primaryButtonClass}
+              className={`${primaryButtonClass} w-full sm:w-auto`}
               disabled={profileStatus === "saving"}
             >
               {profileStatus === "saving" ? "Saving..." : "Save profile"}
@@ -891,8 +891,8 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       {shouldRender("account") ? (
         <section className={sectionClassName("account")}>
         <header className="space-y-2">
-          <h2 className="text-base font-semibold text-white">Account</h2>
-          <p className="text-sm text-white/60">
+          <h2 className="text-[0.95rem] font-semibold text-white sm:text-base">Account</h2>
+          <p className="text-[0.8rem] text-white/60 sm:text-sm">
             Manage how you sign in to Shujia.
             {shouldRender("profile") ? (
               <>
@@ -906,21 +906,23 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             ) : null}
           </p>
         </header>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+        <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[0.8rem] text-white/70 sm:flex-row sm:items-center sm:justify-between sm:text-sm">
           <span>Signed in on this device. You can instantly sign out if you’re on a shared computer.</span>
-          <LogoutButton />
+          <div className="flex justify-end sm:justify-start">
+            <LogoutButton />
+          </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
+          <div className="space-y-4 rounded-2xl border border-white/12 bg-white/5 p-4 sm:space-y-5 sm:p-5">
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-white">Primary email</p>
-              <p className="text-lg font-medium text-white">{user.email}</p>
-              <p className="text-sm text-white/60">
+              <p className="text-[0.85rem] font-semibold text-white sm:text-sm">Primary email</p>
+              <p className="text-base font-medium text-white sm:text-lg">{user.email}</p>
+              <p className="text-[0.8rem] text-white/60 sm:text-sm">
                 We’ll send security alerts, receipts, and verification links to this address.
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+            <div className="flex flex-col gap-3 text-[0.8rem] text-white/60 sm:flex-row sm:items-center sm:justify-between sm:text-sm">
               <span>Want to switch inboxes?</span>
               <button
                 type="button"
@@ -932,10 +934,10 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             </div>
             {showEmailEditor ? (
               <form
-                className="space-y-6 border-t border-white/10 pt-6"
+                className="space-y-5 border-t border-white/10 pt-5 sm:space-y-6 sm:pt-6"
                 onSubmit={handleEmailSubmit}
               >
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
                   <label className={labelClass}>
                     <span>New email address</span>
                     <input
@@ -966,13 +968,13 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
                     />
                   </label>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
                   {emailMessage ? (
                     <p className={`text-sm ${statusToneClass(emailStatus)}`}>{emailMessage}</p>
                   ) : null}
                   <button
                     type="submit"
-                    className={primaryButtonClass}
+                    className={`${primaryButtonClass} w-full sm:w-auto`}
                     disabled={emailStatus === "saving"}
                   >
                     {emailStatus === "saving" ? "Saving..." : "Update email"}
@@ -982,14 +984,14 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             ) : null}
           </div>
 
-          <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
+          <div className="space-y-4 rounded-2xl border border-white/12 bg-white/5 p-4 sm:space-y-5 sm:p-5">
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-white">Password</p>
-              <p className="text-sm text-white/60">
+              <p className="text-[0.85rem] font-semibold text-white sm:text-sm">Password</p>
+              <p className="text-[0.8rem] text-white/60 sm:text-sm">
                 Choose a strong, unique password to keep your reading progress safe.
               </p>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/60">
+            <div className="flex flex-col gap-3 text-[0.8rem] text-white/60 sm:flex-row sm:items-center sm:justify-between sm:text-sm">
               <span>Haven’t updated it in a while?</span>
               <button
                 type="button"
@@ -1001,10 +1003,10 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             </div>
             {showPasswordEditor ? (
               <form
-                className="space-y-6 border-t border-white/10 pt-6"
+                className="space-y-5 border-t border-white/10 pt-5 sm:space-y-6 sm:pt-6"
                 onSubmit={handlePasswordSubmit}
               >
-                <div className="grid gap-6 md:grid-cols-3">
+                <div className="grid gap-4 sm:gap-6 sm:grid-cols-3">
                   <label className={`${labelClass} md:col-span-1`}>
                     <span>Current password</span>
                     <input
@@ -1054,10 +1056,10 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
                 {passwordMessage ? (
                   <p className={`text-sm ${statusToneClass(passwordStatus)}`}>{passwordMessage}</p>
                 ) : null}
-                <div className="flex justify-end">
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                   <button
                     type="submit"
-                    className={primaryButtonClass}
+                    className={`${primaryButtonClass} w-full sm:w-auto`}
                     disabled={passwordStatus === "saving"}
                   >
                     {passwordStatus === "saving" ? "Updating..." : "Change password"}
@@ -1075,12 +1077,12 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       {shouldRender("security") ? (
         <section className={sectionClassName("security")}>
           <header className="space-y-2">
-            <h2 className="text-base font-semibold text-white">Two-factor authentication</h2>
-            <p className="text-sm text-white/60">
+            <h2 className="text-[0.95rem] font-semibold text-white sm:text-base">Two-factor authentication</h2>
+            <p className="text-[0.8rem] text-white/60 sm:text-sm">
               Lock down your account with a rotating code, and manage recovery options if you ever lose your device.
             </p>
           </header>
-          <div className="space-y-5 rounded-2xl border border-white/12 bg-white/5 p-5">
+          <div className="space-y-4 rounded-2xl border border-white/12 bg-white/5 p-4 sm:space-y-5 sm:p-5">
             {twoFactorMessage ? (
               <p className={`text-sm ${statusToneClass(twoFactorStatus)}`}>{twoFactorMessage}</p>
             ) : null}
@@ -1151,10 +1153,10 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
                           required
                         />
                       </label>
-                      <div className="flex justify-end">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                         <button
                           type="submit"
-                          className={primaryButtonClass}
+                          className={`${primaryButtonClass} w-full sm:w-auto`}
                           disabled={twoFactorStatus === "saving"}
                         >
                           {twoFactorStatus === "saving" ? "Verifying..." : "Enable 2FA"}
@@ -1251,10 +1253,10 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
                         placeholder="ABCD-EFGH"
                       />
                     </label>
-                    <div className="flex justify-end">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                       <button
                         type="submit"
-                        className={dangerButtonClass}
+                        className={`${dangerButtonClass} w-full sm:w-auto`}
                         disabled={twoFactorStatus === "saving"}
                       >
                         {twoFactorStatus === "saving" ? "Disabling..." : "Disable 2FA"}
@@ -1304,10 +1306,10 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
                           required
                         />
                       </label>
-                      <div className="flex justify-end">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                         <button
                           type="submit"
-                          className={primaryButtonClass}
+                          className={`${primaryButtonClass} w-full sm:w-auto`}
                           disabled={twoFactorStatus === "saving"}
                         >
                           {twoFactorStatus === "saving" ? "Generating..." : "Generate new codes"}
@@ -1325,14 +1327,14 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       {shouldRender("appearance") ? (
         <section className={sectionClassName("appearance")}>
           <header className="space-y-2">
-            <h2 className="text-base font-semibold text-white">Appearance</h2>
-            <p className="text-sm text-white/60">
+            <h2 className="text-[0.95rem] font-semibold text-white sm:text-base">Appearance</h2>
+            <p className="text-[0.8rem] text-white/60 sm:text-sm">
               Choose the theme that fits your workspace. Changes apply instantly across Shujia.
             </p>
           </header>
 
-          <form className="space-y-6" onSubmit={handleAppearanceSubmit}>
-            <div className="grid gap-4 md:grid-cols-2">
+          <form className="space-y-5 sm:space-y-6" onSubmit={handleAppearanceSubmit}>
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
               {THEME_OPTIONS.map((option) => {
                 const isSelected = appearanceForm.theme === option.value;
                 return (
@@ -1372,7 +1374,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
               })}
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
               {appearanceMessage ? (
                 <p className={`text-sm ${statusToneClass(appearanceStatus)}`}>
                   {appearanceMessage}
@@ -1380,7 +1382,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
               ) : null}
               <button
                 type="submit"
-                className={primaryButtonClass}
+                className={`${primaryButtonClass} w-full sm:w-auto`}
                 disabled={appearanceStatus === "saving"}
               >
                 {appearanceStatus === "saving" ? "Saving..." : "Save appearance"}
@@ -1393,20 +1395,20 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       {shouldRender("sessions") ? (
         <section className={sectionClassName("sessions")}>
         <header className="space-y-2">
-          <h2 className="text-base font-semibold text-white">Sessions</h2>
-          <p className="text-sm text-white/60">
+          <h2 className="text-[0.95rem] font-semibold text-white sm:text-base">Sessions</h2>
+          <p className="text-[0.8rem] text-white/60 sm:text-sm">
             You are currently signed in on {activeSessionCount} device
             {activeSessionCount === 1 ? "" : "s"}.
           </p>
         </header>
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
           {sessionsMessage ? (
             <p className={`text-sm ${statusToneClass(sessionsStatus)}`}>{sessionsMessage}</p>
           ) : null}
           <button
             type="button"
             onClick={handleSignOutOtherSessions}
-            className={neutralButtonClass}
+            className={`${neutralButtonClass} w-full sm:w-auto`}
             disabled={sessionsStatus === "saving"}
           >
             {sessionsStatus === "saving" ? "Revoking..." : "Sign out others"}
@@ -1418,14 +1420,14 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       {shouldRender("danger") ? (
         <section className={sectionClassName("danger")}>
         <header className="space-y-2">
-          <h2 className="text-base font-semibold text-red-200">Danger zone</h2>
-          <p className="text-sm text-red-200/80">
+          <h2 className="text-[0.95rem] font-semibold text-red-200 sm:text-base">Danger zone</h2>
+          <p className="text-[0.8rem] text-red-200/80 sm:text-sm">
             Deleting your account removes reading history, sessions, and preferences. This action is
             irreversible.
           </p>
         </header>
-        <form className="space-y-6" onSubmit={handleDeleteAccount}>
-          <label className="flex flex-col gap-2 text-sm font-medium text-red-200/90">
+        <form className="space-y-5 sm:space-y-6" onSubmit={handleDeleteAccount}>
+          <label className="flex flex-col gap-1.5 text-[0.85rem] font-medium text-red-200/90 sm:gap-2 sm:text-sm">
             <span>Confirm with password</span>
             <input
               type="password"
@@ -1437,7 +1439,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
               required
             />
           </label>
-          <label className="flex flex-col gap-2 text-sm font-medium text-red-200/90">
+          <label className="flex flex-col gap-1.5 text-[0.85rem] font-medium text-red-200/90 sm:gap-2 sm:text-sm">
             <span>Type DELETE to confirm</span>
             <input
               type="text"
@@ -1450,7 +1452,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
               required
             />
           </label>
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             {dangerMessage ? (
               <p
                 className={`text-sm ${
@@ -1462,7 +1464,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             ) : null}
             <button
               type="submit"
-              className={dangerButtonClass}
+              className={`${dangerButtonClass} w-full sm:w-auto`}
               disabled={dangerStatus === "saving"}
             >
               {dangerStatus === "saving" ? "Deleting..." : "Delete account"}

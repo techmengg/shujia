@@ -1,7 +1,7 @@
 export type ThemeName = "dark" | "light" | "void";
 
 export const THEME_COOKIE_NAME = "shujia-theme";
-export const THEME_DEFAULT: ThemeName = "dark";
+export const THEME_DEFAULT: ThemeName = "void";
 
 export type ThemeOption = {
   value: ThemeName;

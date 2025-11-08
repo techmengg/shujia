@@ -712,12 +712,12 @@ export function ReadingListClient({
   };
 
   return (
-    <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pb-16 pt-10 sm:px-6 lg:px-10">
+    <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-10 pt-6 sm:gap-8 sm:px-6 lg:px-10">
       <header className="flex flex-col gap-4">
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <div>
-            <h1 className="text-2xl font-semibold text-white sm:text-3xl">{headingTitle}</h1>
+            <h1 className="text-lg font-semibold text-white sm:text-3xl">{headingTitle}</h1>
             {!isOwner && displayOwnerLabel ? (
               <p className="mt-1 text-sm text-white/60">
                 Viewing {displayOwnerLabel}&rsquo;s saved series.
@@ -725,7 +725,7 @@ export function ReadingListClient({
             ) : null}
           </div>
           {/* Row 1: Sort only */}
-          <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/45">
+          <div className="flex flex-wrap items-center gap-1.5 text-[0.65rem] uppercase tracking-[0.15em] text-white/45 sm:gap-2 sm:text-xs sm:tracking-[0.2em]">
             <span>Sort:</span>
             <div className="flex flex-wrap gap-2">
               {SORT_OPTIONS.map((option) => (
@@ -733,7 +733,7 @@ export function ReadingListClient({
                   key={option.value}
                   type="button"
                   onClick={() => handleSortChange(option.value)}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[0.7rem] font-semibold transition ${
+                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.6rem] font-semibold transition sm:gap-2 sm:px-3 sm:py-1 sm:text-[0.7rem] ${
                     sort === option.value
                       ? "border-accent/60 bg-accent/20 text-accent"
                       : "border-white/10 bg-white/5 text-white/70 hover:border-accent/40 hover:text-white"
@@ -746,7 +746,7 @@ export function ReadingListClient({
           </div>
 
           {/* Row 2: Search + Export/Import + Delete */}
-          <div className="flex flex-1 flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-white/45">
+          <div className="flex flex-1 flex-wrap items-center gap-1.5 text-[0.6rem] uppercase tracking-[0.12em] text-white/45 sm:gap-2 sm:text-xs sm:tracking-[0.2em]">
             <div className="min-w-0 grow sm:grow-0">
               <label className="sr-only" htmlFor="reading-list-search">Search</label>
               <input
@@ -755,28 +755,28 @@ export function ReadingListClient({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search your list"
-                className="w-full min-w-[10rem] rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-[0.8rem] text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full min-w-[10rem] rounded-md border border-white/20 bg-white/5 px-2 py-0.75 text-[0.7rem] text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:px-3 sm:py-1.5 sm:text-[0.8rem]"
               />
             </div>
             <span className="mx-2 hidden h-4 w-px bg-white/20 sm:inline-block" aria-hidden />
             <button
               type="button"
               onClick={handleExport}
-              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[0.7rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white sm:px-3 sm:py-1 sm:text-[0.7rem]"
             >
               Export
             </button>
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[0.7rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white sm:px-3 sm:py-1 sm:text-[0.7rem]"
             >
               Export CSV
             </button>
             <button
               type="button"
               onClick={triggerImport}
-              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[0.7rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white sm:px-3 sm:py-1 sm:text-[0.7rem]"
             >
               Import
             </button>
@@ -795,7 +795,7 @@ export function ReadingListClient({
             <button
               type="button"
               onClick={() => { setShowDeleteAll((s) => !s); setDeleteConfirm(""); setDeleteStatus(null); }}
-              className="inline-flex items-center rounded-full border border-red-400/50 bg-red-500/10 px-3 py-1 text-[0.7rem] font-semibold text-red-200 transition hover:border-red-300 hover:text-red-100"
+              className="inline-flex items-center rounded-full border border-red-400/50 bg-red-500/10 px-2.5 py-0.5 text-[0.65rem] font-semibold text-red-200 transition hover:border-red-300 hover:text-red-100 sm:px-3 sm:py-1 sm:text-[0.7rem]"
             >
               Delete list
             </button>
@@ -834,16 +834,16 @@ export function ReadingListClient({
 
       <section className="flex flex-col gap-3">
         {importStatus ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-center text-xs text-white/70">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-2 text-center text-[0.6rem] text-white/70 sm:rounded-2xl sm:p-3 sm:text-xs">
             {importStatus}
           </div>
         ) : null}
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="flex animate-pulse items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-4"
+                className="flex animate-pulse items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] p-2.5 sm:rounded-2xl sm:p-4"
               >
                 <div className="h-24 w-16 shrink-0 rounded-lg bg-white/10" />
                 <div className="flex flex-1 flex-col gap-2">
@@ -1000,7 +1000,7 @@ export function ReadingListClient({
               </tbody>
             </table>
           </div>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-2 md:hidden">
             {sortedItems.map((item) => {
               const progressLabel =
                 item.progress && item.progress.trim().length
@@ -1019,9 +1019,9 @@ export function ReadingListClient({
 
               return (
                 <Fragment key={`mobile-${item.id}`}>
-                  <article className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-[0_20px_45px_rgba(3,7,18,0.45)]">
+                  <article className="rounded-lg border border-white/10 bg-white/[0.06] p-2 shadow-[0_16px_28px_rgba(3,7,18,0.4)] sm:rounded-2xl sm:p-3">
                     <div className="flex gap-3">
-                      <div className="relative h-28 w-20 overflow-hidden rounded-lg border border-white/10 bg-white/10">
+                      <div className="relative h-22 w-[4.1rem] overflow-hidden rounded-lg border border-white/10 bg-white/10 sm:h-28 sm:w-20">
                         {item.cover ? (
                           <Image
                             src={item.cover}
@@ -1034,7 +1034,7 @@ export function ReadingListClient({
                             className="object-cover"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-white/5 text-lg font-semibold text-white">
+                          <div className="flex h-full w-full items-center justify-center bg-white/5 text-base font-semibold text-white sm:text-lg">
                             {titleInitial}
                           </div>
                         )}
@@ -1042,7 +1042,7 @@ export function ReadingListClient({
                       <div className="min-w-0 space-y-1">
                         <Link
                           href={`/manga/${item.mangaId}`}
-                          className="block min-w-0 truncate text-base font-semibold text-white transition hover:text-accent"
+                          className="block min-w-0 truncate text-[0.9rem] font-semibold text-white transition hover:text-accent sm:text-base"
                         >
                           {item.title}
                         </Link>
@@ -1051,9 +1051,9 @@ export function ReadingListClient({
                             {[item.demographic, item.status].filter(Boolean).join(" / ")}
                           </p>
                         ) : null}
-                        <p className="text-[0.8rem] text-white/70">{progressLabel}</p>
+                        <p className="text-[0.7rem] text-white/70 sm:text-[0.8rem]">{progressLabel}</p>
                         {tagsPreview.length ? (
-                          <div className="flex flex-wrap gap-1 text-[0.65rem] text-white/60">
+                          <div className="flex flex-wrap gap-1 text-[0.6rem] text-white/60 sm:text-[0.65rem]">
                             {tagsPreview.map((tag) => (
                               <span
                                 key={tag}
@@ -1069,27 +1069,31 @@ export function ReadingListClient({
                         ) : null}
                       </div>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between text-[0.7rem] text-white/60">
+                    <div className="mt-2 flex flex-wrap items-center justify-between text-[0.6rem] text-white/60 sm:mt-3 sm:text-[0.7rem]">
                       <span className="inline-flex items-center gap-1 font-semibold text-accent">
                         Rating {ratingDisplay}
                       </span>
                       <span>Updated {formatUpdatedAt(item.updatedAt)}</span>
                     </div>
                     {item.notes ? (
-                      <p className="mt-2 text-[0.75rem] text-white/70 line-clamp-2">{item.notes}</p>
+                      <p className="mt-2 text-[0.7rem] text-white/70 line-clamp-2 sm:text-[0.75rem]">
+                        {item.notes}
+                      </p>
                     ) : null}
-                    <div className="mt-3 flex justify-end">
+                    <div className="mt-2 flex justify-end sm:mt-3">
                       <button
                         type="button"
                         onClick={() => openEdit(item)}
-                        className="rounded-full border border-white/15 px-4 py-1.5 text-sm text-white/80 transition hover:border-accent/40 hover:text-white"
+                        className="rounded-full border border-white/15 px-2.5 py-0.75 text-[0.7rem] text-white/80 transition hover:border-accent/40 hover:text-white sm:px-4 sm:py-1.5 sm:text-sm"
                       >
                         Edit
                       </button>
                     </div>
                   </article>
                   {editingId === item.id ? (
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{editFields}</div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-2.5 sm:rounded-2xl sm:p-3">
+                      {editFields}
+                    </div>
                   ) : null}
                 </Fragment>
               );

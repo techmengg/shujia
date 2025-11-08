@@ -3,19 +3,15 @@ import type { Metadata } from "next";
 const roadmapItems = [
   {
     description:
-      "stabilize the core systems. fix session handling, password resets, and notifications so user data stays consistent across devices. improve reliability for everyday actions like login, list updates, and syncing.",
+      "stabilize the core systems. fix session handling, password resets, and notifications so user data stays consistent across devices. improve reliability for everyday actions like login, list updates, and syncing. (pretty much done)",
   },
   {
     description:
-      "expand data coverage. integrate APIs like Jikan, Anilist, and MyDramaList to support anime and drama metadata. build internal caching, translation handling, and a unified schema that merges data from multiple sources cleanly.",
+      "add more useful pages (right now im thinking a [explore] page that shows all the titles in the database, and lets you filter by tags, genres, etc",
   },
   {
     description:
-      "add multi-format support. include anime, live action, and potentially light novels alongside manga. make navigation and tracking seamless across different media types, with consistent layouts and shared progress tracking.",
-  },
-  {
-    description:
-      "improve the reading experience. add offline reading, chapter preloading, better progress recovery, and custom reader themes. make switching devices smooth without losing state.",
+      "expand data coverage. integrate APIs like Jikan, Anilist, and Consumet to support anime metadata. build internal caching, translation handling, and a unified schema that merges data from multiple sources cleanly.",
   },
   {
     description:

@@ -14,7 +14,7 @@ export function MangaGrid({ items, emptyState }: MangaGridProps) {
 
   return (
     <div
-      className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] sm:gap-3 md:grid-cols-[repeat(auto-fill,minmax(130px,1fr))]"
+      className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] sm:gap-3 md:grid-cols-[repeat(auto-fill,minmax(130px,1fr))]"
     >
       {items.map((item) => (
         <MangaCard key={item.id} manga={item} variant="grid" />

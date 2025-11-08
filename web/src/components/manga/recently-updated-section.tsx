@@ -19,8 +19,38 @@ export function RecentlyUpdatedSection({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(initialItems.length >= pageSize);
-  const gridRef = useRef<HTMLDivElement | null>(null);
-  const [columns, setColumns] = useState<number>(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  useEffect(() => {
+    if (!hasMore) {
+      observerRef.current?.disconnect();
+      return;
+    }
+
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void handleLoadMore();
+        }
+      },
+      {
+        root: null,
+        rootMargin: "120px",
+        threshold: 0.1,
+      },
+    );
+
+    observer.observe(sentinel);
+    observerRef.current = observer;
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, isLoading, items.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLoadMore = async (limitOverride?: number) => {
     if (isLoading || !hasMore) {
@@ -80,56 +110,8 @@ export function RecentlyUpdatedSection({
     }
   };
 
-  // Track column count based on container width to help fill full rows
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-
-    const compute = () => {
-      const grid = el.querySelector('.grid') as HTMLElement | null;
-      if (!grid) return;
-      const first = grid.querySelector(':scope > *') as HTMLElement | null;
-      const style = getComputedStyle(grid);
-      const gap = parseFloat(style.columnGap || style.gap || '0') || 0;
-      if (first) {
-        const colWidth = first.getBoundingClientRect().width || 1;
-        const gridWidth = grid.clientWidth || el.clientWidth || 1;
-        const count = Math.max(1, Math.floor((gridWidth + gap) / (colWidth + gap)));
-        setColumns(count);
-        return;
-      }
-      // Fallback: count template tracks when no children yet
-      const template = style.gridTemplateColumns || '';
-      const tokens = template.split(' ').filter(Boolean);
-      if (tokens.length) {
-        setColumns(tokens.length);
-      }
-    };
-
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    window.addEventListener('resize', compute);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', compute);
-    };
-  }, []);
-
-  // Auto-top-up to fill the last row before showing Load more
-  useEffect(() => {
-    if (!hasMore || isLoading) return;
-    if (!columns || items.length === 0) return;
-    const remainder = items.length % columns;
-    if (remainder === 0) return;
-    const needed = columns - remainder;
-    // Fire and forget minimal fetch to complete the row
-    void handleLoadMore(needed);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columns, items.length, hasMore]);
-
   return (
-    <div className="space-y-4" ref={gridRef}>
+    <div className="space-y-4">
       <MangaGrid
         items={items}
         emptyState={
@@ -141,15 +123,14 @@ export function RecentlyUpdatedSection({
 
       {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
-      {hasMore ? (
-        <button
-          type="button"
-          onClick={() => handleLoadMore()}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-transparent px-4 py-2 text-sm font-semibold text-white transition hover:border-white hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={isLoading}
-        >
-          {isLoading ? "Loading..." : "Load more"}
-        </button>
+      <div ref={sentinelRef} aria-hidden="true" className="h-1 w-full" />
+      {isLoading ? (
+        <div className="flex justify-center">
+          <span className="text-sm text-white/60">Loading…</span>
+        </div>
+      ) : null}
+      {!isLoading && !hasMore ? (
+        <p className="text-center text-sm text-white/40">You’re all caught up.</p>
       ) : null}
     </div>
   );

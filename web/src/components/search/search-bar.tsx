@@ -15,6 +15,7 @@ import type { MangaSummary } from "@/lib/mangadex/types";
 
 const MIN_QUERY_LENGTH = 3;
 const OVERLAY_OFFSET_PX = 8;
+const MOBILE_HORIZONTAL_MARGIN_PX = 12;
 
 interface SearchResponse {
   data: MangaSummary[];
@@ -247,11 +248,22 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
 
     const updatePosition = () => {
       if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
+        const rect = containerRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const isSmallViewport = viewportWidth < 640;
+      const horizontalMargin = isSmallViewport ? MOBILE_HORIZONTAL_MARGIN_PX : 0;
+      const calculatedWidth = isSmallViewport
+        ? Math.max(200, viewportWidth - horizontalMargin * 2)
+        : rect.width;
+      const maxLeft = viewportWidth - calculatedWidth - horizontalMargin;
+      const calculatedLeft = isSmallViewport
+        ? Math.max(horizontalMargin, Math.min(rect.left, maxLeft))
+        : rect.left;
+
       setOverlayPosition({
         top: rect.bottom + OVERLAY_OFFSET_PX,
-        left: rect.left,
-        width: rect.width,
+        left: calculatedLeft,
+        width: calculatedWidth,
       });
     };
 
@@ -273,7 +285,7 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
       ? createPortal(
           <div
             ref={overlayRef}
-            className="fixed z-[200] max-h-[70vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/95 p-3 sm:rounded-3xl sm:p-4"
+            className="fixed z-[200] max-h-[70vh] overflow-y-auto rounded-2xl border border-white/15 bg-black/95 p-3 backdrop-blur-md scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20 hover:scrollbar-thumb-white/40 sm:rounded-3xl sm:p-4"
             style={{
               width: overlayPosition.width,
               left: overlayPosition.left,
@@ -329,12 +341,12 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
 
                     return (
                       <li key={manga.id} className="space-y-1">
-                        <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 p-3 transition hover:border-white/60 hover:bg-white/10">
+                        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 transition hover:border-white/40 hover:bg-white/10">
                           <Link
                             href={`/manga/${manga.id}`}
                             className="flex flex-1 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                           >
-                            <div className="relative h-14 w-10 overflow-hidden rounded-xl bg-white/5 sm:h-16 sm:w-12">
+                            <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-xl bg-white/5 sm:h-16 sm:w-12">
                               {manga.coverImage ? (
                                 <Image
                                   fill
@@ -350,22 +362,22 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
                               )}
                             </div>
                             <div className="flex min-w-0 flex-1 flex-col overflow-hidden text-left">
-                              <p className="truncate text-sm font-semibold text-white">
+                              <p className="line-clamp-2 text-sm font-semibold leading-snug text-white sm:truncate">
                                 {manga.title}
                               </p>
                               {manga.altTitles.length > 0 ? (
                                 <p className="text-xs text-surface-subtle/80">
-                                  <span className="line-clamp-2 break-words sm:line-clamp-1">
+                                  <span className="line-clamp-1 break-words sm:line-clamp-1">
                                     {manga.altTitles.join(" / ")}
                                   </span>
                                 </p>
                               ) : null}
-                              <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.65rem] uppercase text-surface-subtle">
-                                {manga.status ? <span>{manga.status}</span> : null}
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.6rem] uppercase text-surface-subtle">
+                                {manga.status ? <span className="truncate">{manga.status}</span> : null}
                                 {manga.demographic ? (
-                                  <span>{manga.demographic}</span>
+                                  <span className="truncate">{manga.demographic}</span>
                                 ) : null}
-                                {manga.year ? <span>{manga.year}</span> : null}
+                                {manga.year ? <span className="whitespace-nowrap">{manga.year}</span> : null}
                               </div>
                             </div>
                           </Link>
@@ -405,32 +417,37 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
   return (
     <>
       <div ref={containerRef} className="relative w-full">
-        <div className="group flex w-full items-center rounded-xl border border-white/20 bg-transparent px-3 py-2.5 transition focus-within:border-white sm:rounded-2xl sm:px-3.5">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="h-5 w-5 text-surface-subtle transition group-focus-within:text-white"
-            aria-hidden
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21 21l-4.35-4.35m0 0A6 6 0 1010.65 6.3a6 6 0 006 10.35z"
-            />
-          </svg>
+        <div className="group relative flex w-full items-center overflow-hidden rounded-full bg-white/5 pl-3 pr-2 shadow-[0_6px_20px_rgba(2,6,23,0.35)] transition focus-within:bg-white/10 sm:pl-4 sm:pr-3">
+          <div className="flex items-center gap-2 text-surface-subtle transition group-focus-within:text-white">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4 sm:h-5 sm:w-5"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-4.35-4.35m0 0A6 6 0 1010.65 6.3a6 6 0 006 10.35z"
+              />
+            </svg>
+            <span className="text-[0.7rem] uppercase tracking-[0.2em] text-white/50 sm:text-[0.75rem]">
+              Search
+            </span>
+          </div>
           <input
             type="search"
             value={query}
             onFocus={() => setIsFocused(true)}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search series..."
-            className="w-full bg-transparent pl-3 text-sm text-white placeholder:text-surface-subtle focus:outline-none"
+            placeholder="Titles, tags, creators..."
+            className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none sm:py-2.5"
             aria-label="Search MangaDex titles"
           />
-          <kbd className="hidden rounded-lg border border-white/15 bg-transparent px-2 py-1 text-[0.65rem] text-surface-subtle sm:inline-flex">
+          <kbd className="hidden rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[0.65rem] text-surface-subtle sm:inline-flex">
             /
           </kbd>
         </div>

@@ -19,7 +19,7 @@ export default async function Home() {
     getRecentPopularByOriginalLanguage("ja", 35),
     getRecentPopularByOriginalLanguage("ko", 35),
     getRecentPopularByOriginalLanguage("zh", 35),
-    getPopularNewTitles(18),
+    getPopularNewTitles(35),
     getDemographicHighlights("shounen", 35),
     getDemographicHighlights("seinen", 35),
     getDemographicHighlights("shoujo", 35),
@@ -132,13 +132,13 @@ export default async function Home() {
       <h1 className="sr-only">Shujia</h1>
 
       <section className="mt-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <h2 className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-white sm:text-sm sm:tracking-[0.35em]">
             Latest Updates from Your Followed List
           </h2>
           <Link
             href="/reading-list"
-            className="text-xs uppercase tracking-[0.3em] text-surface-subtle transition hover:text-white"
+            className="text-[0.65rem] uppercase tracking-[0.2em] text-surface-subtle transition hover:text-white sm:text-xs sm:tracking-[0.3em]"
           >
             View list
           </Link>
@@ -182,7 +182,7 @@ export default async function Home() {
 
       {popularNewTitles.length ? (
         <section className="mt-10 space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+          <h2 className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-white sm:text-sm sm:tracking-[0.35em]">
             Popular New Titles
           </h2>
           <MangaCarousel
@@ -204,7 +204,7 @@ export default async function Home() {
       ) : null}
 
       <section className="mt-10 space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-white">
+        <h2 className="text-[0.75rem] font-semibold uppercase tracking-[0.2em] text-white sm:text-sm sm:tracking-[0.35em]">
           Latest
         </h2>
         <RecentlyUpdatedSection initialItems={recentUpdates} pageSize={49} />

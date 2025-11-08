@@ -37,7 +37,7 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
 
   return (
     <header className={combinedClassName}>
-      <div className="mx-auto flex w-full max-w-7xl flex-nowrap items-center gap-2 px-4 py-1 sm:px-6 lg:px-10 lg:py-2">
+      <div className="mx-auto flex w-full max-w-7xl flex-nowrap items-center gap-2 px-4 py-2 sm:px-6 lg:px-10 lg:py-3">
         <Link
           href="/"
           className="order-1 group flex items-center gap-2 pr-1 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"

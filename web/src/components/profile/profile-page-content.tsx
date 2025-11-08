@@ -393,6 +393,7 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
   const hasStatusData = Object.values(statusGroups).some((items) => items.length > 0);
 
   const usernameLabel = user.username ? `@${user.username}` : null;
+  const displayOwnerLabel = usernameLabel ?? user.name?.trim() ?? null;
   const displayName =
     user.name?.trim() ||
     usernameLabel ||
@@ -451,11 +452,11 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
                 className="hidden text-sm text-white/65 sm:block sm:max-w-2xl"
                 dangerouslySetInnerHTML={{ __html: markdownBioToHtml(bio) ?? "" }}
               />
-            ) : (
+            ) : isOwner ? (
               <p className="hidden text-sm text-white/65 sm:block sm:max-w-2xl">
                 {"Add a short bio in settings to share what keeps you turning pages."}
               </p>
-            )}
+            ) : null}
             {/* Stats moved below bio for better mobile flow */}
           </div>
         </div>
@@ -465,11 +466,11 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
             className="text-sm text-white/65 sm:hidden"
             dangerouslySetInnerHTML={{ __html: markdownBioToHtml(bio) ?? "" }}
           />
-        ) : (
+        ) : isOwner ? (
           <p className="text-sm text-white/65 sm:hidden">
             {"Add a short bio in settings to share what keeps you turning pages."}
           </p>
-        )}
+        ) : null}
         {/* Stats below bio (all breakpoints) */}
         <ul className="mt-2 flex flex-nowrap items-center gap-x-3 overflow-x-auto text-xs text-white/60 scrollbar-none sm:mt-0 sm:gap-x-6 sm:text-sm">
           <li className="whitespace-nowrap">
@@ -684,10 +685,14 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
               </li>
             ))}
           </ul>
-        ) : (
+        ) : isOwner ? (
           <p className="rounded-lg border border-dashed border-white/15 px-4 py-6 text-sm text-white/60">
             You have not logged any reading activity yet. Browse the latest titles and start tracking
             your shelf.
+          </p>
+        ) : (
+          <p className="rounded-lg border border-dashed border-white/15 px-4 py-6 text-sm text-white/60">
+            {displayOwnerLabel ? `${displayOwnerLabel} has not logged any reading activity yet.` : "This reader has not logged any activity yet."}
           </p>
         )}
       </section>
@@ -734,8 +739,14 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
                 );
               })}
           </div>
+        ) : isOwner ? (
+          <p className="text-xs text-white/60 sm:text-sm">
+            Start tracking series to see them grouped here.
+          </p>
         ) : (
-          <p className="text-xs text-white/60 sm:text-sm">Start tracking series to see them grouped here.</p>
+          <p className="text-xs text-white/60 sm:text-sm">
+            {displayOwnerLabel ? `${displayOwnerLabel} has not grouped any series yet.` : "No series grouped yet."}
+          </p>
         )}
 
         <div className="space-y-3">
@@ -749,9 +760,13 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
                 </span>
               ))}
             </div>
-          ) : (
+          ) : isOwner ? (
             <p className="text-xs text-white/60 sm:text-sm">
               Tags will appear once you add a few more series to your list.
+            </p>
+          ) : (
+            <p className="text-xs text-white/60 sm:text-sm">
+              {displayOwnerLabel ? `${displayOwnerLabel} has not added tags yet.` : "No tags available yet."}
             </p>
           )}
         </div>
