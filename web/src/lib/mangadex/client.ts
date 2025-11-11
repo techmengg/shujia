@@ -17,12 +17,19 @@ type SearchParams =
   | Record<string, Primitive | Primitive[] | undefined>
   | undefined;
 
+type RetryOptions = {
+  attempts?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+};
+
 export interface MangaDexRequestInit extends RequestInit {
   searchParams?: SearchParams;
   next?: {
     revalidate?: number;
     tags?: string[];
   };
+  retry?: RetryOptions;
 }
 
 export class MangaDexAPIError extends Error {
@@ -35,11 +42,42 @@ export class MangaDexAPIError extends Error {
   }
 }
 
+function parseRetryAfter(headerValue: string | null, fallbackMs: number): number {
+  if (!headerValue) {
+    return fallbackMs;
+  }
+
+  const seconds = Number.parseFloat(headerValue);
+  if (Number.isFinite(seconds)) {
+    return Math.max(fallbackMs, seconds * 1000);
+  }
+
+  const dateTarget = Date.parse(headerValue);
+  if (Number.isFinite(dateTarget)) {
+    const diff = dateTarget - Date.now();
+    if (diff > 0) {
+      return Math.max(fallbackMs, diff);
+    }
+  }
+
+  return fallbackMs;
+}
+
+function sleep(ms: number) {
+  if (ms <= 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export async function mangadexFetch<TResponse>(
   path: string,
   init: MangaDexRequestInit = {},
 ): Promise<TResponse> {
-  const { searchParams, headers, ...rest } = init;
+  const { searchParams, headers, retry, ...rest } = init;
   const url = new URL(path, API_BASE);
 
   if (searchParams) {
@@ -56,17 +94,57 @@ export async function mangadexFetch<TResponse>(
     }
   }
 
-  const response = await fetch(url, {
-    ...rest,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "User-Agent": USER_AGENT,
-      ...headers,
-    },
-  });
+  const attempts = Math.max(1, retry?.attempts ?? 5);
+  const baseDelayMs = Math.max(0, retry?.baseDelayMs ?? 500);
+  const maxDelayMs = Math.max(baseDelayMs, retry?.maxDelayMs ?? 5000);
 
-  if (!response.ok) {
+  let attempt = 0;
+  let nextDelay = baseDelayMs;
+
+  while (attempt < attempts) {
+    attempt += 1;
+
+    let response: Response | null = null;
+    try {
+      response = await fetch(url, {
+        ...rest,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent": USER_AGENT,
+          ...headers,
+        },
+      });
+    } catch (networkError) {
+      if (attempt >= attempts) {
+        throw networkError;
+      }
+      await sleep(nextDelay);
+      nextDelay = Math.min(nextDelay * 2, maxDelayMs);
+      continue;
+    }
+
+    if (response.ok) {
+      return response.json() as Promise<TResponse>;
+    }
+
+    const isRateLimited = response.status === 429;
+    const isRetriableServerError = response.status >= 500 && response.status < 600;
+    const shouldRetry = attempt < attempts && (isRateLimited || isRetriableServerError);
+
+    if (shouldRetry) {
+      const retryAfterMs = isRateLimited
+        ? parseRetryAfter(response.headers.get("retry-after"), nextDelay)
+        : nextDelay;
+
+      await sleep(retryAfterMs);
+      nextDelay = Math.min(
+        isRateLimited ? retryAfterMs * 2 : nextDelay * 2,
+        maxDelayMs,
+      );
+      continue;
+    }
+
     let message = `MangaDex request failed (${response.status})`;
 
     try {
@@ -79,5 +157,5 @@ export async function mangadexFetch<TResponse>(
     throw new MangaDexAPIError(message, response.status);
   }
 
-  return response.json() as Promise<TResponse>;
+  throw new MangaDexAPIError("Exceeded MangaDex retry attempts", 429);
 }

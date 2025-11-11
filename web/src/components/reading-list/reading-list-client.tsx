@@ -40,9 +40,40 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "random", label: "Random" },
 ];
 
-const IMPORT_CONCURRENCY = 6;
+const IMPORT_DEFAULT_CONCURRENCY = 6;
+const IMPORT_LARGE_CONCURRENCY = 2;
+const LARGE_IMPORT_THRESHOLD = 200;
+const IMPORT_THROTTLE_DELAY_MS = 120;
+const IMPORT_RETRY_ATTEMPTS = 5;
+const IMPORT_RETRY_BASE_DELAY_MS = 600;
+const IMPORT_RETRY_MAX_DELAY_MS = 6000;
 const PROGRESS_UPDATE_INTERVAL = 5;
 const TABLE_COLUMNS = 6;
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function parseRetryAfterMs(headerValue: string | null, fallbackMs: number): number {
+  if (!headerValue) return fallbackMs;
+
+  const seconds = Number.parseFloat(headerValue);
+  if (Number.isFinite(seconds)) {
+    return Math.max(fallbackMs, seconds * 1000);
+  }
+
+  const dateTarget = Date.parse(headerValue);
+  if (Number.isFinite(dateTarget)) {
+    const diff = dateTarget - Date.now();
+    if (diff > 0) {
+      return Math.max(fallbackMs, diff);
+    }
+  }
+
+  return fallbackMs;
+}
 
 function sortReadingList(items: ReadingListItem[], sort: SortOption, seed = 0) {
   const list = [...items];
@@ -622,6 +653,67 @@ export function ReadingListClient({
         }
       };
 
+      const shouldThrottle = total >= LARGE_IMPORT_THRESHOLD;
+      const throttleDelay = shouldThrottle ? IMPORT_THROTTLE_DELAY_MS : 0;
+
+      const importEntry = async (mangaId: string, currentItem: NormalizedImportItem) => {
+        const bodyPayload = {
+          mangaId,
+          ...(currentItem.progress ? { progress: currentItem.progress } : {}),
+          ...(typeof currentItem.rating === "number" ? { rating: currentItem.rating } : {}),
+          ...(currentItem.notes ? { notes: currentItem.notes } : {}),
+        };
+
+        let attempt = 0;
+        let waitMs = IMPORT_RETRY_BASE_DELAY_MS;
+
+        while (attempt < IMPORT_RETRY_ATTEMPTS) {
+          attempt += 1;
+          try {
+            const resp = await fetch("/api/reading-list", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(bodyPayload),
+            });
+
+            if (resp.ok) {
+              if (throttleDelay > 0) {
+                await sleep(throttleDelay);
+              }
+              return true;
+            }
+
+            const isRetriable =
+              attempt < IMPORT_RETRY_ATTEMPTS &&
+              (resp.status === 429 || resp.status === 503 || resp.status === 504 || resp.status === 500);
+
+            if (isRetriable) {
+              const retryDelay = parseRetryAfterMs(resp.headers.get("retry-after"), waitMs);
+              const retrySeconds = Math.max(1, Math.ceil(retryDelay / 1000));
+              setImportStatus(
+                `Importing (${Math.min(processed + 1, total)}/${total}). MangaDex is rate limiting us, retrying in ${retrySeconds}s...`,
+              );
+              await sleep(retryDelay);
+              waitMs = Math.min(
+                Math.max(IMPORT_RETRY_BASE_DELAY_MS, retryDelay * 2),
+                IMPORT_RETRY_MAX_DELAY_MS,
+              );
+              continue;
+            }
+
+            return false;
+          } catch {
+            if (attempt >= IMPORT_RETRY_ATTEMPTS) {
+              return false;
+            }
+            await sleep(waitMs);
+            waitMs = Math.min(waitMs * 2, IMPORT_RETRY_MAX_DELAY_MS);
+          }
+        }
+
+        return false;
+      };
+
       const runImportWorker = async () => {
         while (true) {
           const index = getNextIndex();
@@ -633,25 +725,10 @@ export function ReadingListClient({
           if (!mangaId) {
             skipped += 1;
           } else {
-            try {
-              const resp = await fetch("/api/reading-list", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  mangaId,
-                  ...(currentItem.progress ? { progress: currentItem.progress } : {}),
-                  ...(typeof currentItem.rating === "number"
-                    ? { rating: currentItem.rating }
-                    : {}),
-                  ...(currentItem.notes ? { notes: currentItem.notes } : {}),
-                }),
-              });
-              if (resp.ok) {
-                added += 1;
-              } else {
-                skipped += 1;
-              }
-            } catch {
+            const success = await importEntry(mangaId, currentItem);
+            if (success) {
+              added += 1;
+            } else {
               skipped += 1;
             }
           }
@@ -663,7 +740,10 @@ export function ReadingListClient({
         }
       };
 
-      const workerCount = Math.min(IMPORT_CONCURRENCY, uniqueItems.length);
+      const workerCount =
+        total >= LARGE_IMPORT_THRESHOLD
+          ? Math.min(IMPORT_LARGE_CONCURRENCY, total)
+          : Math.min(IMPORT_DEFAULT_CONCURRENCY, total);
       await Promise.all(Array.from({ length: workerCount }, () => runImportWorker()));
 
       setImportStatus(`Import complete. Added ${added}, skipped ${skipped}.`);
