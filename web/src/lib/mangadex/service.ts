@@ -50,10 +50,9 @@ function getPreferredLocaleText(
 }
 
 function buildCoverArtUrl(mangaId: string, fileName: string): string {
-  // MangaDex sized covers are constructed by appending the size after the original filename
-  // (including its extension), e.g.: {fileName}.256.jpg or {fileName}.512.jpg
-  // Use 256px which is sufficient for card sizes and more consistently available.
-  return `${COVER_ART_BASE_URL}/${mangaId}/${fileName}.256.jpg`;
+  // Use the original cover file; Next.js image optimizer will downscale as needed.
+  // This avoids sized-derivative placeholders/404s for some covers in production.
+  return `${COVER_ART_BASE_URL}/${mangaId}/${fileName}`;
 }
 
 function createMangaSummary(manga: MangaDexManga): MangaSummary {
