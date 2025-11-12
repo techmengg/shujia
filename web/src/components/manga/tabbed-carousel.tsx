@@ -69,28 +69,30 @@ export function TabbedCarousel({ tabs, heading, emptyState }: TabbedCarouselProp
             <span aria-hidden className="h-3 w-px bg-white/25 sm:h-4" />
           </>
         ) : null}
-        <div className="ml-1 flex min-w-0 flex-1 items-center gap-1">
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTabId(tab.id)}
-                className={[
-                  "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[0.6rem] font-semibold transition sm:gap-2 sm:px-4 sm:py-2 sm:text-[0.75rem]",
-                  isActive
-                    ? "border-white bg-white/10 text-white"
-                    : "border-white/20 bg-transparent text-surface-subtle hover:border-white/60 hover:text-white",
-                ].join(" ")}
-              >
-                <span className="whitespace-nowrap">{tab.label}</span>
-                <span className="rounded-full bg-white/10 px-1 py-0.5 text-[0.55rem] font-normal text-white/70 sm:px-1.5 sm:text-[0.65rem]">
-                  {tab.items.length}
-                </span>
-              </button>
-            );
-          })}
+        <div className="ml-1 min-w-0 flex-1">
+          <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-none sm:gap-2">
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTabId(tab.id)}
+                  className={[
+                    "shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[0.6rem] font-semibold transition sm:gap-2 sm:px-4 sm:py-2 sm:text-[0.75rem]",
+                    isActive
+                      ? "border-white bg-white/10 text-white"
+                      : "border-white/20 bg-transparent text-surface-subtle hover:border-white/60 hover:text-white",
+                  ].join(" ")}
+                >
+                  <span className="whitespace-nowrap">{tab.label}</span>
+                  <span className="rounded-full bg-white/10 px-1 py-0.5 text-[0.55rem] font-normal text-white/70 sm:px-1.5 sm:text-[0.65rem]">
+                    {tab.items.length}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

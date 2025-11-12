@@ -64,15 +64,15 @@ export default async function Home() {
   const userPromise = getCurrentUser();
 
   const trendsPromise = Promise.all([
-    safe(getRecentPopularByOriginalLanguage("ja", 35), []),
-    safe(getRecentPopularByOriginalLanguage("ko", 35), []),
-    safe(getRecentPopularByOriginalLanguage("zh", 35), []),
-    safe(getPopularNewTitles(35), []),
-    safe(getDemographicHighlights("shounen", 35), []),
-    safe(getDemographicHighlights("seinen", 35), []),
-    safe(getDemographicHighlights("shoujo", 35), []),
-    safe(getDemographicHighlights("josei", 35), []),
-    safe(getRecentlyUpdatedManga(49), []),
+    safe(getRecentPopularByOriginalLanguage("ja", 50), []),
+    safe(getRecentPopularByOriginalLanguage("ko", 50), []),
+    safe(getRecentPopularByOriginalLanguage("zh", 50), []),
+    safe(getPopularNewTitles(50), []),
+    safe(getDemographicHighlights("shounen", 50), []),
+    safe(getDemographicHighlights("seinen", 50), []),
+    safe(getDemographicHighlights("shoujo", 50), []),
+    safe(getDemographicHighlights("josei", 50), []),
+    safe(getRecentlyUpdatedManga(59), []),
   ]);
 
   const [
@@ -193,16 +193,8 @@ export default async function Home() {
             View list
           </Link>
         </div>
-        <div className="relative">
-          <div
-            className={[
-              !user
-                ? "pointer-events-none select-none opacity-60 grayscale"
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
+        {user ? (
+          <div className="relative">
             <MangaCarousel
               items={followedItems}
               emptyState={
@@ -212,16 +204,18 @@ export default async function Home() {
               }
             />
           </div>
-          {!user ? (
+        ) : (
+          <div className="relative">
+            <div className="h-24 rounded-2xl border border-white/12 bg-white/[0.04] sm:h-28 md:h-32" />
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-              <div className="rounded-2xl border border-white/20 bg-black/70 px-5 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white">
+              <div className="rounded-2xl border border-white/20 bg-black/70 px-5 py-3 text-xs font-semibold text-white">
                 <Link href="/login?redirect=/" className="transition hover:text-accent">
                   Log in to view
                 </Link>
               </div>
             </div>
-          ) : null}
-        </div>
+          </div>
+        )}
       </section>
 
       {languageTabs.length ? (
@@ -249,7 +243,7 @@ export default async function Home() {
 
       {demographicTabs.length ? (
         <section className="mt-10 space-y-4">
-          <TabbedCarousel heading="Demographic Highlights" tabs={demographicTabs} />
+          <TabbedCarousel heading="Demographic" tabs={demographicTabs} />
         </section>
       ) : null}
 

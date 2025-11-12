@@ -18,7 +18,7 @@ export default async function UsersPage() {
   });
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-12 pt-10 sm:px-6 lg:px-10">
+    <main className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-12 pt-10 sm:px-6 lg:px-10">
       <header className="space-y-3 border-b border-white/10 pb-4">
         <h1 className="text-3xl font-semibold text-white">All users</h1>
         <p className="max-w-2xl text-sm text-white/65">

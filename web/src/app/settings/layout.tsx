@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:px-10">
+    <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-10 sm:px-6 lg:px-10">
       <header className="space-y-3">
         <h1 className="text-3xl font-semibold text-white">Settings</h1>
         <p className="max-w-2xl text-sm text-white/65">
