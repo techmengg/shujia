@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
+import { MobileSettingsNav } from "@/components/settings/mobile-settings-nav";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -17,7 +18,8 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
         </p>
       </header>
 
-      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[220px_1fr]">
+      <MobileSettingsNav />
+      <div className="mt-6 grid items-start gap-8 lg:mt-10 lg:grid-cols-[220px_1fr] lg:gap-10">
         <SettingsSidebar />
         <div className="flex-1">{children}</div>
       </div>

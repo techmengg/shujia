@@ -10,6 +10,7 @@ import {
   THEME_DEFAULT,
   isThemeName,
 } from "@/lib/theme/config";
+import { MobileQuickActions } from "@/components/layout/mobile-quick-actions";
 
 interface SiteHeaderProps {
   className?: string;
@@ -70,17 +71,12 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"
               />
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M2.458 12C3.732 7.943 7.522 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.478 0-8.268-2.943-9.542-7z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 3c2 3 2 15 0 18M3 12h18"
+                d="M15.5 8.5l-3.5 1.4-1.4 3.5 3.5-1.4 1.4-3.5Z"
               />
             </svg>
           </Link>
@@ -90,10 +86,11 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
         </div>
 
         <div className="order-3 ml-auto flex items-center gap-2 text-surface-subtle">
+          <MobileQuickActions settingsHref={user ? "/settings/profile" : "/login?redirect=/settings/profile"} />
 
           <Link
             href="/users"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-8 sm:w-8"
+            className="hidden h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:inline-flex sm:h-8 sm:w-8"
             aria-label="Browse users"
           >
             <svg
@@ -117,8 +114,8 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
             </svg>
           </Link>
           <Link
-            href={user ? "/settings" : "/login?redirect=/settings"}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-8 sm:w-8"
+            href={user ? "/settings/profile" : "/login?redirect=/settings/profile"}
+            className="hidden h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:inline-flex sm:h-8 sm:w-8"
             aria-label="Account settings"
           >
             <svg
@@ -143,7 +140,7 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
           </Link>
           <Link
             href="/reading-list"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-8 sm:w-8"
+            className="hidden h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:inline-flex sm:h-8 sm:w-8"
             aria-label="Reading list"
           >
             <svg

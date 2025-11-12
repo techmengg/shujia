@@ -11,7 +11,7 @@ import {
 } from "@/lib/theme/config";
 
 const appearanceSchema = z.object({
-  theme: z.enum(["dark", "light", "void"]),
+  theme: z.enum(["dark", "light", "void", "ocean"]),
 });
 
 export async function PATCH(request: Request) {

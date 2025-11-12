@@ -1,7 +1,7 @@
-export type ThemeName = "dark" | "light" | "void";
+export type ThemeName = "dark" | "light" | "void" | "ocean";
 
 export const THEME_COOKIE_NAME = "shujia-theme";
-export const THEME_DEFAULT: ThemeName = "void";
+export const THEME_DEFAULT: ThemeName = "ocean";
 
 export type ThemeOption = {
   value: ThemeName;
@@ -15,12 +15,12 @@ export type ThemeOption = {
 
 export const THEME_OPTIONS: ThemeOption[] = [
   {
-    value: "dark",
-    label: "Midnight",
-    description: "High contrast blacks with electric accent blues optimized for low light.",
+    value: "ocean",
+    label: "Ocean",
+    description: "Deep blue surfaces with cyan accents.",
     preview: {
-      from: "#05060b",
-      to: "#0f172a",
+      from: "#25274D",
+      to: "#2E9CCA",
     },
   },
   {

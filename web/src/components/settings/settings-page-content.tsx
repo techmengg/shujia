@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import QRCode from "qrcode";
 import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -96,7 +95,7 @@ const TIMEZONE_OPTIONS = [
 ];
 
 const inputClass =
-  "rounded-lg border border-white/12 bg-black/50 px-3 py-2 text-sm text-white placeholder:text-white/35 focus:border-accent focus:outline-none focus:ring-0 transition sm:px-3.5";
+  "rounded-md border border-white/10 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/35 focus:border-accent focus:outline-none focus:ring-0 transition sm:px-3.5";
 const textareaClass = `${inputClass} min-h-[120px] resize-vertical`;
 const selectClass = inputClass;
 const labelClass = "flex flex-col gap-1.5 text-[0.85rem] font-medium text-white/70 sm:text-sm";
@@ -153,7 +152,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
     }
 
     const borderColor = section === "danger" ? "border-red-500/30" : "border-white/10";
-    return `${baseClass} border-t ${borderColor} pt-10 md:pt-12`;
+    return `${baseClass} border-t ${borderColor} pt-8 md:pt-10`;
   };
 
   const [profileForm, setProfileForm] = useState<ProfileFormState>({
@@ -481,7 +480,8 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
 
       let qrCode: string | null = null;
       try {
-        qrCode = await QRCode.toDataURL(otpauthUrl, {
+        const QR = await import("qrcode");
+        qrCode = await QR.toDataURL(otpauthUrl, {
           width: 220,
           margin: 1,
           color: {
@@ -765,8 +765,8 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             Update your public profile information and how other readers see you.
           </p>
         </header>
-        <form className="space-y-5 sm:space-y-6" onSubmit={handleProfileSubmit}>
-          <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
+        <form className="space-y-4 sm:space-y-5" onSubmit={handleProfileSubmit}>
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <label className={labelClass}>
               <span>Display name</span>
               <input
@@ -817,22 +817,22 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
           </label>
           <label className={labelClass}>
             <span>Avatar</span>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 text-lg font-semibold uppercase text-white/50 sm:h-24 sm:w-24">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/5 text-base font-semibold uppercase text-white/60 sm:h-20 sm:w-20">
                 {profileForm.avatarUrl ? (
                   <Image
                     src={profileForm.avatarUrl}
                     alt="Avatar preview"
                     fill
                     className="object-cover"
-                    sizes="96px"
+                    sizes="80px"
                     unoptimized
                   />
                 ) : (
                   avatarFallbackInitial.toUpperCase()
                 )}
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 <button
                   type="button"
                   className={neutralButtonClass}
@@ -906,15 +906,15 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             ) : null}
           </p>
         </header>
-        <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[0.8rem] text-white/70 sm:flex-row sm:items-center sm:justify-between sm:text-sm">
-          <span>Signed in on this device. You can instantly sign out if you’re on a shared computer.</span>
+        <div className="flex flex-col gap-2 border-b border-white/10 pb-4 text-[0.85rem] text-white/70 sm:flex-row sm:items-center sm:justify-between sm:text-sm">
+          <span>Signed in on this device.</span>
           <div className="flex justify-end sm:justify-start">
             <LogoutButton />
           </div>
         </div>
 
-        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
-          <div className="space-y-4 rounded-2xl border border-white/12 bg-white/5 p-4 sm:space-y-5 sm:p-5">
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="space-y-4">
             <div className="space-y-2">
               <p className="text-[0.85rem] font-semibold text-white sm:text-sm">Primary email</p>
               <p className="text-base font-medium text-white sm:text-lg">{user.email}</p>
@@ -934,10 +934,10 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             </div>
             {showEmailEditor ? (
               <form
-                className="space-y-5 border-t border-white/10 pt-5 sm:space-y-6 sm:pt-6"
+                className="space-y-4 border-t border-white/10 pt-4 sm:space-y-5 sm:pt-5"
                 onSubmit={handleEmailSubmit}
               >
-                <div className="grid gap-4 sm:gap-6 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <label className={labelClass}>
                     <span>New email address</span>
                     <input
@@ -984,7 +984,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             ) : null}
           </div>
 
-          <div className="space-y-4 rounded-2xl border border-white/12 bg-white/5 p-4 sm:space-y-5 sm:p-5">
+          <div className="space-y-4">
             <div className="space-y-2">
               <p className="text-[0.85rem] font-semibold text-white sm:text-sm">Password</p>
               <p className="text-[0.8rem] text-white/60 sm:text-sm">
@@ -1003,10 +1003,10 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             </div>
             {showPasswordEditor ? (
               <form
-                className="space-y-5 border-t border-white/10 pt-5 sm:space-y-6 sm:pt-6"
+                className="space-y-4 border-t border-white/10 pt-4 sm:space-y-5 sm:pt-5"
                 onSubmit={handlePasswordSubmit}
               >
-                <div className="grid gap-4 sm:gap-6 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <label className={`${labelClass} md:col-span-1`}>
                     <span>Current password</span>
                     <input
@@ -1082,7 +1082,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
               Lock down your account with a rotating code, and manage recovery options if you ever lose your device.
             </p>
           </header>
-          <div className="space-y-4 rounded-2xl border border-white/12 bg-white/5 p-4 sm:space-y-5 sm:p-5">
+          <div className="space-y-4">
             {twoFactorMessage ? (
               <p className={`text-sm ${statusToneClass(twoFactorStatus)}`}>{twoFactorMessage}</p>
             ) : null}
@@ -1099,7 +1099,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
                     : "Set up authenticator"}
                 </button>
                 {twoFactorSetupVisible && twoFactorSetupData ? (
-                  <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <div className="space-y-4 rounded-lg border border-white/10 bg-black/30 p-4">
                     {twoFactorSetupData.qrCode ? (
                       <div className="flex justify-center">
                         <Image
@@ -1168,7 +1168,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
               </div>
             ) : (
               <div className="space-y-5">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+                <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-white/70">
                   <p>
                     Status:{" "}
                     <span className="font-semibold text-emerald-300">Enabled</span>
@@ -1200,7 +1200,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
 
                 {twoFactorDisableVisible ? (
                   <form
-                    className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4"
+                    className="space-y-4 rounded-lg border border-white/10 bg-black/30 p-4"
                     onSubmit={handleDisableTwoFactor}
                   >
                     <label className={labelClass}>
@@ -1266,7 +1266,7 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
                 ) : null}
 
                 {showRecoveryForm ? (
-                  <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                  <div className="space-y-4 rounded-lg border border-white/10 bg-black/30 p-4">
                     <div className="space-y-2 text-sm text-white/70">
                       <p>
                         Store these one-time recovery codes somewhere safe. Each code can only be used once.
@@ -1334,45 +1334,42 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
           </header>
 
           <form className="space-y-5 sm:space-y-6" onSubmit={handleAppearanceSubmit}>
-            <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-              {THEME_OPTIONS.map((option) => {
-                const isSelected = appearanceForm.theme === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`group flex cursor-pointer flex-col gap-3 rounded-2xl border p-4 transition ${
-                      isSelected
-                        ? "border-accent/70 bg-accent/5"
-                        : "border-white/10 hover:border-white/30"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="theme"
-                      value={option.value}
-                      checked={isSelected}
-                      onChange={(event) =>
-                        setAppearanceForm({ theme: event.target.value as ThemeName })
-                      }
-                      className="sr-only"
-                    />
-                    <div
-                      className="h-20 rounded-xl bg-gradient-to-br shadow-inner"
-                      style={{
-                        backgroundImage: `linear-gradient(135deg, ${option.preview.from}, ${option.preview.to})`,
-                      }}
-                    />
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-white">{option.label}</p>
-                      <p className="text-xs text-white/65">{option.description}</p>
-                    </div>
-                    {isSelected ? (
-                      <span className="text-xs font-medium text-accent">Selected</span>
-                    ) : null}
-                  </label>
-                );
-              })}
-            </div>
+            <fieldset>
+              <div className="grid grid-cols-3 gap-3 sm:gap-4 md:w-2/3">
+                {THEME_OPTIONS.map((option) => {
+                  const isSelected = appearanceForm.theme === option.value;
+                  return (
+                    <label
+                      key={option.value}
+                      className="group relative block cursor-pointer select-none"
+                      aria-label={option.label}
+                    >
+                      <input
+                        type="radio"
+                        name="theme"
+                        value={option.value}
+                        checked={isSelected}
+                        onChange={(event) =>
+                          setAppearanceForm({ theme: event.target.value as ThemeName })
+                        }
+                        className="sr-only"
+                      />
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`h-16 w-full rounded-xl border transition ${isSelected ? "border-accent ring-1 ring-accent/60" : "border-white/10 hover:border-white/30"}`}
+                          style={{ backgroundColor: option.preview.from }}
+                          aria-hidden
+                        />
+                        <span className="mt-1 text-center text-[0.7rem] text-white/70">
+                          {option.label}
+                        </span>
+                      </div>
+                      <span className="sr-only">{option.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
               {appearanceMessage ? (

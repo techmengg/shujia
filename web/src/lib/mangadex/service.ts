@@ -434,6 +434,20 @@ export async function getMangaSummaryById(
     return null;
   }
 
+  // Simple in-memory cache for summaries to reduce repeat lookups during imports
+  const globalAny = globalThis as unknown as {
+    __md_summary_cache__?: Map<string, { ts: number; value: MangaSummary | null }>;
+  };
+  const SUMMARY_TTL_MS = 1000 * 60 * 60 * 24; // 24h
+  if (!globalAny.__md_summary_cache__) {
+    globalAny.__md_summary_cache__ = new Map();
+  }
+  const summaryCache = globalAny.__md_summary_cache__!;
+  const cached = summaryCache.get(mangaId);
+  if (cached && Date.now() - cached.ts < SUMMARY_TTL_MS) {
+    return cached.value;
+  }
+
   try {
     const response = await mangadexFetch<{ data: MangaDexManga }>(
       `/manga/${mangaId}`,
@@ -446,12 +460,16 @@ export async function getMangaSummaryById(
     );
 
     if (!response?.data) {
+      summaryCache.set(mangaId, { ts: Date.now(), value: null });
       return null;
     }
 
-    return createMangaSummary(response.data);
+    const out = createMangaSummary(response.data);
+    summaryCache.set(mangaId, { ts: Date.now(), value: out });
+    return out;
   } catch (error) {
     if (error instanceof MangaDexAPIError && error.status === 404) {
+      summaryCache.set(mangaId, { ts: Date.now(), value: null });
       return null;
     }
 
@@ -465,6 +483,21 @@ export async function searchManga(
 ): Promise<MangaSummary[]> {
   if (!query.trim()) {
     return [];
+  }
+
+  // Cache top-1 search results to speed up repeated resolves
+  const globalAny = globalThis as unknown as {
+    __md_search_cache__?: Map<string, { ts: number; value: MangaSummary[] }>;
+  };
+  const SEARCH_TTL_MS = 1000 * 60 * 60 * 12; // 12h
+  if (!globalAny.__md_search_cache__) {
+    globalAny.__md_search_cache__ = new Map();
+  }
+  const searchCache = globalAny.__md_search_cache__!;
+  const key = `${query.trim().toLowerCase()}::${options.limit ?? DEFAULT_LIMIT}`;
+  const cached = searchCache.get(key);
+  if (cached && Date.now() - cached.ts < SEARCH_TTL_MS) {
+    return cached.value;
   }
 
   const response = await mangadexFetch<
@@ -484,7 +517,9 @@ export async function searchManga(
     },
   });
 
-  return response.data.map(createMangaSummary);
+  const value = response.data.map(createMangaSummary);
+  searchCache.set(key, { ts: Date.now(), value });
+  return value;
 }
 
 export { MangaDexAPIError } from "./client";
