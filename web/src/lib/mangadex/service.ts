@@ -50,9 +50,13 @@ function getPreferredLocaleText(
 }
 
 function buildCoverArtUrl(mangaId: string, fileName: string): string {
-  // Use the original cover file; Next.js image optimizer will downscale as needed.
-  // This avoids sized-derivative placeholders/404s for some covers in production.
-  return `${COVER_ART_BASE_URL}/${mangaId}/${fileName}`;
+  // Route through our proxy to avoid hotlink restrictions and handle fallbacks.
+  const params = new URLSearchParams({
+    mangaId,
+    file: fileName,
+    size: "256",
+  });
+  return `/api/images/cover?${params.toString()}`;
 }
 
 function createMangaSummary(manga: MangaDexManga): MangaSummary {
