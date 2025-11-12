@@ -261,7 +261,7 @@ export async function GET(request: Request) {
     if (!user) {
       const passwordHash = await createRandomPasswordHash();
       const preferredBase =
-        profile.given_name ||
+        (profile.name?.split(" ")?.[0] && profile.name.split(" ")[0]) ||
         profile.name ||
         (normalizedEmail.includes("@") ? normalizedEmail.split("@")[0] : null);
       const username = await generateUniqueUsername(preferredBase ?? "user");
@@ -280,7 +280,7 @@ export async function GET(request: Request) {
     // Backfill username if an older account existed without one
     if (!user.username) {
       const preferredBase =
-        profile.given_name ||
+        (profile.name?.split(" ")?.[0] && profile.name.split(" ")[0]) ||
         profile.name ||
         (normalizedEmail.includes("@") ? normalizedEmail.split("@")[0] : null);
       const username = await generateUniqueUsername(preferredBase ?? "user");

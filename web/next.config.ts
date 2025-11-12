@@ -46,6 +46,11 @@ if (blobBaseUrl) {
 const nextConfig: NextConfig = {
   images: {
     remotePatterns,
+    // Reduce the number of transformed variants while keeping UX crisp
+    deviceSizes: [360, 640, 1024],
+    imageSizes: [48, 96, 160, 256],
+    formats: ["image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
 };
 

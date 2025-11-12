@@ -130,9 +130,6 @@ export function ReadingListClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ progress: "", rating: "", notes: "" });
-  const [showDeleteAll, setShowDeleteAll] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
 
   const isOwner = Boolean(viewerIsOwner);
@@ -205,7 +202,7 @@ export function ReadingListClient({
     return () => {
       isSubscribed = false;
     };
-  }, []);
+  }, [isOwner, normalizedUsername]);
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -788,32 +785,18 @@ export function ReadingListClient({
 
 
   const handleDeleteAll = async () => {
-    if (deleteConfirm.trim().toUpperCase() !== "DELETE") {
-      setDeleteStatus("Type DELETE to confirm.");
-      return;
-    }
-    setDeleteStatus("Deleting...");
     try {
       const resp = await fetch("/api/reading-list", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ all: true }),
       });
-      const dataUnknown: unknown = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        const msg = getMessage(dataUnknown);
-        setDeleteStatus(msg || "Failed to delete list.");
         return;
       }
       setItems([]);
-      setDeleteStatus(getMessage(dataUnknown) || "Deleted.");
-      setTimeout(() => {
-        setShowDeleteAll(false);
-        setDeleteConfirm("");
-        setDeleteStatus(null);
-      }, 900);
     } catch {
-      setDeleteStatus("Network error. Try again.");
+      // ignore
     }
   };
 
@@ -911,7 +894,6 @@ export function ReadingListClient({
                         onClick={() => {
                           setActionsOpen(false);
                           if (window.confirm("Delete your entire reading list? This cannot be undone.")) {
-                            setDeleteConfirm("DELETE");
                             handleDeleteAll();
                           }
                         }}
