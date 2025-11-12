@@ -99,7 +99,7 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
         latestChapter: entry.latestChapter,
         languages: entry.languages,
         tags: entry.tags,
-        coverImage: toProxyCoverUrl(entry.mangaId, entry.coverImage),
+        coverImage: toProxyCoverUrl(entry.mangaId, entry.coverImage) ?? null,
         url: entry.url,
         progress: entry.progress,
         rating: entry.rating,

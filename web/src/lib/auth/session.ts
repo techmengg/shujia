@@ -84,19 +84,26 @@ export async function getSessionFromToken(token: string) {
     return null;
   }
 
-  const tokenHash = hashToken(token);
+	const tokenHash = hashToken(token);
 
-  const session = await prisma.session.findFirst({
-    where: {
-      tokenHash,
-      expiresAt: {
-        gt: new Date(),
-      },
-    },
-    include: {
-      user: true,
-    },
-  });
+	let session: Awaited<ReturnType<typeof prisma.session.findFirst>> | null = null;
+	try {
+		session = await prisma.session.findFirst({
+			where: {
+				tokenHash,
+				expiresAt: {
+					gt: new Date(),
+				},
+			},
+			include: {
+				user: true,
+			},
+		});
+	} catch (error) {
+		// Gracefully degrade if the database is temporarily unavailable in production
+		console.warn("getSessionFromToken: database unavailable, treating as no session", error);
+		return null;
+	}
 
   if (!session?.user) {
     return null;
@@ -119,14 +126,20 @@ export async function getSessionFromToken(token: string) {
 }
 
 export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const cookie = cookieStore.get(SESSION_COOKIE_NAME);
+	const cookieStore = await cookies();
+	const cookie = cookieStore.get(SESSION_COOKIE_NAME);
 
-  if (!cookie?.value) {
-    return null;
-  }
+	if (!cookie?.value) {
+		return null;
+	}
 
-  const result = await getSessionFromToken(cookie.value);
+	try {
+		const result = await getSessionFromToken(cookie.value);
 
-  return result?.user ?? null;
+		return result?.user ?? null;
+	} catch (error) {
+		// Extra safety net: never let session lookup crash SSR
+		console.warn("getCurrentUser: failed to resolve session, continuing unauthenticated", error);
+		return null;
+	}
 }

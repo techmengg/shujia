@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { COVER_ART_BASE_URL, MangaDexAPIError, mangadexFetch } from "./client";
+import { MangaDexAPIError, mangadexFetch } from "./client";
 import type {
   MangaDexCollectionResponse,
   MangaDexManga,
