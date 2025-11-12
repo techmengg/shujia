@@ -425,11 +425,16 @@ export async function getMangaDetails(
 
     return createMangaDetails(detailResponse.data, statistics);
   } catch (error) {
-    if (error instanceof MangaDexAPIError && error.status === 404) {
+    if (error instanceof MangaDexAPIError) {
+      if (error.status === 404) {
+        return null;
+      }
+      console.warn(`Manga details failed for ${mangaId}: ${error.message}`);
       return null;
     }
 
-    throw error;
+    console.warn(`Manga details unexpected error for ${mangaId}:`, error);
+    return null;
   }
 }
 
@@ -474,12 +479,19 @@ export async function getMangaSummaryById(
     summaryCache.set(mangaId, { ts: Date.now(), value: out });
     return out;
   } catch (error) {
-    if (error instanceof MangaDexAPIError && error.status === 404) {
+    if (error instanceof MangaDexAPIError) {
+      if (error.status === 404) {
+        summaryCache.set(mangaId, { ts: Date.now(), value: null });
+        return null;
+      }
+      console.warn(`Manga summary failed for ${mangaId}: ${error.message}`);
       summaryCache.set(mangaId, { ts: Date.now(), value: null });
       return null;
     }
 
-    throw error;
+    console.warn(`Manga summary unexpected error for ${mangaId}:`, error);
+    summaryCache.set(mangaId, { ts: Date.now(), value: null });
+    return null;
   }
 }
 
