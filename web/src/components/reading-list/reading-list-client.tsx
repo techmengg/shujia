@@ -133,6 +133,7 @@ export function ReadingListClient({
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const isOwner = Boolean(viewerIsOwner);
   const normalizedUsername = username?.trim().replace(/^@/, "") || null;
@@ -157,7 +158,13 @@ export function ReadingListClient({
       setError(null);
 
       try {
-        const response = await fetch("/api/reading-list", {
+        const params = new URLSearchParams();
+        if (normalizedUsername && !isOwner) {
+          params.set("username", normalizedUsername.replace(/^@/, ""));
+        }
+        const endpoint = `/api/reading-list${params.toString() ? `?${params.toString()}` : ""}`;
+
+        const response = await fetch(endpoint, {
           method: "GET",
           cache: "no-store",
         });
@@ -171,7 +178,7 @@ export function ReadingListClient({
         }
 
         if (!response.ok) {
-          throw new Error("Failed to load your reading list.");
+          throw new Error("Failed to load the reading list.");
         }
 
         const payload = (await response.json()) as ReadingListResponse;
@@ -515,12 +522,30 @@ export function ReadingListClient({
     try {
       setImportStatus("Parsing file...");
       const text = await file.text();
+      const nameLower = file.name.toLowerCase();
+      const trimmed = text.trim();
+
+      const looksLikeJson = nameLower.endsWith(".json") || trimmed.startsWith("{") || trimmed.startsWith("[");
+      const looksLikeCsv =
+        nameLower.endsWith(".csv") ||
+        (!looksLikeJson && /,/.test(trimmed) && !/^\{|\[/.test(trimmed));
+
+      if (!looksLikeJson && !looksLikeCsv) {
+        setImportStatus("Unsupported file format. Please upload a .json or .csv file.");
+        return;
+      }
+
       let list: ImportItem[] = [];
-      if (file.name.toLowerCase().endsWith(".csv") || text.includes(",")) {
+      if (looksLikeCsv) {
         list = parseCsv(text);
       } else {
-        const json = JSON.parse(text) as { items?: ImportItem[] } | ImportItem[];
-        list = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
+        try {
+          const json = JSON.parse(text) as { items?: ImportItem[] } | ImportItem[];
+          list = Array.isArray(json) ? json : Array.isArray(json.items) ? json.items : [];
+        } catch {
+          setImportStatus("Invalid JSON. Please upload a valid .json file.");
+          return;
+        }
       }
       if (!list.length) {
         setImportStatus("No items found in file.");
@@ -761,6 +786,7 @@ export function ReadingListClient({
 
   const triggerImport = () => fileInputRef.current?.click();
 
+
   const handleDeleteAll = async () => {
     if (deleteConfirm.trim().toUpperCase() !== "DELETE") {
       setDeleteStatus("Type DELETE to confirm.");
@@ -794,7 +820,6 @@ export function ReadingListClient({
   return (
     <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-10 pt-6 sm:gap-8 sm:px-6 lg:px-10">
       <header className="flex flex-col gap-4">
-
         <div className="flex flex-col gap-2.5">
           <div>
             <h1 className="text-lg font-semibold text-white sm:text-3xl">{headingTitle}</h1>
@@ -804,29 +829,8 @@ export function ReadingListClient({
               </p>
             ) : null}
           </div>
-          {/* Row 1: Sort only */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[0.65rem] uppercase tracking-[0.15em] text-white/45 sm:gap-2 sm:text-xs sm:tracking-[0.2em]">
-            <span>Sort:</span>
-            <div className="flex flex-wrap gap-2">
-              {SORT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => handleSortChange(option.value)}
-                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.6rem] font-semibold transition sm:gap-2 sm:px-3 sm:py-1 sm:text-[0.7rem] ${
-                    sort === option.value
-                      ? "border-accent/60 bg-accent/20 text-accent"
-                      : "border-white/10 bg-white/5 text-white/70 hover:border-accent/40 hover:text-white"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Row 2: Search + Export/Import + Delete */}
-          <div className="flex flex-1 flex-wrap items-center gap-1.5 text-[0.6rem] uppercase tracking-[0.12em] text-white/45 sm:gap-2 sm:text-xs sm:tracking-[0.2em]">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="min-w-0 grow sm:grow-0">
               <label className="sr-only" htmlFor="reading-list-search">Search</label>
               <input
@@ -835,31 +839,92 @@ export function ReadingListClient({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search your list"
-                className="w-full min-w-[10rem] rounded-md border border-white/20 bg-white/5 px-2 py-0.75 text-[0.7rem] text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:px-3 sm:py-1.5 sm:text-[0.8rem]"
+                className="w-full min-w-[10rem] rounded-md border border-white/20 bg-white/5 px-3 py-2 text-[0.8rem] text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:min-w-[14rem] sm:text-[0.9rem]"
               />
             </div>
-            <span className="mx-2 hidden h-4 w-px bg-white/20 sm:inline-block" aria-hidden />
-            <button
-              type="button"
-              onClick={handleExport}
-              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white sm:px-3 sm:py-1 sm:text-[0.7rem]"
-            >
-              Export
-            </button>
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white sm:px-3 sm:py-1 sm:text-[0.7rem]"
-            >
-              Export CSV
-            </button>
-            <button
-              type="button"
-              onClick={triggerImport}
-              className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/40 hover:text-white sm:px-3 sm:py-1 sm:text-[0.7rem]"
-            >
-              Import
-            </button>
+
+            <div className="flex items-center gap-2">
+              <label className="sr-only" htmlFor="sort-select">Sort</label>
+              <div className="relative">
+                <select
+                  id="sort-select"
+                  value={sort}
+                  onChange={(e) => handleSortChange(e.target.value as SortOption)}
+                  className="appearance-none rounded-md border border-white/15 bg-white/5 px-3 pr-8 py-2 text-[0.8rem] text-white/80 outline-none transition hover:border-white/30 focus:border-accent focus:text-white sm:text-[0.9rem]"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value} className="bg-[#0b1220]">
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 20 20"
+                  className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60"
+                >
+                  <path d="M5.25 7.5L10 12.25L14.75 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setActionsOpen((o) => !o)}
+                  className="inline-flex items-center rounded-md border border-white/15 bg-white/5 px-3 py-2 text-[0.85rem] text-white/80 transition hover:border-white/40 hover:text-white"
+                >
+                  Actions
+                </button>
+                {actionsOpen ? (
+                  <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-md border border-white/10 bg-white/5 p-1 shadow-lg backdrop-blur">
+                    <button
+                      type="button"
+                      onClick={() => { setActionsOpen(false); handleExport(); }}
+                      className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
+                    >
+                      Export JSON
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setActionsOpen(false); handleExportCsv(); }}
+                      className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
+                    >
+                      Export CSV
+                    </button>
+                    {isOwner ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setActionsOpen(false); triggerImport(); }}
+                          className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
+                        >
+                          Import from file
+                        </button>
+                        <div className="px-3 py-2 text-[0.7rem] text-white/50">
+                          .json and .csv files only.
+                        </div>
+                      </>
+                    ) : null}
+                    {isOwner ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionsOpen(false);
+                          if (window.confirm("Delete your entire reading list? This cannot be undone.")) {
+                            setDeleteConfirm("DELETE");
+                            handleDeleteAll();
+                          }
+                        }}
+                        className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-red-200 transition hover:bg-red-500/10"
+                      >
+                        Delete all
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
             <input
               ref={fileInputRef}
               type="file"
@@ -867,47 +932,17 @@ export function ReadingListClient({
               className="sr-only"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleImportFile(file);
+                if (file) {
+                  const nameLower = file.name.toLowerCase();
+                  if (!nameLower.endsWith(".json") && !nameLower.endsWith(".csv")) {
+                    setImportStatus("Unsupported file type. Please select a .json or .csv file.");
+                  } else {
+                    handleImportFile(file);
+                  }
+                }
                 e.currentTarget.value = "";
               }}
             />
-            <span className="mx-2 hidden h-4 w-px bg-white/20 sm:inline-block" aria-hidden />
-            <button
-              type="button"
-              onClick={() => { setShowDeleteAll((s) => !s); setDeleteConfirm(""); setDeleteStatus(null); }}
-              className="inline-flex items-center rounded-full border border-red-400/50 bg-red-500/10 px-2.5 py-0.5 text-[0.65rem] font-semibold text-red-200 transition hover:border-red-300 hover:text-red-100 sm:px-3 sm:py-1 sm:text-[0.7rem]"
-            >
-              Delete list
-            </button>
-            {showDeleteAll ? (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="hidden sm:inline text-red-200">Type DELETE</span>
-                <input
-                  value={deleteConfirm}
-                  onChange={(e) => setDeleteConfirm(e.target.value)}
-                  className="rounded-md border border-red-400/50 bg-transparent px-2 py-1 text-[0.8rem] text-white placeholder:text-red-200/60 focus:border-red-300 focus:outline-none"
-                  placeholder="DELETE"
-                />
-                <button
-                  type="button"
-                  onClick={handleDeleteAll}
-                  disabled={deleteConfirm.trim().toUpperCase() !== "DELETE"}
-                  className="inline-flex items-center rounded-md border border-red-400/60 bg-red-500/20 px-3 py-1 text-[0.75rem] font-semibold text-red-100 transition hover:border-red-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Confirm
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowDeleteAll(false); setDeleteConfirm(""); setDeleteStatus(null); }}
-                  className="inline-flex items-center rounded-md border border-white/15 bg-white/5 px-3 py-1 text-[0.75rem] text-white/80 transition hover:border-white/40 hover:text-white"
-                >
-                  Cancel
-                </button>
-                {deleteStatus ? (
-                  <span className="text-red-200">{deleteStatus}</span>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         </div>
       </header>
@@ -1056,15 +1091,17 @@ export function ReadingListClient({
                           )}
                         </td>
                         <td className="px-4 py-3 align-top">
-                          <div className="flex justify-end gap-2 text-[0.75rem]">
-                            <button
-                              type="button"
-                              onClick={() => openEdit(item)}
-                              className="rounded-full border border-white/15 px-3 py-1 text-white/80 transition hover:border-accent/40 hover:text-white"
-                            >
-                              Edit
-                            </button>
-                          </div>
+                          {isOwner ? (
+                            <div className="flex justify-end gap-2 text-[0.75rem]">
+                              <button
+                                type="button"
+                                onClick={() => openEdit(item)}
+                                className="rounded-full border border-white/15 px-3 py-1 text-white/80 transition hover:border-accent/40 hover:text-white"
+                              >
+                                Edit
+                              </button>
+                            </div>
+                          ) : null}
                         </td>
                       </tr>
                       {editingId === item.id ? (
@@ -1160,15 +1197,17 @@ export function ReadingListClient({
                         {item.notes}
                       </p>
                     ) : null}
-                    <div className="mt-2 flex justify-end sm:mt-3">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(item)}
-                        className="rounded-full border border-white/15 px-2.5 py-0.75 text-[0.7rem] text-white/80 transition hover:border-accent/40 hover:text-white sm:px-4 sm:py-1.5 sm:text-sm"
-                      >
-                        Edit
-                      </button>
-                    </div>
+                    {isOwner ? (
+                      <div className="mt-2 flex justify-end sm:mt-3">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(item)}
+                          className="rounded-full border border-white/15 px-2.5 py-0.75 text-[0.7rem] text-white/80 transition hover:border-accent/40 hover:text-white sm:px-4 sm:py-1.5 sm:text-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    ) : null}
                   </article>
                   {editingId === item.id ? (
                     <div className="rounded-xl border border-white/10 bg-white/5 p-2.5 sm:rounded-2xl sm:p-3">

@@ -61,6 +61,41 @@ function serializeEntry(entry: ReadingListEntry): ReadingListItem {
 
 export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const usernameParam = url.searchParams.get("username")?.trim() ?? null;
+    const limitParam = url.searchParams.get("limit");
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
+
+    const take =
+      parsedLimit !== undefined && Number.isInteger(parsedLimit)
+        ? Math.min(Math.max(parsedLimit, 1), 100)
+        : undefined;
+
+    if (usernameParam) {
+      const normalized = usernameParam.replace(/^@/, "").toLowerCase();
+      const targetUser = await prisma.user.findUnique({
+        where: { username: normalized },
+        select: { id: true },
+      });
+
+      if (!targetUser) {
+        return NextResponse.json(
+          { message: "User not found." },
+          { status: 404 },
+        );
+      }
+
+      const entries = await prisma.readingListEntry.findMany({
+        where: { userId: targetUser.id },
+        orderBy: { updatedAt: "desc" },
+        ...(take ? { take } : {}),
+      });
+
+      return NextResponse.json({
+        data: entries.map(serializeEntry),
+      });
+    }
+
     const user = await getCurrentUser();
 
     if (!user) {
@@ -69,15 +104,6 @@ export async function GET(request: Request) {
         { status: 401 },
       );
     }
-
-    const url = new URL(request.url);
-    const limitParam = url.searchParams.get("limit");
-    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
-
-    const take =
-      parsedLimit !== undefined && Number.isInteger(parsedLimit)
-        ? Math.min(Math.max(parsedLimit, 1), 100)
-        : undefined;
 
     const entries = await prisma.readingListEntry.findMany({
       where: { userId: user.id },

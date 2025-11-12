@@ -312,6 +312,18 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
   const avatar = user.avatarUrl?.trim() ? user.avatarUrl : FALLBACK_AVATAR;
   const bio = user.bio?.trim();
   const showcaseUserKey = user.email || user.username || user.name || "guest";
+  const readingListHref = isOwner
+    ? "/reading-list"
+    : user.username
+      ? `/reading-list?username=${encodeURIComponent(user.username)}`
+      : "/reading-list";
+  const toPossessive = (value: string) =>
+    value.endsWith("s") || value.endsWith("S") ? `${value}'` : `${value}'s`;
+  const readingListLabel = isOwner
+    ? "View your list"
+    : user.username
+      ? `View @${toPossessive(user.username)} list`
+      : "View reading list";
 
   const totalSeries = readingList.length;
   const completedCount = readingList.filter(
@@ -436,16 +448,18 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
               />
             </div>
           </div>
-          <div className="min-w-0 space-y-3">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-semibold text-white sm:text-3xl">{displayName}</h1>
-              {usernameLabel ? (
-                <p className="text-sm text-white/60">{usernameLabel}</p>
-              ) : null}
-              {/* Email hidden from profile view */}
-              <p className="text-sm text-white/45">
-                Member since {memberSince} | {user.timezone || "UTC"}
-              </p>
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 space-y-1">
+                <h1 className="text-2xl font-semibold text-white sm:text-3xl">{displayName}</h1>
+                {usernameLabel ? (
+                  <p className="text-sm text-white/60">{usernameLabel}</p>
+                ) : null}
+                {/* Email hidden from profile view */}
+                <p className="text-sm text-white/45">
+                  Member since {memberSince} | {user.timezone || "UTC"}
+                </p>
+              </div>
             </div>
             {bio ? (
               <div
@@ -458,6 +472,14 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
               </p>
             ) : null}
             {/* Stats moved below bio for better mobile flow */}
+          </div>
+          <div className="ml-auto">
+            <Link
+              href={readingListHref}
+              className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:border-white/40 hover:text-white sm:text-sm"
+            >
+              {readingListLabel}
+            </Link>
           </div>
         </div>
         {/* Mobile bio below avatar + text */}

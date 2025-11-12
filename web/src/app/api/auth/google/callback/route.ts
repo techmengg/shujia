@@ -140,6 +140,37 @@ function resolveSuccessDestination(
   return `${baseUrl}/settings?onboarding=complete-profile`;
 }
 
+function sanitizeBaseUsername(input: string | null | undefined): string {
+  const base =
+    (input ?? "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "") || "user";
+  const min = base.length < 3 ? (base + "___").slice(0, 3) : base;
+  return min.slice(0, 24); // leave room for suffix
+}
+
+async function generateUniqueUsername(preferred: string): Promise<string> {
+  const base = sanitizeBaseUsername(preferred);
+  const tryCandidate = async (candidate: string) => {
+    const exists = await prisma.user.findUnique({ where: { username: candidate }, select: { id: true } });
+    return exists ? null : candidate;
+  };
+  const direct = await tryCandidate(base);
+  if (direct) return direct;
+  // add short hash-like suffix attempts
+  for (let i = 0; i < 8; i += 1) {
+    const suffix = Math.random().toString(36).slice(2, 6);
+    const candidate = `${base}_${suffix}`.slice(0, 32);
+    const ok = await tryCandidate(candidate);
+    if (ok) return ok;
+  }
+  // final fallback using timestamp
+  const final = `${base}_${Date.now().toString(36).slice(-6)}`.slice(0, 32);
+  return final;
+}
+
 export async function GET(request: Request) {
   if (!isGoogleOAuthConfigured()) {
     const destination = buildFailureRedirect(
@@ -229,6 +260,11 @@ export async function GET(request: Request) {
 
     if (!user) {
       const passwordHash = await createRandomPasswordHash();
+      const preferredBase =
+        profile.given_name ||
+        profile.name ||
+        (normalizedEmail.includes("@") ? normalizedEmail.split("@")[0] : null);
+      const username = await generateUniqueUsername(preferredBase ?? "user");
       user = await prisma.user.create({
         data: {
           email: normalizedEmail,
@@ -236,7 +272,21 @@ export async function GET(request: Request) {
           name: profile.name?.slice(0, 100) ?? null,
           avatarUrl: profile.picture ?? null,
           password: passwordHash,
+          username,
         },
+      });
+    }
+
+    // Backfill username if an older account existed without one
+    if (!user.username) {
+      const preferredBase =
+        profile.given_name ||
+        profile.name ||
+        (normalizedEmail.includes("@") ? normalizedEmail.split("@")[0] : null);
+      const username = await generateUniqueUsername(preferredBase ?? "user");
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { username },
       });
     }
 

@@ -90,6 +90,7 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
         </div>
 
         <div className="order-3 ml-auto flex items-center gap-2 text-surface-subtle">
+
           <Link
             href="/users"
             className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-8 sm:w-8"
@@ -137,6 +138,26 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </Link>
+          <Link
+            href="/reading-list"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-transparent transition hover:border-white hover:text-white sm:h-8 sm:w-8"
+            aria-label="Reading list"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="h-4 w-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 6.75c-2.106-1.148-4.606-1.5-7.5-1.5v12c2.894 0 5.394.352 7.5 1.5m0-12c2.106-1.148 4.606-1.5 7.5-1.5v12c-2.894 0-5.394.352-7.5 1.5m0-12v12"
               />
             </svg>
           </Link>
