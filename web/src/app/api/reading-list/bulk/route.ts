@@ -116,7 +116,6 @@ export async function POST(request: Request) {
       for (const id of toCreate) yield id;
     }
     const concurrency = 4;
-    let inFlight = 0;
     const iterator = idGenerator();
     async function runWorker() {
       while (true) {
