@@ -13,6 +13,46 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
 export default async function Home() {
+  function toProxyCoverUrl(mangaId: string, url?: string | null): string | undefined {
+    if (!url) return undefined;
+
+    try {
+      // If already using our proxy, normalize to size=256
+      if (url.startsWith("/api/images/cover")) {
+        const u = new URL(url, "http://localhost"); // base is ignored for path parsing
+        u.searchParams.set("mangaId", mangaId);
+        u.searchParams.set("size", "256");
+        return `${u.pathname}?${u.searchParams.toString()}`;
+      }
+
+      const parsed = new URL(url);
+      const isUploads =
+        parsed.hostname === "uploads.mangadex.org" ||
+        parsed.hostname === "uploads-cdn.mangadex.org" ||
+        parsed.hostname === "mangadex.org";
+
+      if (!isUploads) {
+        // For any other host, leave as-is.
+        return url;
+      }
+
+      const segments = parsed.pathname.split("/").filter(Boolean);
+      const fileSegment = segments[segments.length - 1] ?? "";
+      // Strip sized suffix if present: .256.jpg or .512.jpg
+      const originalFile = fileSegment.replace(/\.256\.jpg$|\.512\.jpg$/i, "");
+
+      const params = new URLSearchParams({
+        mangaId,
+        file: originalFile,
+        size: "256",
+      });
+
+      return `/api/images/cover?${params.toString()}`;
+    } catch {
+      return url ?? undefined;
+    }
+  }
+
   async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
     try {
       return await promise;
@@ -71,7 +111,7 @@ export default async function Home() {
     latestChapter: entry.latestChapter ?? undefined,
     languages: entry.languages,
     tags: entry.tags,
-    coverImage: entry.coverImage ?? undefined,
+    coverImage: toProxyCoverUrl(entry.mangaId, entry.coverImage),
     url: entry.url,
   }));
 
