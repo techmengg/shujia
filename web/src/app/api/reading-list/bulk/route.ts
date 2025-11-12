@@ -105,8 +105,7 @@ export async function POST(request: Request) {
             where: { userId: user.id, mangaId },
             data,
           });
-        }),
-        { timeout: 30000 },
+        })
       );
       updated = toUpdate.length;
     }
