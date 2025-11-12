@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { Session, User } from "@prisma/client";
 
 import { cookies } from "next/headers";
 
@@ -86,7 +87,7 @@ export async function getSessionFromToken(token: string) {
 
 	const tokenHash = hashToken(token);
 
-	let session: any = null;
+	let session: (Session & { user: User | null }) | null = null;
 	try {
 		session = await prisma.session.findFirst({
 			where: {
