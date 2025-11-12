@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 import type { MangaSummary } from "@/lib/mangadex/types";
 
@@ -11,11 +12,11 @@ interface MangaCardProps {
 }
 
 export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
-  const [imgSrc, setImgSrc] = React.useState<string | null>(
+	const [imgSrc, setImgSrc] = useState<string | null>(
     manga.coverImage ?? null,
   );
-  const [triedFallback512, setTriedFallback512] = React.useState(false);
-  const [triedOriginal, setTriedOriginal] = React.useState(false);
+	const [triedFallback512, setTriedFallback512] = useState(false);
+	const [triedOriginal, setTriedOriginal] = useState(false);
 
   function deriveFallbackUrl(url: string): string | null {
     try {
