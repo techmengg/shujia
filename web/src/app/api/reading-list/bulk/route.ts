@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
+    const userId = user.id;
 
     let body: unknown;
     try {
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
 
     // Fetch existing entries to decide which require full metadata load
     const existing = await prisma.readingListEntry.findMany({
-      where: { userId: user.id, mangaId: { in: mangaIds } },
+      where: { userId, mangaId: { in: mangaIds } },
       select: { mangaId: true },
     });
     const existingIds = new Set(existing.map((e) => e.mangaId));
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
                 : null;
           if ("notes" in patch) data.notes = (patch.notes ?? null) as string | null;
           return prisma.readingListEntry.updateMany({
-            where: { userId: user.id, mangaId },
+            where: { userId, mangaId },
             data,
           });
         })
@@ -169,9 +170,9 @@ export async function POST(request: Request) {
               }
             }
             await prisma.readingListEntry.upsert({
-              where: { userId_mangaId: { userId: user.id, mangaId } },
+              where: { userId_mangaId: { userId, mangaId } },
               create: {
-                userId: user.id,
+                userId,
                 mangaId,
                 ...base,
                 progress: (patch.progress ?? null) as string | null,
@@ -190,9 +191,9 @@ export async function POST(request: Request) {
               continue;
             }
             await prisma.readingListEntry.upsert({
-              where: { userId_mangaId: { userId: user.id, mangaId: summary.id } },
+              where: { userId_mangaId: { userId, mangaId: summary.id } },
               create: {
-                userId: user.id,
+                userId,
                 mangaId: summary.id,
                 title: summary.title,
                 altTitles: summary.altTitles,
