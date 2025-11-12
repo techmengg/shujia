@@ -13,18 +13,26 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
 export default async function Home() {
+  async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await promise;
+    } catch {
+      return fallback;
+    }
+  }
+
   const userPromise = getCurrentUser();
 
   const trendsPromise = Promise.all([
-    getRecentPopularByOriginalLanguage("ja", 35),
-    getRecentPopularByOriginalLanguage("ko", 35),
-    getRecentPopularByOriginalLanguage("zh", 35),
-    getPopularNewTitles(35),
-    getDemographicHighlights("shounen", 35),
-    getDemographicHighlights("seinen", 35),
-    getDemographicHighlights("shoujo", 35),
-    getDemographicHighlights("josei", 35),
-    getRecentlyUpdatedManga(49),
+    safe(getRecentPopularByOriginalLanguage("ja", 35), []),
+    safe(getRecentPopularByOriginalLanguage("ko", 35), []),
+    safe(getRecentPopularByOriginalLanguage("zh", 35), []),
+    safe(getPopularNewTitles(35), []),
+    safe(getDemographicHighlights("shounen", 35), []),
+    safe(getDemographicHighlights("seinen", 35), []),
+    safe(getDemographicHighlights("shoujo", 35), []),
+    safe(getDemographicHighlights("josei", 35), []),
+    safe(getRecentlyUpdatedManga(49), []),
   ]);
 
   const [
@@ -42,11 +50,13 @@ export default async function Home() {
   const user = await userPromise;
 
   const readingListEntries = user
-    ? await prisma.readingListEntry.findMany({
-        where: { userId: user.id },
-        orderBy: { updatedAt: "desc" },
-        take: 16,
-      })
+    ? await prisma.readingListEntry
+        .findMany({
+          where: { userId: user.id },
+          orderBy: { updatedAt: "desc" },
+          take: 16,
+        })
+        .catch(() => [])
     : [];
 
   const followedSummaries: MangaSummary[] = readingListEntries.map((entry) => ({

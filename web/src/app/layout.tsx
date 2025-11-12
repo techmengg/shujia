@@ -30,12 +30,12 @@ export const metadata: Metadata = {
   },
   description:
     "Track manga, manhwa, and manhua releases powered by the MangaDex API.",
-  metadataBase: new URL("https://shujia.local"),
+  metadataBase: new URL("https://shujia.dev"),
   openGraph: {
     title: "shujia.dev",
     description:
       "Discover, follow, and organize series in one place.",
-    url: "https://shujia.local",
+    url: "https://shujia.dev",
     siteName: "shujia.dev",
     locale: "en_US",
     type: "website",
