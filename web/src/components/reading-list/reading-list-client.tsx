@@ -1058,7 +1058,6 @@ export function ReadingListClient({
           const mangaId = await resolveMangaId(currentItem);
           if (!mangaId) {
             skipped += 1;
-            skippedDetails.push({ title: currentItem.title, url: currentItem.url, reason: "not-found" });
           } else {
             // Queue for bulk sending
             const payload = {
