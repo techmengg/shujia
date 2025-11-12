@@ -86,7 +86,7 @@ export async function getSessionFromToken(token: string) {
 
 	const tokenHash = hashToken(token);
 
-	let session: Awaited<ReturnType<typeof prisma.session.findFirst>> | null = null;
+	let session: any = null;
 	try {
 		session = await prisma.session.findFirst({
 			where: {
