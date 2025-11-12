@@ -61,7 +61,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const incoming = parsed.data.items.slice(0, BULK_LIMIT);
+    const items = parsed.data.items;
+    const incoming = items.slice(0, BULK_LIMIT);
     // De-dupe by mangaId (last wins)
     const seen = new Map<string, { progress?: string; rating?: number; notes?: string }>();
     for (const item of incoming) {
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
         const mangaId = next.value as string;
         try {
           const patch = seen.get(mangaId) || {};
-          const provided = (parsed.data.items.find((i) => i.mangaId === mangaId) ??
+          const provided = (items.find((i) => i.mangaId === mangaId) ??
             {}) as z.infer<typeof bulkSchema>["items"][number];
 
           if (provided.title || provided.url) {
