@@ -20,16 +20,7 @@ function getMessage(body: unknown): string | undefined {
   return undefined;
 }
 
-function getFirstIdFromSearch(body: unknown): string | undefined {
-  if (typeof body !== "object" || body === null) return undefined;
-  const obj = body as Record<string, unknown>;
-  const data = obj.data as unknown;
-  if (!Array.isArray(data)) return undefined;
-  const first = data[0] as unknown;
-  if (typeof first !== "object" || first === null) return undefined;
-  const id = (first as Record<string, unknown>).id;
-  return typeof id === "string" ? id : undefined;
-}
+// legacy helper removed (server-side resolver now used)
 
 type SortOption = "recent" | "alphabetical" | "rating" | "random";
 
@@ -1185,9 +1176,6 @@ export function ReadingListClient({
                   : "Not started yet";
               const ratingDisplay =
                 typeof item.rating === "number" ? item.rating.toFixed(1) : "--";
-              const tags = item.tags?.length ? item.tags : [];
-              const tagsPreview = tags.slice(0, 3);
-              const remainingTags = Math.max(tags.length - tagsPreview.length, 0);
               const titleInitial =
                 item.title && item.title.trim().length
                   ? item.title.trim().charAt(0).toUpperCase()
