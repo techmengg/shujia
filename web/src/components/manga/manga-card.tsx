@@ -89,6 +89,7 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
             alt={manga.title}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
             priority={false}
+				unoptimized
             onError={handleImageError}
           />
         ) : (

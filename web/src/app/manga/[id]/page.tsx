@@ -229,12 +229,15 @@ export default async function MangaPage({ params }: MangaPageProps) {
           <div className="space-y-5 sm:space-y-8 min-w-0 text-left">
             <div className="relative mx-0 w-full max-w-[160px] overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] sm:max-w-none">
               {manga.coverImage ? (
+                // Prefer a larger proxy size for the detail page; fall back to provided URL.
+                // Use unoptimized to avoid Next.js image transformations cost.
                 <Image
-                  src={manga.coverImage}
+                  src={manga.coverImage.replace("size=256", "size=512")}
                   alt={manga.title}
                   width={520}
                   height={780}
                   priority
+                  unoptimized
                   className="h-full w-full object-cover"
                 />
               ) : (
