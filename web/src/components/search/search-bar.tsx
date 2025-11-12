@@ -353,6 +353,7 @@ export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
                                   src={manga.coverImage}
                                   alt={manga.title}
                                   sizes="48px"
+                                  unoptimized
                                   className="object-cover"
                                 />
                               ) : (

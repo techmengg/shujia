@@ -137,6 +137,7 @@ function RatedTenShowcase({ entries, userKey, isOwner }: RatedTenShowcaseProps) 
                   alt={item.title}
                   fill
                   sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 30vw"
+                  unoptimized
                   className="object-cover transition duration-200 group-hover:scale-[1.02]"
                 />
               ) : (
@@ -621,6 +622,7 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
                         alt={item.title}
                         fill
                         sizes="(min-width: 1024px) 12.5vw, (min-width: 640px) 12.5vw, 12.5vw"
+                        unoptimized
                         className="object-cover"
                       />
                     ) : (
@@ -662,6 +664,7 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
                       alt={entry.title}
                       fill
                       sizes="(min-width: 768px) 96px, 64px"
+                      unoptimized
                       className="object-cover"
                     />
                   ) : (

@@ -1,4 +1,4 @@
-export const runtime = "nodejs";
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -70,8 +70,8 @@ export async function GET(request: NextRequest) {
 				status: 200,
 				headers: {
 					"Content-Type": contentType,
-					// Cache for a month at the edge; allow revalidation
-					"Cache-Control": "public, s-maxage=2592000, stale-while-revalidate=86400",
+					// Cache aggressively at the CDN; covers are effectively content-addressed by filename.
+					"Cache-Control": "public, s-maxage=31536000, immutable, stale-while-revalidate=86400",
 				},
 			});
 		}
