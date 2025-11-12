@@ -87,7 +87,10 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
         </div>
 
         <div className="order-3 ml-auto flex shrink-0 items-center gap-2 text-surface-subtle">
-          <MobileQuickActions settingsHref={user ? "/settings/profile" : "/login?redirect=/settings/profile"} />
+          <MobileQuickActions
+            settingsHref={user ? "/settings/profile" : "/login?redirect=/settings/profile"}
+            isAuthenticated={Boolean(user)}
+          />
 
           <Link
             href="/users"

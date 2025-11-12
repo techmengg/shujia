@@ -45,6 +45,37 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
 
   const isOwner = viewer?.id === dbUser.id;
 
+  function toProxyCoverUrl(mangaId: string, url?: string | null): string | undefined {
+    if (!url) return undefined;
+    try {
+      if (url.startsWith("/api/images/cover")) {
+        const u = new URL(url, "http://localhost");
+        u.searchParams.set("mangaId", mangaId);
+        u.searchParams.set("size", "256");
+        return `${u.pathname}?${u.searchParams.toString()}`;
+      }
+      const parsed = new URL(url);
+      const isUploads =
+        parsed.hostname === "uploads.mangadex.org" ||
+        parsed.hostname === "uploads-cdn.mangadex.org" ||
+        parsed.hostname === "mangadex.org";
+      if (!isUploads) {
+        return url;
+      }
+      const segments = parsed.pathname.split("/").filter(Boolean);
+      const fileSegment = segments[segments.length - 1] ?? "";
+      const originalFile = fileSegment.replace(/\.256\.jpg$|\.512\.jpg$/i, "");
+      const params = new URLSearchParams({
+        mangaId,
+        file: originalFile,
+        size: "256",
+      });
+      return `/api/images/cover?${params.toString()}`;
+    } catch {
+      return url ?? undefined;
+    }
+  }
+
   return (
     <ProfilePageContent
       isOwner={isOwner}
@@ -68,7 +99,7 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
         latestChapter: entry.latestChapter,
         languages: entry.languages,
         tags: entry.tags,
-        coverImage: entry.coverImage,
+        coverImage: toProxyCoverUrl(entry.mangaId, entry.coverImage),
         url: entry.url,
         progress: entry.progress,
         rating: entry.rating,

@@ -132,7 +132,6 @@ export function RegisterForm() {
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            placeholder="Yuzu"
           />
           {fieldErrors.name ? (
             <p className="text-xs text-red-400">{fieldErrors.name.join(" ")}</p>
@@ -155,7 +154,6 @@ export function RegisterForm() {
               setUsername(event.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase())
             }
             className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            placeholder="shujiafan"
             maxLength={32}
             required
           />
@@ -180,7 +178,6 @@ export function RegisterForm() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          placeholder="you@example.com"
           required
         />
         {fieldErrors.email ? (
@@ -202,7 +199,6 @@ export function RegisterForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          placeholder="Create a strong password"
           required
         />
         {fieldErrors.password ? (

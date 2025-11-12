@@ -160,7 +160,6 @@ export function LoginForm() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          placeholder="you@example.com"
           required
         />
         {fieldErrors.email ? (
@@ -185,7 +184,6 @@ export function LoginForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-          placeholder="••••••••"
           required
         />
         {fieldErrors.password ? (
@@ -225,7 +223,6 @@ export function LoginForm() {
                 : setTwoFactorCode(event.target.value)
             }
             className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            placeholder={useRecoveryCode ? "ABCD-EFGH" : "123 456"}
             required
           />
           <p className="text-[0.6rem] uppercase tracking-[0.25em] text-white/50">

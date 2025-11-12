@@ -117,6 +117,7 @@ export function ReadingListClient({
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const malFileInputRef = useRef<HTMLInputElement | null>(null);
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editStatus, setEditStatus] = useState<string | null>(null);
@@ -440,6 +441,260 @@ export function ReadingListClient({
     progress?: string;
   };
 
+  const handleImportMalXml = async (file: File) => {
+    try {
+      setImportStatus("Parsing MAL XML...");
+      const text = await file.text();
+
+      let doc: Document | null = null;
+      try {
+        const parser = new DOMParser();
+        doc = parser.parseFromString(text, "application/xml");
+        if (doc.querySelector("parsererror")) {
+          throw new Error("Invalid XML");
+        }
+      } catch {
+        setImportStatus("Invalid XML. Please export your MAL list as XML and try again.");
+        return;
+      }
+
+      const getText = (parent: Element, tagNames: string[]): string | null => {
+        for (const name of tagNames) {
+          const el = parent.querySelector(name);
+          if (el && el.textContent) {
+            const val = el.textContent.trim();
+            if (val) return val;
+          }
+        }
+        return null;
+      };
+
+      const nodes = Array.from(doc.querySelectorAll("manga"));
+      if (!nodes.length) {
+        const altNodes = Array.from(doc.querySelectorAll("myanimelist > manga"));
+        if (altNodes.length) {
+          nodes.push(...altNodes);
+        }
+      }
+
+      if (!nodes.length) {
+        setImportStatus("No manga entries found in this MAL XML.");
+        return;
+      }
+
+      const normalized: (NormalizedImportItem & { altTitles?: string[] })[] = [];
+
+      for (const node of nodes) {
+        const seriesId =
+          getText(node, ["series_mangadb_id", "manga_mangadb_id", "mangadb_id"]) ?? "";
+        const primaryTitle =
+          getText(node, ["manga_title", "series_english", "series_title"]) ?? "";
+        const synonymsRaw = getText(node, ["series_synonyms"]) ?? "";
+        const jpTitle = getText(node, ["series_synonyms_japanese", "series_japanese"]) ?? "";
+        const altTitles: string[] = [];
+        if (synonymsRaw) {
+          const parts = synonymsRaw.split(/;|\n|,|\|/).map((p) => p.trim()).filter(Boolean);
+          for (const p of parts) {
+            if (p && !altTitles.includes(p)) altTitles.push(p);
+          }
+        }
+        if (jpTitle && !altTitles.includes(jpTitle)) altTitles.push(jpTitle);
+
+        const chapters = getText(node, ["my_read_chapters"]);
+        const volumes = getText(node, ["my_read_volumes"]);
+        const scoreText = getText(node, ["my_score"]);
+        const comments = getText(node, ["my_comments"]) ?? "";
+        const tags = getText(node, ["my_tags"]) ?? "";
+
+        const progressParts: string[] = [];
+        if (chapters && Number.parseInt(chapters, 10) > 0) progressParts.push(`Ch ${chapters}`);
+        if (volumes && Number.parseInt(volumes, 10) > 0) progressParts.push(`Vol ${volumes}`);
+        const progress = progressParts.join(" • ");
+
+        let rating: number | undefined;
+        if (scoreText) {
+          const n = Number.parseFloat(scoreText);
+          if (Number.isFinite(n) && n > 0) rating = n;
+        }
+
+        const notesCombined = [comments, tags].filter((t) => t && t.trim().length).join(" | ");
+
+        if (!primaryTitle) continue;
+
+        const out: NormalizedImportItem & { altTitles?: string[] } = {
+          title: primaryTitle,
+          url: seriesId ? `https://myanimelist.net/manga/${seriesId}` : undefined,
+          rating,
+          progress: progress || undefined,
+          notes: notesCombined || undefined,
+          altTitles: altTitles.length ? altTitles : undefined,
+        };
+
+        normalized.push(out);
+      }
+
+      if (!normalized.length) {
+        setImportStatus("No valid items found in MAL file.");
+        return;
+      }
+
+      // Deduplicate by title; MAL XML does not contain MangaDex IDs
+      const uniqueItems: (NormalizedImportItem & { altTitles?: string[] })[] = [];
+      const seen = new Set<string>();
+      for (const item of normalized) {
+        const key = item.title ? `title:${item.title.toLowerCase()}` : null;
+        if (!key) {
+          continue;
+        }
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        uniqueItems.push(item);
+      }
+
+      if (!uniqueItems.length) {
+        setImportStatus("No new items left to import.");
+        return;
+      }
+
+      // Resolution and bulk import (lightweight reuse of existing pipeline)
+      let added = 0;
+      let skipped = 0;
+      let processed = 0;
+      const total = uniqueItems.length;
+      const searchCache = new Map<string, string | null>();
+
+      const updateProgress = () => {
+        setImportStatus(`Importing from MAL (${processed}/${total}). Please keep this tab open.`);
+      };
+      updateProgress();
+
+      const getNextIndex = (() => {
+        let cursor = 0;
+        return () => {
+          if (cursor >= uniqueItems.length) return null;
+          const cur = cursor;
+          cursor += 1;
+          return cur;
+        };
+      })();
+
+      const resolveMangaId = async (item: NormalizedImportItem & { altTitles?: string[] }) => {
+        if (item.mangaId) return item.mangaId;
+        if (!item.title) return null;
+        const t = item.title.toLowerCase();
+        if (searchCache.has(t)) return searchCache.get(t) ?? null;
+        try {
+          const resp = await fetch("/api/manga/resolve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: [
+                {
+                  title: item.title,
+                  url: item.url,
+                  alts: Array.isArray(item.altTitles) ? item.altTitles.slice(0, 5) : undefined,
+                },
+              ],
+            }),
+          });
+          const payload = (await resp.json().catch(() => ({ data: [] }))) as {
+            data?: Array<{ mangaId: string | null; title?: string }>;
+          };
+          const id = resp.ok ? payload?.data?.[0]?.mangaId ?? null : null;
+          searchCache.set(t, id);
+          return id;
+        } catch {
+          searchCache.set(t, null);
+          return null;
+        }
+      };
+
+      const pendingBatch: Array<{ mangaId: string; progress?: string; rating?: number; notes?: string }> = [];
+      const BATCH_SIZE = 50;
+      let isFlushing = false;
+
+      const flushBatch = async () => {
+        if (isFlushing) return;
+        if (!pendingBatch.length) return;
+        isFlushing = true;
+        try {
+          const batch = pendingBatch.splice(0, BATCH_SIZE);
+          const resp = await fetch("/api/reading-list/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: batch }),
+          });
+          if (resp.ok) {
+            const result = (await resp.json().catch(() => ({}))) as {
+              data?: { added?: number; updated?: number; skipped?: number };
+            };
+            added += Number(result?.data?.added ?? 0);
+            skipped += Number(result?.data?.skipped ?? 0);
+          } else {
+            skipped += batch.length;
+          }
+        } catch {
+          // ignore network errors here
+        } finally {
+          isFlushing = false;
+          if (pendingBatch.length >= BATCH_SIZE) {
+            await flushBatch();
+          }
+        }
+      };
+
+      const worker = async () => {
+        while (true) {
+          const index = getNextIndex();
+          if (index === null) break;
+          const item = uniqueItems[index];
+          const mangaId = await resolveMangaId(item);
+          if (!mangaId) {
+            skipped += 1;
+          } else {
+            pendingBatch.push({
+              mangaId,
+              ...(item.progress ? { progress: item.progress } : {}),
+              ...(typeof item.rating === "number" ? { rating: item.rating } : {}),
+              ...(item.notes ? { notes: item.notes } : {}),
+            });
+            if (pendingBatch.length >= BATCH_SIZE && !isFlushing) {
+              await flushBatch();
+            }
+          }
+          processed += 1;
+          if (processed === total || processed % PROGRESS_UPDATE_INTERVAL === 0) {
+            updateProgress();
+          }
+        }
+      };
+
+      await Promise.all([worker(), worker(), worker()]);
+
+      if (pendingBatch.length) {
+        await flushBatch();
+      }
+
+      setImportStatus(`MAL import complete. Added ${added}, skipped ${skipped}.`);
+      try {
+        const response = await fetch("/api/reading-list", { method: "GET", cache: "no-store" });
+        const payload = (await response.json()) as ReadingListResponse;
+        setItems(payload.data ?? []);
+      } catch {
+        // ignore refresh errors
+      }
+    } catch (error) {
+      // Report a more helpful message when possible
+      const message =
+        (error && typeof error === "object" && "message" in error && typeof (error as { message?: string }).message === "string")
+          ? (error as { message: string }).message
+          : null;
+      console.error("MAL import failed:", error);
+      setImportStatus(message ? `Failed to import MAL file: ${message}` : "Failed to import MAL file.");
+    }
+  };
   const parseCsv = (text: string): ImportItem[] => {
     const lines = text.split(/\r?\n/).filter((l) => l.trim().length);
     if (!lines.length) return [];
@@ -803,6 +1058,7 @@ export function ReadingListClient({
           const mangaId = await resolveMangaId(currentItem);
           if (!mangaId) {
             skipped += 1;
+            skippedDetails.push({ title: currentItem.title, url: currentItem.url, reason: "not-found" });
           } else {
             // Queue for bulk sending
             const payload = {
@@ -845,8 +1101,13 @@ export function ReadingListClient({
       } catch {
         // ignore refresh errors
       }
-    } catch {
-      setImportStatus("Failed to import file.");
+    } catch (error) {
+      const message =
+        (error && typeof error === "object" && "message" in error && typeof (error as { message?: string }).message === "string")
+          ? (error as { message: string }).message
+          : null;
+      console.error("Import failed:", error);
+      setImportStatus(message ? `Failed to import file: ${message}` : "Failed to import file.");
     }
   };
 
@@ -874,7 +1135,10 @@ export function ReadingListClient({
       <header className="flex flex-col gap-4">
         <div className="flex flex-col gap-2.5">
           <div>
-            <h1 className="text-lg font-semibold text-white sm:text-3xl">{headingTitle}</h1>
+            <div className="flex items-baseline gap-2">
+              <h1 className="text-lg font-semibold text-white sm:text-3xl">{headingTitle}</h1>
+              <span className="text-[0.7rem] text-white/50 sm:text-xs">{items.length} entries</span>
+            </div>
             {!isOwner && displayOwnerLabel ? (
               <p className="mt-1 text-sm text-white/60">
                 Viewing {displayOwnerLabel}&rsquo;s saved series.
@@ -950,10 +1214,17 @@ export function ReadingListClient({
                           onClick={() => { setActionsOpen(false); triggerImport(); }}
                           className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
                         >
-                          Import from file
+                      Import JSON/CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setActionsOpen(false); malFileInputRef.current?.click(); }}
+                      className="mt-1 block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
+                    >
+                      Import MAL (XML)
                         </button>
                         <div className="px-3 py-2 text-[0.7rem] text-white/50">
-                          .json and .csv files only.
+                      MAL works but not recommended.
                         </div>
                       </>
                     ) : null}
@@ -989,6 +1260,24 @@ export function ReadingListClient({
                     setImportStatus("Unsupported file type. Please select a .json or .csv file.");
                   } else {
                     handleImportFile(file);
+                  }
+                }
+                e.currentTarget.value = "";
+              }}
+            />
+            <input
+              ref={malFileInputRef}
+              type="file"
+              accept="application/xml,.xml,text/xml"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const nameLower = file.name.toLowerCase();
+                  if (!nameLower.endsWith(".xml")) {
+                    setImportStatus("Unsupported file type. Please select a MAL .xml file.");
+                  } else {
+                    handleImportMalXml(file);
                   }
                 }
                 e.currentTarget.value = "";

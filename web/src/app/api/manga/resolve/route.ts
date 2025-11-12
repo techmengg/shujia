@@ -18,6 +18,7 @@ const inputSchema = z.object({
         .object({
           title: z.string().optional(),
           url: z.string().optional(),
+          alts: z.array(z.string()).optional(),
         })
         .strict(),
     )
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     const out: Array<{ index: number; title?: string; mangaId: string | null }> = [];
 
     for (let i = 0; i < items.length; i += 1) {
-      const { title, url } = items[i];
+      const { title, url, alts } = items[i];
       const fromUrl = extractIdFromUrl(url);
       if (fromUrl) {
         out.push({ index: i, title, mangaId: fromUrl });
@@ -63,25 +64,42 @@ export async function POST(request: Request) {
         out.push({ index: i, title, mangaId: null });
         continue;
       }
-      const key = normalizeTitle(title);
-      const cached = titleCache.get(key);
-      if (cached && Date.now() - cached.ts < TITLE_CACHE_TTL_MS) {
-        out.push({ index: i, title, mangaId: cached.id });
-        continue;
-      }
-      try {
-        const results = await searchManga(title, { limit: 1 });
-        const id = results[0]?.id ?? null;
-        titleCache.set(key, { id, ts: Date.now() });
-        out.push({ index: i, title, mangaId: id });
-      } catch (error) {
-        if (error instanceof MangaDexAPIError && error.status === 404) {
-          titleCache.set(key, { id: null, ts: Date.now() });
-          out.push({ index: i, title, mangaId: null });
-        } else {
-          out.push({ index: i, title, mangaId: null });
+      const candidates = Array.from(
+        new Set<string>(
+          [title, ...(Array.isArray(alts) ? alts : [])]
+            .map((t) => (typeof t === "string" ? t.trim() : ""))
+            .filter((t) => t.length > 1),
+        ),
+      ).slice(0, 6); // cap attempts
+
+      let foundId: string | null = null;
+      for (const candidate of candidates) {
+        const key = normalizeTitle(candidate);
+        const cached = titleCache.get(key);
+        if (cached && Date.now() - cached.ts < TITLE_CACHE_TTL_MS) {
+          if (cached.id) {
+            foundId = cached.id;
+            break;
+          }
+          // cached miss; try next candidate
+          continue;
+        }
+        try {
+          const results = await searchManga(candidate, { limit: 1 });
+          const id = results[0]?.id ?? null;
+          titleCache.set(key, { id, ts: Date.now() });
+          if (id) {
+            foundId = id;
+            break;
+          }
+        } catch (error) {
+          if (error instanceof MangaDexAPIError && error.status === 404) {
+            titleCache.set(key, { id: null, ts: Date.now() });
+          }
+          // continue to next candidate
         }
       }
+      out.push({ index: i, title, mangaId: foundId });
     }
 
     return NextResponse.json(

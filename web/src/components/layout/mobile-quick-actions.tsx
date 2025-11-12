@@ -5,14 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type MobileQuickActionsProps = {
-  settingsHref: string;
+	settingsHref: string;
+	isAuthenticated?: boolean;
 };
 
-export function MobileQuickActions({ settingsHref }: MobileQuickActionsProps) {
-  const [open, setOpen] = useState(false);
+export function MobileQuickActions({ settingsHref, isAuthenticated = false }: MobileQuickActionsProps) {
+	const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+	const [clientAuthed, setClientAuthed] = useState<boolean>(isAuthenticated);
 
   useEffect(() => {
     function handleEsc(e: KeyboardEvent) {
@@ -25,6 +27,19 @@ export function MobileQuickActions({ settingsHref }: MobileQuickActionsProps) {
       window.removeEventListener("keydown", handleEsc);
     };
   }, [open]);
+
+	// Ensure accurate auth state on the client (helps after client-side logins without full refresh)
+	useEffect(() => {
+		try {
+			if (typeof document !== "undefined") {
+				const hasSession = document.cookie.split("; ").some((c) => c.startsWith("mynkdb_session="));
+				setClientAuthed(Boolean(isAuthenticated || hasSession));
+			}
+		} catch {
+			setClientAuthed(Boolean(isAuthenticated));
+		}
+		// Re-check when menu opens to capture latest cookie state after auth flows
+	}, [isAuthenticated, open]);
 
   // Recompute dropdown position when opening / on resize / scroll
   useEffect(() => {
@@ -88,30 +103,53 @@ export function MobileQuickActions({ settingsHref }: MobileQuickActionsProps) {
                   right: Math.max(8, position?.right ?? 12),
                 }}
               >
-                <Link
-                  href="/users"
-                  className="block rounded-[6px] px-3 py-2 text-white/85 transition hover:bg-white/10"
-                  onClick={() => setOpen(false)}
-                  role="menuitem"
-                >
-                  Browse users
-                </Link>
-                <Link
-                  href={settingsHref}
-                  className="block rounded-[6px] px-3 py-2 text-white/85 transition hover:bg-white/10"
-                  onClick={() => setOpen(false)}
-                  role="menuitem"
-                >
-                  Account settings
-                </Link>
-                <Link
-                  href="/reading-list"
-                  className="block rounded-[6px] px-3 py-2 text-white/85 transition hover:bg-white/10"
-                  onClick={() => setOpen(false)}
-                  role="menuitem"
-                >
-                  Reading list
-                </Link>
+				<Link
+					href="/users"
+					className="block rounded-[6px] px-3 py-2 text-white/85 transition hover:bg-white/10"
+					onClick={() => setOpen(false)}
+					role="menuitem"
+				>
+					Browse users
+				</Link>
+				{clientAuthed ? (
+					<>
+						<Link
+							href={settingsHref}
+							className="block rounded-[6px] px-3 py-2 text-white/85 transition hover:bg-white/10"
+							onClick={() => setOpen(false)}
+							role="menuitem"
+						>
+							Account settings
+						</Link>
+						<Link
+							href="/reading-list"
+							className="block rounded-[6px] px-3 py-2 text-white/85 transition hover:bg-white/10"
+							onClick={() => setOpen(false)}
+							role="menuitem"
+						>
+							Reading list
+						</Link>
+					</>
+				) : (
+					<>
+						<Link
+							href="/login"
+							className="block rounded-[6px] px-3 py-2 text-white/85 transition hover:bg-white/10"
+							onClick={() => setOpen(false)}
+							role="menuitem"
+						>
+							Log in
+						</Link>
+						<Link
+							href="/register"
+							className="block rounded-[6px] px-3 py-2 text-white/85 transition hover:bg-white/10"
+							onClick={() => setOpen(false)}
+							role="menuitem"
+						>
+							Sign up
+						</Link>
+					</>
+				)}
               </div>
             </>,
             document.body,
