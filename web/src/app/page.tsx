@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MangaCarousel } from "@/components/manga/manga-carousel";
 import { RecentlyUpdatedSection } from "@/components/manga/recently-updated-section";
 import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
+import { FollowedListSection } from "@/components/home/followed-list-section";
 import {
   getDemographicHighlights,
   getPopularNewTitles,
@@ -184,42 +185,11 @@ export default async function Home() {
     <main className="relative z-10 mx-auto w-full max-w-7xl px-4 pt-4 pb-6 sm:px-6 lg:px-10 lg:pb-10">
       <h1 className="sr-only">Shujia</h1>
 
-      <section className="mt-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-          <h2 className="text-sm font-semibold text-white sm:text-lg">
-            Latest Updates from Your Followed List
-          </h2>
-          <Link
-            href="/reading-list"
-            className="text-[0.7rem] uppercase tracking-[0.15em] text-surface-subtle transition hover:text-white sm:text-xs sm:tracking-[0.2em]"
-          >
-            View list
-          </Link>
-        </div>
-        {user ? (
-          <div className="relative">
-            <MangaCarousel
-              items={followedItems}
-              emptyState={
-                <p className="rounded-2xl border border-white/15 bg-black/80 px-4 py-6 text-center text-sm text-surface-subtle">
-                  Follow series to see updates here.
-                </p>
-              }
-            />
-          </div>
-        ) : (
-          <div className="relative">
-            <div className="h-24 rounded-2xl border border-white/12 bg-white/[0.04] sm:h-28 md:h-32" />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-              <div className="rounded-2xl border border-white/20 bg-black/70 px-5 py-3 text-xs font-semibold text-white">
-                <Link href="/login?redirect=/" className="transition hover:text-accent">
-                  Log in to view
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
+      <FollowedListSection
+        initialUser={Boolean(user)}
+        followedItems={followedItems}
+        placeholderItems={placeholderFollowedSummaries}
+      />
 
       {languageTabs.length ? (
         <section className="mt-10 space-y-4">
