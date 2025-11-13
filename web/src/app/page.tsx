@@ -7,10 +7,13 @@ import {
   getPopularNewTitles,
   getRecentlyUpdatedManga,
   getRecentPopularByOriginalLanguage,
-} from "@/lib/mangadex/service";
+} from "@/lib/mangadex/service-cached";
 import type { MangaSummary } from "@/lib/mangadex/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+
+// Enable Incremental Static Regeneration - regenerate every 5 minutes
+export const revalidate = 300;
 
 export default async function Home() {
   function toProxyCoverUrl(mangaId: string, url?: string | null): string | undefined {

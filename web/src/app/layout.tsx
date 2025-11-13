@@ -13,10 +13,6 @@ import {
 
 import { Analytics } from "@vercel/analytics/next"
 
-// Force dynamic rendering to ensure fresh session state on every request
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

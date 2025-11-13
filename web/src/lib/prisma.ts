@@ -11,10 +11,28 @@ export const prisma =
       process.env.NODE_ENV === "development"
         ? ["error", "warn"]
         : ["error"],
-    // Add connection timeout and pooling settings for better reliability
     datasources: {
       db: {
         url: process.env.DATABASE_URL,
+      },
+    },
+  }).$extends({
+    query: {
+      $allOperations({ operation, model, args, query }) {
+        const start = performance.now();
+        const result = query(args);
+        
+        // Log slow queries for monitoring
+        result.then(() => {
+          const duration = performance.now() - start;
+          if (duration > 1000) {
+            console.warn(`[Prisma] Slow query: ${model}.${operation} took ${duration.toFixed(0)}ms`);
+          }
+        }).catch(() => {
+          // Query failed, duration logging not needed
+        });
+        
+        return result;
       },
     },
   });

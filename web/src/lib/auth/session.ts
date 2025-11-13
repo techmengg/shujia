@@ -4,6 +4,7 @@ import type { Session, User } from "@prisma/client";
 import { cookies } from "next/headers";
 
 import { prisma } from "@/lib/prisma";
+import { getCachedSession, setCachedSession, invalidateCachedSession } from "./session-cache";
 
 export const SESSION_COOKIE_NAME = "mynkdb_session";
 const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
@@ -44,6 +45,9 @@ export async function deleteSession(token: string) {
   }
 
   const tokenHash = hashToken(token);
+
+  // Invalidate cache
+  invalidateCachedSession(tokenHash);
 
   await prisma.session.deleteMany({
     where: {
@@ -112,6 +116,15 @@ export async function getSessionFromToken(token: string) {
 
 	const tokenHash = hashToken(token);
 
+	// Check in-memory cache first
+	const cachedUser = getCachedSession(tokenHash);
+	if (cachedUser) {
+		return {
+			session: null, // We don't cache the full session object
+			user: cachedUser,
+		};
+	}
+
 	let session: (Session & { user: User | null }) | null = null;
 	try {
 		// Add 3-second timeout to prevent hanging on slow database connections
@@ -145,14 +158,19 @@ export async function getSessionFromToken(token: string) {
   const username =
     (user as { username?: string | null }).username ?? null;
 
+  const authenticatedUser = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    username,
+  } satisfies AuthenticatedUser;
+
+	// Cache the user for subsequent requests
+	setCachedSession(tokenHash, authenticatedUser);
+
   return {
     session,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      username,
-    } satisfies AuthenticatedUser,
+    user: authenticatedUser,
   };
 }
 

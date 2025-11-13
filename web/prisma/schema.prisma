@@ -40,6 +40,7 @@ model Session {
   createdAt DateTime @default(now())
 
   @@index([tokenHash, expiresAt])
+  @@index([userId, expiresAt])
 }
 
 model PasswordResetToken {
@@ -99,6 +100,7 @@ model ReadingListEntry {
   updatedAt     DateTime @updatedAt
 
   @@unique([userId, mangaId])
+  @@index([userId, updatedAt])
 }
 
 model RegistrationVerification {

@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { ReadingListClient } from "@/components/reading-list/reading-list-client";
 import { getCurrentUser } from "@/lib/auth/session";
 
+// Force dynamic rendering for auth-sensitive reading list
+export const dynamic = "force-dynamic";
+
 interface ReadingListPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
