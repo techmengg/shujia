@@ -38,6 +38,8 @@ model Session {
   tokenHash String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  @@index([tokenHash, expiresAt])
 }
 
 model PasswordResetToken {

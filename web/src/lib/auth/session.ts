@@ -80,6 +80,31 @@ export function buildClearedSessionCookie() {
   };
 }
 
+// Helper to add timeout to database queries
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  fallback: T
+): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      console.warn(`Database query timed out after ${timeoutMs}ms, using fallback`);
+      resolve(fallback);
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId!);
+    throw error;
+  }
+}
+
 export async function getSessionFromToken(token: string) {
   if (!token) {
     return null;
@@ -89,17 +114,22 @@ export async function getSessionFromToken(token: string) {
 
 	let session: (Session & { user: User | null }) | null = null;
 	try {
-		session = await prisma.session.findFirst({
-			where: {
-				tokenHash,
-				expiresAt: {
-					gt: new Date(),
+		// Add 3-second timeout to prevent hanging on slow database connections
+		session = await withTimeout(
+			prisma.session.findFirst({
+				where: {
+					tokenHash,
+					expiresAt: {
+						gt: new Date(),
+					},
 				},
-			},
-			include: {
-				user: true,
-			},
-		});
+				include: {
+					user: true,
+				},
+			}),
+			3000,
+			null
+		);
 	} catch (error) {
 		// Gracefully degrade if the database is temporarily unavailable in production
 		console.warn("getSessionFromToken: database unavailable, treating as no session", error);

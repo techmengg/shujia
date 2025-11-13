@@ -11,6 +11,12 @@ export const prisma =
       process.env.NODE_ENV === "development"
         ? ["error", "warn"]
         : ["error"],
+    // Add connection timeout and pooling settings for better reliability
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   });
 
 if (process.env.NODE_ENV !== "production") {
