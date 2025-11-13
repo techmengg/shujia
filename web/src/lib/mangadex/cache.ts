@@ -54,7 +54,7 @@ export const CACHE_CONFIG = {
  * @param config - Cache configuration (revalidate time and tags)
  * @returns Cached version of the function
  */
-export function createCachedFunction<TArgs extends any[], TReturn>(
+export function createCachedFunction<TArgs extends unknown[], TReturn>(
   fn: (...args: TArgs) => Promise<TReturn>,
   keyPrefix: string,
   config: { revalidate: number; tags: string[] }
@@ -79,7 +79,7 @@ export function createCachedFunction<TArgs extends any[], TReturn>(
 /**
  * Generate a cache key from arguments
  */
-export function generateCacheKey(prefix: string, ...args: any[]): string {
+export function generateCacheKey(prefix: string, ...args: unknown[]): string {
   return `${prefix}-${args.map((arg) => JSON.stringify(arg)).join("-")}`;
 }
 
