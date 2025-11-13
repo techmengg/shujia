@@ -24,7 +24,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children, serverAuth }: AuthProviderProps) {
   // Start with server state and TRUST IT
   const [isAuthenticated, setIsAuthenticated] = useState(serverAuth);
-  const [isLoading, setIsLoading] = useState(false);
+  const isLoading = false;
 
   useEffect(() => {
     // Check cookie on client
