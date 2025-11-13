@@ -129,7 +129,7 @@ export function AuthAwareHeader({ logoSrc, initialUser, theme }: AuthAwareHeader
             </svg>
           </Link>
           
-          {/* Desktop auth buttons - suppress hydration warning */}}
+          {/* Desktop auth buttons - suppress hydration warning */}
           <div suppressHydrationWarning>
             {currentUser ? (
               <>
