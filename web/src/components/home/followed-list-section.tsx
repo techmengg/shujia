@@ -28,11 +28,21 @@ export function FollowedListSection({
     
     // Check if session cookie exists on client
     const hasSession = document.cookie.split("; ").some((c) => c.startsWith("mynkdb_session="));
-    setIsAuthenticated(hasSession);
-  }, []);
+    
+    // If mismatch detected, reload to get fresh data
+    if (hasSession !== initialUser) {
+      setIsAuthenticated(hasSession);
+      // Force reload if server state doesn't match cookie
+      if (!initialUser && hasSession) {
+        window.location.reload();
+      }
+    } else {
+      setIsAuthenticated(hasSession);
+    }
+  }, [initialUser]);
 
-  // Prevent hydration mismatch - use server state until client mounted
-  const showAuthContent = mounted ? isAuthenticated : initialUser;
+  // Always use the authenticated state after mount
+  const showAuthContent = isAuthenticated;
   const items = showAuthContent ? followedItems : placeholderItems;
 
   return (

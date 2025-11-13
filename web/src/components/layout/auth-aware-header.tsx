@@ -31,20 +31,21 @@ export function AuthAwareHeader({ logoSrc, initialUser, theme }: AuthAwareHeader
     // Check if session cookie exists
     const hasSession = document.cookie.split("; ").some((c) => c.startsWith("mynkdb_session="));
     
-    // If server said no user but we have a cookie, or vice versa, we need to reload
-    // But only show the correct UI immediately
+    // Sync state with cookie
     if (!initialUser && hasSession) {
-      // Server thinks logged out, but we have a cookie - might be stale cache
-      // Keep showing logged out UI but reload to get fresh data
+      // Server thinks logged out, but we have a cookie - reload to get fresh data
       window.location.reload();
     } else if (initialUser && !hasSession) {
       // Server thinks logged in, but no cookie - show logged out
       setUser(null);
+    } else {
+      // States match, just update from initial
+      setUser(initialUser);
     }
   }, [initialUser]);
 
-  // Prevent hydration mismatch by using server state until mounted
-  const currentUser = mounted ? user : initialUser;
+  // Always use the current user state after mount
+  const currentUser = user;
   const profileHref = currentUser?.username ? `/profile/${currentUser.username}` : "/profile";
 
   return (
