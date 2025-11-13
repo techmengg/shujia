@@ -3,18 +3,19 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useAuth } from "@/components/auth/auth-provider";
 
 type MobileQuickActionsProps = {
 	settingsHref: string;
 	isAuthenticated?: boolean;
 };
 
-export function MobileQuickActions({ settingsHref, isAuthenticated = false }: MobileQuickActionsProps) {
+export function MobileQuickActions({ settingsHref }: MobileQuickActionsProps) {
 	const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
-	const [clientAuthed, setClientAuthed] = useState<boolean>(isAuthenticated);
+	const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     function handleEsc(e: KeyboardEvent) {
@@ -27,19 +28,6 @@ export function MobileQuickActions({ settingsHref, isAuthenticated = false }: Mo
       window.removeEventListener("keydown", handleEsc);
     };
   }, [open]);
-
-	// Ensure accurate auth state on the client (helps after client-side logins without full refresh)
-	useEffect(() => {
-		try {
-			if (typeof document !== "undefined") {
-				const hasSession = document.cookie.split("; ").some((c) => c.startsWith("mynkdb_session="));
-				setClientAuthed(Boolean(isAuthenticated || hasSession));
-			}
-		} catch {
-			setClientAuthed(Boolean(isAuthenticated));
-		}
-		// Re-check when menu opens to capture latest cookie state after auth flows
-	}, [isAuthenticated, open]);
 
   // Recompute dropdown position when opening / on resize / scroll
   useEffect(() => {
@@ -111,7 +99,7 @@ export function MobileQuickActions({ settingsHref, isAuthenticated = false }: Mo
 				>
 					Browse users
 				</Link>
-				{clientAuthed ? (
+				{isAuthenticated ? (
 					<>
 						<Link
 							href={settingsHref}

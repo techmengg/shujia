@@ -2,7 +2,7 @@ import Link from "next/link";
 import { MangaCarousel } from "@/components/manga/manga-carousel";
 import { RecentlyUpdatedSection } from "@/components/manga/recently-updated-section";
 import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
-import { FollowedListSection } from "@/components/home/followed-list-section";
+import { FollowedSection } from "@/components/home/followed-section";
 import {
   getDemographicHighlights,
   getPopularNewTitles,
@@ -13,8 +13,8 @@ import type { MangaSummary } from "@/lib/mangadex/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
-// Enable Incremental Static Regeneration - regenerate every 5 minutes
-export const revalidate = 300;
+// Home page has auth-dependent content, so force dynamic
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   function toProxyCoverUrl(mangaId: string, url?: string | null): string | undefined {
@@ -185,11 +185,7 @@ export default async function Home() {
     <main className="relative z-10 mx-auto w-full max-w-7xl px-4 pt-4 pb-6 sm:px-6 lg:px-10 lg:pb-10">
       <h1 className="sr-only">Shujia</h1>
 
-      <FollowedListSection
-        initialUser={Boolean(user)}
-        followedItems={followedItems}
-        placeholderItems={placeholderFollowedSummaries}
-      />
+      <FollowedSection followedItems={followedItems} />
 
       {languageTabs.length ? (
         <section className="mt-10 space-y-4">

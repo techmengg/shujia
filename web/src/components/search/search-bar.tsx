@@ -36,11 +36,14 @@ type ReadingListActionState = {
 
 type ReadingListActionStates = Record<string, ReadingListActionState>;
 
+import { useAuth } from "@/components/auth/auth-provider";
+
 interface SearchBarProps {
   isAuthenticated?: boolean;
 }
 
-export function SearchBar({ isAuthenticated = false }: SearchBarProps) {
+export function SearchBar() {
+  const { isAuthenticated } = useAuth();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MangaSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);

@@ -5,6 +5,8 @@ import "./globals.css";
 
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
 import { SiteHeader } from "@/components/layout/site-header";
+import { AuthProvider } from "@/components/auth/auth-provider";
+import { getCurrentUser } from "@/lib/auth/session";
 import {
   THEME_COOKIE_NAME,
   THEME_DEFAULT,
@@ -56,18 +58,21 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const themeCookie = cookieStore.get(THEME_COOKIE_NAME)?.value;
   const theme = isThemeName(themeCookie) ? themeCookie : THEME_DEFAULT;
+  const user = await getCurrentUser();
 
   return (
     <html lang="en" data-theme={theme}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col bg-surface text-surface-foreground antialiased`}
       >
-        <AnnouncementBar />
-        <SiteHeader />
+        <AuthProvider serverAuth={Boolean(user)}>
+          <AnnouncementBar />
+          <SiteHeader />
 
-        <div className="flex flex-1 flex-col">{children}</div>
+          <div className="flex flex-1 flex-col">{children}</div>
 
-        <Analytics />
+          <Analytics />
+        </AuthProvider>
       </body>
     </html>
   );
