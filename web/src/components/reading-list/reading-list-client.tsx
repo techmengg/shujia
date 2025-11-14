@@ -954,8 +954,8 @@ export function ReadingListClient({
         return null;
       };
 
-      const shouldThrottle = total >= LARGE_IMPORT_THRESHOLD;
-      const throttleDelay = shouldThrottle ? IMPORT_THROTTLE_DELAY_MS : 0;
+      // Note: Throttle is not needed as the bulk endpoint handles its own rate limiting
+      // const shouldThrottle = total >= LARGE_IMPORT_THRESHOLD;
 
       const importEntry = async (mangaId: string, currentItem: NormalizedImportItem) => {
         const bodyPayload = {

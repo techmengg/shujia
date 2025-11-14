@@ -91,7 +91,7 @@ export function ExploreClient() {
     setOffset(0);
     setHasMore(true);
     fetchMangas(0, true);
-  }, [filters]);
+  }, [filters, fetchMangas]);
 
   // Intersection observer for infinite scroll
   useEffect(() => {
