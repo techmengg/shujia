@@ -8,49 +8,49 @@ datasource db {
 }
 
 model User {
-  id        String                @id @default(cuid())
-  email     String                @unique
-  username  String                @unique
-  name      String?
-  avatarUrl String?
-  bio       String?
-  timezone  String                @default("UTC")
-  googleId  String?               @unique
-  twoFactorEnabled Boolean        @default(false)
-  twoFactorSecret  String?
-  twoFactorTempSecret String?
-  twoFactorRecoveryCodes String[] @default([])
-  marketingEmails   Boolean       @default(true)
-  productUpdates    Boolean       @default(true)
-  weeklyDigestEmails Boolean      @default(true)
-  password  String
-  createdAt DateTime              @default(now())
-  updatedAt DateTime              @updatedAt
-  sessions  Session[]
-  passwordResetTokens PasswordResetToken[]
-  readingListEntries ReadingListEntry[]
+  id                     String               @id @default(cuid())
+  email                  String               @unique
+  name                   String?
+  password               String
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  avatarUrl              String?
+  bio                    String?
+  timezone               String               @default("UTC")
+  marketingEmails        Boolean              @default(true)
+  productUpdates         Boolean              @default(true)
+  weeklyDigestEmails     Boolean              @default(true)
+  username               String               @unique
+  googleId               String?              @unique
+  twoFactorEnabled       Boolean              @default(false)
+  twoFactorSecret        String?
+  twoFactorTempSecret    String?
+  twoFactorRecoveryCodes String[]             @default([])
+  passwordResetTokens    PasswordResetToken[]
+  readingListEntries     ReadingListEntry[]
+  sessions               Session[]
 }
 
 model Session {
   id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   tokenHash String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tokenHash, expiresAt])
   @@index([userId, expiresAt])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
   userId    String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuthAttempt {
@@ -63,22 +63,8 @@ model AuthAttempt {
   @@index([type, scope, hash, createdAt])
 }
 
-enum AuthAttemptType {
-  LOGIN
-  REGISTER
-  FORGOT_PASSWORD
-  RESET_PASSWORD
-  VERIFY_EMAIL
-}
-
-enum AuthThrottleScope {
-  IP
-  IDENTIFIER
-}
-
 model ReadingListEntry {
   id            String   @id @default(cuid())
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId        String
   mangaId       String
   title         String
@@ -98,6 +84,7 @@ model ReadingListEntry {
   notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, mangaId])
   @@index([userId, updatedAt])
@@ -114,4 +101,15 @@ model RegistrationVerification {
   createdAt    DateTime @default(now())
 }
 
- 
+enum AuthAttemptType {
+  LOGIN
+  REGISTER
+  FORGOT_PASSWORD
+  RESET_PASSWORD
+  VERIFY_EMAIL
+}
+
+enum AuthThrottleScope {
+  IP
+  IDENTIFIER
+}

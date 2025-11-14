@@ -31,14 +31,15 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "random", label: "Random" },
 ];
 
-const IMPORT_DEFAULT_CONCURRENCY = 6;
-const IMPORT_LARGE_CONCURRENCY = 2;
+const IMPORT_DEFAULT_CONCURRENCY = 12; // Increased from 6
+const IMPORT_LARGE_CONCURRENCY = 8;    // Increased from 2
 const LARGE_IMPORT_THRESHOLD = 200;
-const IMPORT_THROTTLE_DELAY_MS = 120;
+const IMPORT_THROTTLE_DELAY_MS = 50;   // Reduced from 120ms
 const IMPORT_RETRY_ATTEMPTS = 5;
 const IMPORT_RETRY_BASE_DELAY_MS = 600;
 const IMPORT_RETRY_MAX_DELAY_MS = 6000;
-const PROGRESS_UPDATE_INTERVAL = 5;
+const PROGRESS_UPDATE_INTERVAL = 3;    // Update UI more frequently
+const RESOLVE_BATCH_SIZE = 20;         // Resolve titles in batches
 const TABLE_COLUMNS = 6;
 
 function sleep(ms: number) {
@@ -897,6 +898,47 @@ export function ReadingListClient({
         };
       })();
 
+      // Batch resolve multiple titles at once for better performance
+      const resolveBatch = async (items: NormalizedImportItem[]) => {
+        const itemsToResolve = items.filter((item) => {
+          if (item.mangaId) return false;
+          if (!item.title) return false;
+          const normalized = item.title.toLowerCase();
+          return !searchCache.has(normalized);
+        });
+
+        if (itemsToResolve.length === 0) return;
+
+        try {
+          const resp = await fetch("/api/manga/resolve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: itemsToResolve.map((it) => ({ title: it.title, url: it.url })),
+            }),
+          });
+          const payload = (await resp.json().catch(() => ({ data: [] }))) as {
+            data?: Array<{ mangaId: string | null; title?: string }>;
+          };
+          if (resp.ok && payload?.data) {
+            payload.data.forEach((result, idx) => {
+              const item = itemsToResolve[idx];
+              if (item?.title) {
+                const normalized = item.title.toLowerCase();
+                searchCache.set(normalized, result?.mangaId ?? null);
+              }
+            });
+          }
+        } catch {
+          // Cache nulls for failed items to avoid re-trying
+          itemsToResolve.forEach((item) => {
+            if (item.title) {
+              searchCache.set(item.title.toLowerCase(), null);
+            }
+          });
+        }
+      };
+
       const resolveMangaId = async (item: NormalizedImportItem) => {
         if (item.mangaId) {
           return item.mangaId;
@@ -908,22 +950,8 @@ export function ReadingListClient({
         if (searchCache.has(normalizedTitle)) {
           return searchCache.get(normalizedTitle) ?? null;
         }
-        try {
-          const resp = await fetch("/api/manga/resolve", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items: [{ title: item.title, url: item.url }] }),
-          });
-          const payload = (await resp.json().catch(() => ({ data: [] }))) as {
-            data?: Array<{ mangaId: string | null; title?: string }>;
-          };
-          const id = resp.ok ? payload?.data?.[0]?.mangaId ?? null : null;
-          searchCache.set(normalizedTitle, id);
-          return id;
-        } catch {
-          searchCache.set(normalizedTitle, null);
-          return null;
-        }
+        // If not in cache, it should have been batch-resolved
+        return null;
       };
 
       const shouldThrottle = total >= LARGE_IMPORT_THRESHOLD;
@@ -950,9 +978,7 @@ export function ReadingListClient({
             });
 
             if (resp.ok) {
-              if (throttleDelay > 0) {
-                await sleep(throttleDelay);
-              }
+              // No throttle delay needed for bulk endpoint - it handles its own rate limiting
               return true;
             }
 
@@ -993,7 +1019,7 @@ export function ReadingListClient({
         rating?: number;
         notes?: string;
       }> = [];
-      const BATCH_SIZE = 50;
+      const BATCH_SIZE = 100; // Increased from 50 for better throughput
       let isFlushing = false;
 
       const flushBatch = async () => {
@@ -1081,6 +1107,16 @@ export function ReadingListClient({
         }
       };
 
+      // Pre-resolve titles in batches for better performance
+      const itemsNeedingResolution = uniqueItems.filter((item) => !item.mangaId && item.title);
+      for (let i = 0; i < itemsNeedingResolution.length; i += RESOLVE_BATCH_SIZE) {
+        const batch = itemsNeedingResolution.slice(i, i + RESOLVE_BATCH_SIZE);
+        await resolveBatch(batch);
+        setImportStatus(`Resolving titles (${Math.min(i + RESOLVE_BATCH_SIZE, itemsNeedingResolution.length)}/${itemsNeedingResolution.length})...`);
+      }
+      
+      setImportStatus(`Importing ${total} items...`);
+      
       const workerCount =
         total >= LARGE_IMPORT_THRESHOLD
           ? Math.min(IMPORT_LARGE_CONCURRENCY, total)

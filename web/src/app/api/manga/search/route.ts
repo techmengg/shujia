@@ -14,11 +14,11 @@ export async function GET(request: NextRequest) {
       ? parsedLimit
       : undefined;
 
-  if (!query || query.trim().length < 2) {
+  if (!query || query.trim().length < 1) {
     return NextResponse.json(
       {
         data: [],
-        message: "Provide at least 2 characters to search MangaDex.",
+        message: "Enter a search query.",
       },
       {
         status: 200,

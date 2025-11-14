@@ -68,14 +68,17 @@ export function NavAuthButtons({ avatar, username }: NavAuthButtonsProps) {
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-transparent transition hover:border-white sm:h-10 sm:w-10"
             aria-label="User profile"
           >
-            <Image
-              src={avatar || "/noprofile.jpg"}
-              alt="User avatar"
-              width={40}
-              height={40}
-              className="h-full w-full object-cover"
-              unoptimized
-            />
+             <Image
+               src={avatar || "/noprofile.jpg"}
+               alt="User avatar"
+               width={160}
+               height={160}
+               sizes="(max-width: 640px) 36px, 40px"
+               className="h-full w-full object-cover"
+               quality={100}
+               priority
+                unoptimized
+             />
           </Link>
         </>
       ) : (

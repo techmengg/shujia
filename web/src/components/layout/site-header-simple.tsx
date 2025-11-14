@@ -32,8 +32,8 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
 
   const user = await getCurrentUser();
   const dbUser = user
-    ? await prisma.user.findUnique({ where: { id: user.id }, select: { avatarUrl: true } })
-    : null;
+      ? await prisma.user.findUnique({ where: { id: user.id }, select: { avatarUrl: true } })
+      : null;
   const avatar = dbUser?.avatarUrl?.trim() ? dbUser.avatarUrl : "/noprofile.jpg";
 
   return (
@@ -51,7 +51,7 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
             height={40}
             className="site-logo h-9 w-9 rounded-lg object-contain sm:h-10 sm:w-10"
             priority
-            unoptimized
+            quality={90}
           />
         </Link>
         <div className="order-2 flex w-full items-center gap-3 md:order-2 md:flex-1">

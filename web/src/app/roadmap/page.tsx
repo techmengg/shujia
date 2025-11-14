@@ -47,7 +47,7 @@ export default function RoadmapPage() {
       </p>
       <p
         className={`text-sm leading-relaxed text-white/65 ${
-          index === 0 ? "line-through text-white/40" : ""
+          index === 0 || index === 1 ? "line-through text-white/40" : ""
         }`}
       >
         {item.description}
