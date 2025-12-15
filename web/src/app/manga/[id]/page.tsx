@@ -6,7 +6,7 @@ import { AddToReadingListButton } from "@/components/manga/add-to-reading-list-b
 import { MangaActionBar } from "@/components/manga/manga-action-bar";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { getMangaDetails, getMangaSummaryById } from "@/lib/mangadex/service";
+import { getMangaDetails, getMangaSummaryById } from "@/lib/manga-service";
 
 interface MangaPageProps {
   params: Promise<{
@@ -58,11 +58,11 @@ function mapLanguages(codes: string[]): string[] {
 
 function buildCreatorUrl(id: string, role: "author" | "artist"): string {
   const base = role === "author" ? "author" : "artist";
-  return `https://mangadex.org/${base}/${id}`;
+  return `https://www.mangaupdates.com/${base}/${id}`;
 }
 
 function buildScanlationGroupUrl(id: string): string {
-  return `https://mangadex.org/group/${id}`;
+  return `https://www.mangaupdates.com/group/${id}`;
 }
 
 export async function generateMetadata({
@@ -385,7 +385,7 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   {tags.map((tag) => (
                     <a
                       key={tag}
-                      href={`https://mangadex.org/titles?title=${encodeURIComponent(tag)}`}
+                      href={`https://www.mangaupdates.com/series.html?genre=${encodeURIComponent(tag)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center rounded-md border border-white/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/40 hover:text-white"

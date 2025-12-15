@@ -703,7 +703,7 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
                       rel="noreferrer"
                       className="text-accent transition hover:text-white"
                     >
-                      Open on MangaDex
+                      Open on MangaUpdates
                     </a>
                   </div>
                 </div>
@@ -816,7 +816,7 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
             </li>
             <li>
               <a
-                href="https://mangadex.org/"
+                href="https://www.mangaupdates.com/"
                 target="_blank"
                 rel="noreferrer"
                 className="text-accent transition hover:text-white"

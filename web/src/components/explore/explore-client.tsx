@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MangaGrid } from "@/components/manga/manga-grid";
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary } from "@/lib/mangaupdates/types";
 
 interface ExploreFilters {
   orderField: string;

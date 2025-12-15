@@ -1,4 +1,4 @@
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary } from "@/lib/mangaupdates/types";
 
 import { MangaCard } from "./manga-card";
 

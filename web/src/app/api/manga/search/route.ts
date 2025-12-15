@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { MangaDexAPIError, searchManga } from "@/lib/mangadex/service";
+import { searchManga } from "@/lib/shujiaApi";
+import { scraperSearchResultToSummary } from "@/lib/adapters/scraper-to-mangaupdates";
+import { getUserAdultContentPreferences } from "@/lib/user-preferences";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -12,7 +14,7 @@ export async function GET(request: NextRequest) {
     Number.isInteger(parsedLimit) &&
     parsedLimit > 0
       ? parsedLimit
-      : undefined;
+      : 10;
 
   if (!query || query.trim().length < 1) {
     return NextResponse.json(
@@ -27,7 +29,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const results = await searchManga(query, { limit });
+    // Get user's 3-tier adult content preferences
+    const prefs = await getUserAdultContentPreferences();
+    
+    // Call scraper API instead of MangaUpdates directly
+    const scraperResults = await searchManga(query, {
+      providers: ["mangaupdates"],
+      limit,
+      showMatureContent: prefs.showMatureContent,
+      showExplicitContent: prefs.showExplicitContent,
+      showPornographicContent: prefs.showPornographicContent,
+    });
+
+    // Convert scraper API results to MangaSummary format
+    const results = scraperResults.map(scraperSearchResultToSummary);
 
     return NextResponse.json(
       {
@@ -42,20 +57,11 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error) {
-    if (error instanceof MangaDexAPIError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        {
-          status: error.status,
-        },
-      );
-    }
+    console.error("[API] Search error:", error);
 
     return NextResponse.json(
       {
-        error: "Unexpected error while reaching MangaDex.",
+        error: "Unexpected error while searching manga.",
       },
       {
         status: 500,

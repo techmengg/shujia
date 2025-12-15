@@ -2,14 +2,16 @@ import { MangaCarousel } from "@/components/manga/manga-carousel";
 import { RecentlyUpdatedSection } from "@/components/manga/recently-updated-section";
 import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
 import { FollowedSection } from "@/components/home/followed-section";
+import { TrendingCarousel } from "@/components/home/trending-carousel";
 import {
   getDemographicHighlights,
   getPopularNewTitles,
   getRecentlyUpdatedManga,
   getRecentPopularByOriginalLanguage,
-} from "@/lib/mangadex/service-cached";
-import type { MangaSummary } from "@/lib/mangadex/types";
+} from "@/lib/manga-service";
+import type { MangaSummary } from "@/lib/mangaupdates/types";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getUserAdultContentPreferences } from "@/lib/user-preferences";
 import { prisma } from "@/lib/prisma";
 
 // Home page has auth-dependent content, so force dynamic
@@ -30,24 +32,16 @@ export default async function Home() {
 
       const parsed = new URL(url);
       const isUploads =
-        parsed.hostname === "uploads.mangadex.org" ||
-        parsed.hostname === "uploads-cdn.mangadex.org" ||
-        parsed.hostname === "mangadex.org";
+        parsed.hostname.includes("mangaupdates.com");
 
       if (!isUploads) {
         // For any other host, leave as-is.
         return url;
       }
 
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      const fileSegment = segments[segments.length - 1] ?? "";
-      // Strip sized suffix if present: .256.jpg or .512.jpg
-      const originalFile = fileSegment.replace(/\.256\.jpg$|\.512\.jpg$/i, "");
-
+      // MangaUpdates provides full image URLs, just proxy them
       const params = new URLSearchParams({
-        mangaId,
-        file: originalFile,
-        size: "256",
+        url: url,
       });
 
       return `/api/images/cover?${params.toString()}`;
@@ -65,30 +59,69 @@ export default async function Home() {
   }
 
   const userPromise = getCurrentUser();
+  
+  // Get user's 3-tier adult content preferences
+  const prefs = await getUserAdultContentPreferences();
 
+  // Smart Mix: 80% Korean action/adventure/romance, 10% Japanese, 10% Chinese
   const trendsPromise = Promise.all([
-    safe(getRecentPopularByOriginalLanguage("ja", 50), []),
-    safe(getRecentPopularByOriginalLanguage("ko", 50), []),
-    safe(getRecentPopularByOriginalLanguage("zh", 50), []),
-    safe(getPopularNewTitles(50), []),
-    safe(getDemographicHighlights("shounen", 50), []),
-    safe(getDemographicHighlights("seinen", 50), []),
-    safe(getDemographicHighlights("shoujo", 50), []),
-    safe(getDemographicHighlights("josei", 50), []),
-    safe(getRecentlyUpdatedManga(59), []),
+    safe(getRecentPopularByOriginalLanguage("ja", 10, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
+    safe(getRecentPopularByOriginalLanguage("ko", 80, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
+    safe(getRecentPopularByOriginalLanguage("zh", 10, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
+    safe(getPopularNewTitles(50, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
+    safe(getDemographicHighlights("Manga", 50, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
+    safe(getDemographicHighlights("Manhwa", 50, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
+    safe(getDemographicHighlights("Manhua", 50, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
+    safe(getDemographicHighlights("Novel", 50, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
+    safe(getRecentlyUpdatedManga(59, 0, prefs.showMatureContent, prefs.showExplicitContent, prefs.showPornographicContent), []),
   ]);
 
   const [
-    trendingManga,
-    trendingManhwa,
-    trendingManhua,
+    trendingMangaRaw,
+    trendingManhwaRaw,
+    trendingManhuaRaw,
     popularNewTitles,
-    shounenHighlights,
-    seinenHighlights,
-    shoujoHighlights,
-    joseiHighlights,
+    mangaHighlights,
+    manhwaHighlights,
+    manhuaHighlights,
+    novelHighlights,
     recentUpdates,
   ] = await trendsPromise;
+
+  // Pre-process trending data with proxied cover URLs
+  const trendingManga = trendingMangaRaw.slice(0, 5).map(item => ({
+    ...item,
+    coverImage: toProxyCoverUrl(item.id, item.coverImage),
+  }));
+  
+  // Filter Korean content for action/adventure/romance genres (Smart Mix priority)
+  const trendingManhwa = trendingManhwaRaw
+    .filter(item => {
+      const tags = (item.tags || []).map((tag: string) => tag.toLowerCase());
+      return tags.some((tag: string) => 
+        tag.includes('action') || 
+        tag.includes('adventure') || 
+        tag.includes('romance') ||
+        tag.includes('fantasy') ||
+        tag.includes('drama')
+      );
+    })
+    .map(item => ({
+      ...item,
+      coverImage: toProxyCoverUrl(item.id, item.coverImage),
+    }));
+  
+  const trendingManhua = trendingManhuaRaw.slice(0, 5).map(item => ({
+    ...item,
+    coverImage: toProxyCoverUrl(item.id, item.coverImage),
+  }));
+
+  // Combine all trending data: 80% Korean (action/adventure/romance), 20% others
+  const allTrending = [
+    ...trendingManhwa,
+    ...trendingManga,
+    ...trendingManhua,
+  ].sort(() => Math.random() - 0.5); // Light shuffle for variety
 
   const user = await userPromise;
 
@@ -139,44 +172,26 @@ export default async function Home() {
 
   const followedItems = user ? followedSummaries : placeholderFollowedSummaries;
 
-  const languageTabs = [
-    {
-      id: "kr",
-      label: "Manhwa (KR)",
-      items: trendingManhwa,
-    },
-    {
-      id: "jp",
-      label: "Manga (JP)",
-      items: trendingManga,
-    },
-    {
-      id: "cn",
-      label: "Manhua (CN)",
-      items: trendingManhua,
-    },
-  ].filter((tab) => tab.items.length > 0);
-
   const demographicTabs = [
     {
-      id: "shounen",
-      label: "Shounen",
-      items: shounenHighlights,
+      id: "manga",
+      label: "Manga",
+      items: mangaHighlights,
     },
     {
-      id: "seinen",
-      label: "Seinen",
-      items: seinenHighlights,
+      id: "manhwa",
+      label: "Manhwa",
+      items: manhwaHighlights,
     },
     {
-      id: "shoujo",
-      label: "Shoujo",
-      items: shoujoHighlights,
+      id: "manhua",
+      label: "Manhua",
+      items: manhuaHighlights,
     },
     {
-      id: "josei",
-      label: "Josei",
-      items: joseiHighlights,
+      id: "novel",
+      label: "Novel",
+      items: novelHighlights,
     },
   ].filter((tab) => tab.items.length > 0);
 
@@ -186,11 +201,14 @@ export default async function Home() {
 
       <FollowedSection followedItems={followedItems} />
 
-      {languageTabs.length ? (
-        <section className="mt-10 space-y-4">
-          <TabbedCarousel heading="Trending" tabs={languageTabs} />
+      {allTrending.length > 0 && (
+        <section className="mt-10">
+          <TrendingCarousel
+            initialData={allTrending}
+            userPrefs={prefs}
+          />
         </section>
-      ) : null}
+      )}
 
       {popularNewTitles.length ? (
         <section className="mt-10 space-y-4">

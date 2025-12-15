@@ -17,17 +17,18 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
     sections: ["profile"],
   },
   {
-    slug: "account",
-    label: "Account",
-    description: "Email, password, and sign-out controls.",
-    sections: ["account"],
-  },
-  {
     slug: "appearance",
     label: "Appearance",
     description: "Choose between light or dark themes.",
     sections: ["appearance"],
   },
+  {
+    slug: "account",
+    label: "Account",
+    description: "Email, password, and sign-out controls.",
+    sections: ["account"],
+  },
+
   {
     slug: "security",
     label: "Security",

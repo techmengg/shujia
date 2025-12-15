@@ -539,7 +539,7 @@ export function ReadingListClient({
         return;
       }
 
-      // Deduplicate by title; MAL XML does not contain MangaDex IDs
+      // Deduplicate by title; MAL XML does not contain MangaUpdates IDs
       const uniqueItems: (NormalizedImportItem & { altTitles?: string[] })[] = [];
       const seen = new Set<string>();
       for (const item of normalized) {
@@ -735,7 +735,7 @@ export function ReadingListClient({
     const header = splitLine(lines[0]).map((h) => h.toLowerCase());
     const findIdx = (names: string[]) => names.map((n) => header.indexOf(n)).find((i) => i >= 0) ?? -1;
     const idx = {
-      mangaId: findIdx(["mangaid", "id", "manga_id", "mdid", "mangadexid", "manga dex id"]),
+      mangaId: findIdx(["mangaid", "id", "manga_id", "muid", "mangaupdatesid", "manga updates id"]),
       title: findIdx(["title", "name"]),
       url: findIdx(["url", "link"]),
       rating: findIdx(["rating", "score", "my_score", "rate", "stars"]),
@@ -990,7 +990,7 @@ export function ReadingListClient({
               const retryDelay = parseRetryAfterMs(resp.headers.get("retry-after"), waitMs);
               const retrySeconds = Math.max(1, Math.ceil(retryDelay / 1000));
               setImportStatus(
-                `Importing (${Math.min(processed + 1, total)}/${total}). MangaDex is rate limiting us, retrying in ${retrySeconds}s...`,
+                `Importing (${Math.min(processed + 1, total)}/${total}). MangaUpdates is rate limiting us, retrying in ${retrySeconds}s...`,
               );
               await sleep(retryDelay);
               waitMs = Math.min(

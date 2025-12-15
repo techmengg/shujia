@@ -36,6 +36,9 @@ export async function loadSettingsData(): Promise<SettingsPageData> {
       marketingEmails: true,
       productUpdates: true,
       weeklyDigestEmails: true,
+      showMatureContent: true,
+      showExplicitContent: true,
+      showPornographicContent: true,
       twoFactorEnabled: true,
     },
   });

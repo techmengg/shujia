@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { MangaDexAPIError, getMangaSummaryById } from "@/lib/mangadex/service";
+import { getMangaSummaryById } from "@/lib/manga-service";
 
 const BULK_LIMIT = 150;
 
@@ -17,7 +17,7 @@ const bulkSchema = z.object({
           progress: z.string().optional(),
           rating: z.number().min(0).max(10).optional(),
           notes: z.string().optional(),
-          // Optional metadata to skip MangaDex fetch when available
+          // Optional metadata to skip MangaUpdates fetch when available
           title: z.string().optional(),
           altTitles: z.array(z.string()).optional(),
           description: z.string().nullable().optional(),
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
       updated = toUpdate.length;
     }
 
-    // Create new entries; use provided metadata when available, otherwise fetch from MangaDex.
+    // Create new entries; use provided metadata when available, otherwise fetch from MangaUpdates.
     async function* idGenerator() {
       for (const id of toCreate) yield id;
     }
@@ -142,9 +142,9 @@ export async function POST(request: Request) {
               languages: provided.languages ?? [],
               tags: provided.tags ?? [],
               coverImage: provided.coverImage ?? null,
-              url: provided.url ?? `https://mangadex.org/title/${mangaId}`,
+              url: provided.url ?? `https://www.mangaupdates.com/series/${mangaId}`,
             };
-            // If critical fields like cover/title are missing, hydrate from MangaDex (cached)
+            // If critical fields like cover/title are missing, hydrate from MangaUpdates (cached)
             if (!base.coverImage || !base.title) {
               try {
                 const summary = await getMangaSummaryById(mangaId);
@@ -219,12 +219,9 @@ export async function POST(request: Request) {
           }
           added += 1;
         } catch (error) {
-          if (error instanceof MangaDexAPIError && error.status === 404) {
-            skipped += 1;
-          } else {
-            // soft-skip on transient failures
-            skipped += 1;
-          }
+          // Soft-skip on any failures (network, database, etc.)
+          console.error(`[BulkImport] Error processing mangaId ${mangaId}:`, error);
+          skipped += 1;
         }
       }
     }

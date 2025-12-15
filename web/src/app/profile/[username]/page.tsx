@@ -56,9 +56,7 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
       }
       const parsed = new URL(url);
       const isUploads =
-        parsed.hostname === "uploads.mangadex.org" ||
-        parsed.hostname === "uploads-cdn.mangadex.org" ||
-        parsed.hostname === "mangadex.org";
+        parsed.hostname.includes("mangaupdates.com");
       if (!isUploads) {
         return url;
       }

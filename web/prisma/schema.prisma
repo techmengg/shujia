@@ -15,11 +15,15 @@ model User {
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
   avatarUrl              String?
+  profileBanner          String?
   bio                    String?
   timezone               String               @default("UTC")
   marketingEmails        Boolean              @default(true)
   productUpdates         Boolean              @default(true)
   weeklyDigestEmails     Boolean              @default(true)
+  showMatureContent      Boolean              @default(false)
+  showExplicitContent    Boolean              @default(false)
+  showPornographicContent Boolean             @default(false)
   username               String               @unique
   googleId               String?              @unique
   twoFactorEnabled       Boolean              @default(false)

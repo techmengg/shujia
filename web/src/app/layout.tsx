@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     template: "%s | shujia.dev",
   },
   description:
-    "Track manga, manhwa, and manhua releases powered by the MangaDex API.",
+    "Track manga, manhwa, and manhua releases powered by the MangaUpdates API.",
   metadataBase: new URL("https://shujia.dev"),
   openGraph: {
     title: "shujia.dev",

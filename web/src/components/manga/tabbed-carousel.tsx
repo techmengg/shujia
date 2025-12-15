@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary } from "@/lib/mangaupdates/types";
 
 import { MangaCarousel } from "./manga-carousel";
 

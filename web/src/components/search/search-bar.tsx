@@ -11,7 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary } from "@/lib/mangaupdates/types";
 import { useAuth } from "@/components/auth/auth-provider";
 
 const MIN_QUERY_LENGTH = 1;

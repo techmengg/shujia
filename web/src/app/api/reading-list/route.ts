@@ -5,7 +5,7 @@ import type { ReadingListEntry } from "@prisma/client";
 import type { ReadingListItem } from "@/data/reading-list";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { MangaDexAPIError, getMangaSummaryById } from "@/lib/mangadex/service";
+import { getMangaSummaryById } from "@/lib/manga-service";
 
 const addToReadingListSchema = z
   .object({
@@ -154,76 +154,66 @@ export async function POST(request: Request) {
 
     const { mangaId, progress, rating, notes } = parsed.data;
 
-    try {
-      const summary = await getMangaSummaryById(mangaId);
+    // Fetch manga metadata from our scraper API
+    const summary = await getMangaSummaryById(mangaId);
 
-      if (!summary) {
-        return NextResponse.json(
-          { message: "Could not find that series on MangaDex." },
-          { status: 404 },
-        );
-      }
+    if (!summary) {
+      return NextResponse.json(
+        { message: "Could not find that series." },
+        { status: 404 },
+      );
+    }
 
-      const progressValue = normalizeOptionalText(progress);
-      const notesValue = normalizeOptionalText(notes);
-      const ratingValue =
-        typeof rating === "number" ? Number.parseFloat(rating.toFixed(2)) : null;
+    const progressValue = normalizeOptionalText(progress);
+    const notesValue = normalizeOptionalText(notes);
+    const ratingValue =
+      typeof rating === "number" ? Number.parseFloat(rating.toFixed(2)) : null;
 
-      const baseMetadata = {
-        title: summary.title,
-        altTitles: summary.altTitles,
-        description: summary.description ?? null,
-        status: summary.status ?? null,
-        year: summary.year ?? null,
-        contentRating: summary.contentRating ?? null,
-        demographic: summary.demographic ?? null,
-        latestChapter: summary.latestChapter ?? null,
-        languages: summary.languages,
-        tags: summary.tags,
-        coverImage: summary.coverImage ?? null,
-        url: summary.url,
-      };
+    const baseMetadata = {
+      title: summary.title,
+      altTitles: summary.altTitles,
+      description: summary.description ?? null,
+      status: summary.status ?? null,
+      year: summary.year ?? null,
+      contentRating: summary.contentRating ?? null,
+      demographic: summary.demographic ?? null,
+      latestChapter: summary.latestChapter ?? null,
+      languages: summary.languages,
+      tags: summary.tags,
+      coverImage: summary.coverImage ?? null,
+      url: summary.url,
+    };
 
-      const entry = await prisma.readingListEntry.upsert({
-        where: {
-          userId_mangaId: {
-            userId: user.id,
-            mangaId: summary.id,
-          },
-        },
-        create: {
+    const entry = await prisma.readingListEntry.upsert({
+      where: {
+        userId_mangaId: {
           userId: user.id,
           mangaId: summary.id,
-          ...baseMetadata,
-          progress: progressValue,
-          rating: ratingValue,
-          notes: notesValue,
         },
-        update: {
-          ...baseMetadata,
-          ...(progress !== undefined ? { progress: progressValue } : {}),
-          ...(rating !== undefined ? { rating: ratingValue } : {}),
-          ...(notes !== undefined ? { notes: notesValue } : {}),
-        },
-      });
+      },
+      create: {
+        userId: user.id,
+        mangaId: summary.id,
+        ...baseMetadata,
+        progress: progressValue,
+        rating: ratingValue,
+        notes: notesValue,
+      },
+      update: {
+        ...baseMetadata,
+        ...(progress !== undefined ? { progress: progressValue } : {}),
+        ...(rating !== undefined ? { rating: ratingValue } : {}),
+        ...(notes !== undefined ? { notes: notesValue } : {}),
+      },
+    });
 
-      return NextResponse.json(
-        {
-          data: serializeEntry(entry),
-          message: "Saved to your reading list.",
-        },
-        { status: 200 },
-      );
-    } catch (error) {
-      if (error instanceof MangaDexAPIError && error.status === 404) {
-        return NextResponse.json(
-          { message: "Could not find that series on MangaDex." },
-          { status: 404 },
-        );
-      }
-
-      throw error;
-    }
+    return NextResponse.json(
+      {
+        data: serializeEntry(entry),
+        message: "Saved to your reading list.",
+      },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Failed to update reading list", error);
     return NextResponse.json(

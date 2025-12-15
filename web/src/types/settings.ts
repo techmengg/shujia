@@ -11,6 +11,9 @@ export type SettingsUser = {
   marketingEmails: boolean;
   productUpdates: boolean;
   weeklyDigestEmails: boolean;
+  showMatureContent: boolean;
+  showExplicitContent: boolean;
+  showPornographicContent: boolean;
   twoFactorEnabled: boolean;
   theme: ThemeName;
 };

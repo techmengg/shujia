@@ -1,6 +1,6 @@
 "use client";
 
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary } from "@/lib/mangaupdates/types";
 import { Carousel } from "@/components/ui/carousel";
 import { MangaCard } from "./manga-card";
 

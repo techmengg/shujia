@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { MangaDexAPIError, searchManga } from "@/lib/mangadex/service";
+import { searchManga } from "@/lib/manga-service";
 
 // Simple in-memory cache per server instance
 type CacheEntry = { id: string | null; ts: number };
@@ -31,7 +31,8 @@ function normalizeTitle(value: string) {
 
 function extractIdFromUrl(url?: string | null): string | null {
   if (!url) return null;
-  const match = String(url).match(/title\/([0-9a-f-]{6,})/i);
+  // MangaUpdates uses numeric IDs in URLs like: /series/1234567890/
+  const match = String(url).match(/series[\/.](\d+)/i);
   return match?.[1] ?? null;
 }
 
@@ -93,9 +94,8 @@ export async function POST(request: Request) {
             break;
           }
         } catch (error) {
-          if (error instanceof MangaDexAPIError && error.status === 404) {
-            titleCache.set(key, { id: null, ts: Date.now() });
-          }
+          console.error(`[Resolve] Error searching for "${candidate}":`, error);
+          titleCache.set(key, { id: null, ts: Date.now() });
           // continue to next candidate
         }
       }

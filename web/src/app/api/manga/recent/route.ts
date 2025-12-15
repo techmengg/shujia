@@ -3,11 +3,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from "next/server";
-
-import {
-  MangaDexAPIError,
-  getRecentlyUpdatedManga,
-} from "@/lib/mangadex/service";
+import { getRecentlyUpdatedManga } from "@/lib/manga-service";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -48,20 +44,11 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error) {
-    if (error instanceof MangaDexAPIError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        {
-          status: error.status,
-        },
-      );
-    }
+    console.error("[API] Recent manga error:", error);
 
     return NextResponse.json(
       {
-        error: "Unexpected error while reaching MangaDex.",
+        error: "Unexpected error while fetching recent manga.",
       },
       {
         status: 500,

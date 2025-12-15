@@ -19,6 +19,9 @@ export interface SettingsUser {
   marketingEmails: boolean;
   productUpdates: boolean;
   weeklyDigestEmails: boolean;
+  showMatureContent: boolean;
+  showExplicitContent: boolean;
+  showPornographicContent: boolean;
   twoFactorEnabled: boolean;
   theme: ThemeName;
 }
@@ -240,6 +243,11 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
   const [showRecoveryForm, setShowRecoveryForm] = useState(false);
   const [showEmailEditor, setShowEmailEditor] = useState(false);
   const [showPasswordEditor, setShowPasswordEditor] = useState(false);
+  const [matureContentEnabled, setMatureContentEnabled] = useState(user.showMatureContent);
+  const [explicitContentEnabled, setExplicitContentEnabled] = useState(user.showExplicitContent);
+  const [pornographicContentEnabled, setPornographicContentEnabled] = useState(user.showPornographicContent);
+  const [contentStatus, setContentStatus] = useState<Status>("idle");
+  const [contentMessage, setContentMessage] = useState<string | null>(null);
   const [appearanceForm, setAppearanceForm] = useState<AppearanceFormState>({
     theme: user.theme,
   });
@@ -451,6 +459,84 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       setPasswordStatus("error");
       setPasswordMessage("Unable to update password right now.");
     }
+  };
+
+  // Shared update function for content preferences
+  async function updateContentPreferences(
+    showMatureContent: boolean, 
+    showExplicitContent: boolean, 
+    showPornographicContent: boolean
+  ) {
+    setContentStatus("saving");
+    setContentMessage(null);
+
+    try {
+      const response = await fetch("/api/settings/content-preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          showMatureContent,
+          showExplicitContent,
+          showPornographicContent,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update");
+      }
+
+      setContentStatus("success");
+      setContentMessage("Content preferences updated");
+      setTimeout(() => {
+        setContentMessage(null);
+        setContentStatus("idle");
+      }, 3000);
+      
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      // Revert on error
+      setMatureContentEnabled(user.showMatureContent);
+      setExplicitContentEnabled(user.showExplicitContent);
+      setPornographicContentEnabled(user.showPornographicContent);
+      setContentStatus("error");
+      setContentMessage("Failed to update");
+    }
+  }
+
+  const handleMatureContentToggle = async (event: ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.checked;
+    
+    // If turning OFF Level 1, turn off ALL levels
+    if (!newValue) {
+      setMatureContentEnabled(false);
+      setExplicitContentEnabled(false);
+      setPornographicContentEnabled(false);
+      await updateContentPreferences(false, false, false);
+    } else {
+      setMatureContentEnabled(true);
+      await updateContentPreferences(true, explicitContentEnabled, pornographicContentEnabled);
+    }
+  };
+
+  const handleExplicitContentToggle = async (event: ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.checked;
+    
+    // If turning OFF Level 2, also turn off Level 3
+    if (!newValue) {
+      setExplicitContentEnabled(false);
+      setPornographicContentEnabled(false);
+      await updateContentPreferences(matureContentEnabled, false, false);
+    } else {
+      setExplicitContentEnabled(true);
+      await updateContentPreferences(matureContentEnabled, true, pornographicContentEnabled);
+    }
+  };
+
+  const handlePornographicContentToggle = async (event: ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.checked;
+    setPornographicContentEnabled(newValue);
+    await updateContentPreferences(matureContentEnabled, explicitContentEnabled, newValue);
   };
 
   const startTwoFactorSetup = async () => {
@@ -1068,6 +1154,103 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
                 </form>
               ) : null}
             </div>
+        </div>
+
+        {/* Content Filtering - 3 Tier System */}
+        <div className="space-y-6 border-t border-white/10 pt-6">
+          <div className="space-y-2">
+            <p className="text-[0.85rem] font-semibold text-white sm:text-sm">
+              Content Filtering
+            </p>
+            <p className="text-[0.8rem] text-white/60 sm:text-sm">
+              Control the level of mature content displayed. Each level is hierarchical - enabling a higher level requires enabling the previous levels.
+            </p>
+          </div>
+          
+          {/* Level 1: Mature Content */}
+          <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">Level 1: Mature Content</p>
+                <p className="text-xs text-white/60 mt-1">
+                  Ecchi, romantic tension, mild nudity, suggestive situations
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-4">
+                <input 
+                  type="checkbox"
+                  checked={matureContentEnabled}
+                  onChange={handleMatureContentToggle}
+                  className="sr-only peer"
+                  disabled={contentStatus === "saving"}
+                />
+                <div className="w-11 h-6 bg-white/20 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent peer-disabled:opacity-50"></div>
+              </label>
+            </div>
+            <p className="text-xs text-white/50">
+              📝 Examples: romantic tension, partial nudity, adult themes
+            </p>
+          </div>
+          
+          {/* Level 2: Explicit Content */}
+          <div className={`space-y-3 rounded-lg border ${!matureContentEnabled ? 'border-white/5 bg-white/[0.02] opacity-60' : 'border-white/10 bg-white/5'} p-4 transition`}>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${!matureContentEnabled ? 'text-white/40' : 'text-white'}`}>
+                  Level 2: Explicit Sexual Content
+                </p>
+                <p className={`text-xs ${!matureContentEnabled ? 'text-white/30' : 'text-white/60'} mt-1`}>
+                  Frequent nudity, explicit intimacy scenes (18+)
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-4">
+                <input 
+                  type="checkbox"
+                  checked={explicitContentEnabled}
+                  onChange={handleExplicitContentToggle}
+                  className="sr-only peer"
+                  disabled={!matureContentEnabled || contentStatus === "saving"}
+                />
+                <div className="w-11 h-6 bg-white/20 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent peer-disabled:opacity-50"></div>
+              </label>
+            </div>
+            <p className={`text-xs ${!matureContentEnabled ? 'text-white/30' : 'text-white/50'}`}>
+              ⚠️ You must be 18+ to enable this. Contains explicit sexual content.
+            </p>
+          </div>
+          
+          {/* Level 3: Pornographic */}
+          <div className={`space-y-3 rounded-lg border ${!explicitContentEnabled ? 'border-white/5 bg-white/[0.02] opacity-60' : 'border-white/10 bg-white/5'} p-4 transition`}>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${!explicitContentEnabled ? 'text-white/40' : 'text-white'}`}>
+                  Level 3: Pornographic Content
+                </p>
+                <p className={`text-xs ${!explicitContentEnabled ? 'text-white/30' : 'text-white/60'} mt-1`}>
+                  Hentai, doujinshi - graphic sexual material (18+)
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer ml-4">
+                <input 
+                  type="checkbox"
+                  checked={pornographicContentEnabled}
+                  onChange={handlePornographicContentToggle}
+                  className="sr-only peer"
+                  disabled={!explicitContentEnabled || contentStatus === "saving"}
+                />
+                <div className="w-11 h-6 bg-white/20 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent peer-disabled:opacity-50"></div>
+              </label>
+            </div>
+            <p className={`text-xs ${!explicitContentEnabled ? 'text-white/30' : 'text-white/50'}`}>
+              🔞 18+ ONLY. Explicit pornographic content.
+            </p>
+          </div>
+          
+          {contentMessage && (
+            <p className={`text-sm ${contentStatus === "success" ? "text-accent" : "text-red-400"}`}>
+              {contentMessage}
+            </p>
+          )}
         </div>
       </section>
       ) : null}
