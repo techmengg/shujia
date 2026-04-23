@@ -82,7 +82,7 @@ eventually, i want to expand shujia beyond manga into **anime, tv shows, and dra
 ### prerequisites
 
 * **node.js** ≥ 18
-* **npm** ≥ 9
+* **pnpm** ≥ 10 (pinned via `packageManager` field — enable with `corepack enable`)
 * **postgresql** (local or hosted)
 * mangadex api access (public) – optional comick base urls for experiments
 
@@ -91,7 +91,8 @@ eventually, i want to expand shujia beyond manga into **anime, tv shows, and dra
 ```bash
 git clone https://github.com/<your-username>/shujia.git
 cd shujia/web
-npm install
+corepack enable
+pnpm install
 cp .env.example .env
 ```
 
@@ -131,25 +132,25 @@ for google sign-in, create an oauth client in google cloud console. add `${APP_B
 prisma handles schema evolution.
 
 ```bash
-npx prisma migrate dev --name <migration_name>
-npx prisma generate
+pnpm dlx prisma migrate dev --name <migration_name>
+pnpm dlx prisma generate
 ```
 
-commit the generated sql migrations, then run `npx prisma migrate deploy` in production.
+commit the generated sql migrations, then run `pnpm dlx prisma migrate deploy` in production.
 
 ---
 
 ## development workflow
 
 ```bash
-npm run dev        # start dev server (turbopack)
-npm run build      # build for production
-npm run start      # run production build
-npm run lint       # eslint (project-wide)
-npm run typecheck  # typescript validation
+pnpm dev        # start dev server (turbopack)
+pnpm build      # build for production
+pnpm start      # run production build
+pnpm lint       # eslint (project-wide)
+pnpm typecheck  # typescript validation
 ```
 
-use `npx prisma studio` to browse/update data locally. avatar uploads fall back to `public/uploads/avatars` when the blob token is missing, so you can test profile updates without cloud config.
+use `pnpm dlx prisma studio` to browse/update data locally. avatar uploads fall back to `public/uploads/avatars` when the blob token is missing, so you can test profile updates without cloud config.
 
 ---
 
@@ -168,14 +169,14 @@ no automated tests yet — i manually run through registration, login (password 
 3. configure the build command:
 
    ```bash
-   npx prisma migrate deploy && npx prisma generate && next build
+   pnpm exec prisma generate && pnpm exec prisma migrate deploy && pnpm exec next build
    ```
 4. make sure vercel blob + database connections are available
 5. deploy, then add the oauth redirect in google cloud pointing at the deployed domain
 
 ### custom hosting
 
-docker, fly.io, or your own node box work too. run `npx prisma migrate deploy` before `npm run start`, keep `APP_BASE_URL` accurate, and ensure the blob token or local uploads directory is writable.
+docker, fly.io, or your own node box work too. run `pnpm dlx prisma migrate deploy` before `pnpm start`, keep `APP_BASE_URL` accurate, and ensure the blob token or local uploads directory is writable.
 
 ---
 
