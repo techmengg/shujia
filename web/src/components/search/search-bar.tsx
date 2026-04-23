@@ -11,7 +11,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary } from "@/lib/manga/types";
+import { providerShortLabel } from "@/lib/manga/provider";
 import { useAuth } from "@/components/auth/auth-provider";
 
 const MIN_QUERY_LENGTH = 1;
@@ -342,14 +343,20 @@ export function SearchBar() {
                       const isErrorState = actionState.status === "error";
                       const isSelected = index === selectedIndex;
 
+                      const isMangaUpdates = manga.provider === "mangaupdates";
+
                       const buttonLabel = (() => {
+                        if (isMangaUpdates) return "·";
                         if (!isAuthenticated) return "Login";
                         if (isLoadingAction) return "...";
                         if (isAdded) return "✓";
                         return "+";
                       })();
 
-                      const disableButton = isLoadingAction || (isAdded && isAuthenticated);
+                      const disableButton =
+                        isMangaUpdates ||
+                        isLoadingAction ||
+                        (isAdded && isAuthenticated);
 
                       return (
                         <div key={manga.id} className="space-y-1">
@@ -385,9 +392,21 @@ export function SearchBar() {
 
                               {/* Info */}
                               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                                <p className="line-clamp-2 text-sm font-semibold leading-snug text-white">
-                                  {manga.title}
-                                </p>
+                                <div className="flex items-start gap-2">
+                                  <p className="line-clamp-2 flex-1 text-sm font-semibold leading-snug text-white">
+                                    {manga.title}
+                                  </p>
+                                  <span
+                                    className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[0.55rem] font-bold uppercase tracking-wider ${
+                                      isMangaUpdates
+                                        ? "border-violet-400/40 bg-violet-400/10 text-violet-200"
+                                        : "border-sky-400/40 bg-sky-400/10 text-sky-200"
+                                    }`}
+                                    title={isMangaUpdates ? "MangaUpdates" : "MangaDex"}
+                                  >
+                                    {providerShortLabel(manga.provider)}
+                                  </span>
+                                </div>
                                 {manga.altTitles.length > 0 && (
                                   <p className="line-clamp-1 text-xs text-white/50">
                                     {manga.altTitles[0]}
@@ -411,7 +430,13 @@ export function SearchBar() {
                                   ? "cursor-not-allowed border-white/10 text-white/30"
                                   : "border-accent/50 text-accent hover:border-accent hover:bg-accent/20 hover:shadow-lg hover:shadow-accent/30"
                               }`}
-                              title={isAuthenticated ? "Add to reading list" : "Login to add"}
+                              title={
+                                isMangaUpdates
+                                  ? "MangaUpdates entries can't be tracked yet"
+                                  : isAuthenticated
+                                    ? "Add to reading list"
+                                    : "Login to add"
+                              }
                             >
                               {buttonLabel}
                             </button>

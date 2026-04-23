@@ -3,6 +3,11 @@ import * as mangaupdates from "@/lib/mangaupdates/service-cached";
 import type { MangaDetails, MangaSummary, Provider } from "./types";
 
 export type { MangaDetails, MangaSummary, Provider } from "./types";
+export {
+  inferProviderFromId,
+  providerLabel,
+  providerShortLabel,
+} from "./provider";
 
 export const ALL_PROVIDERS: Provider[] = ["mangadex", "mangaupdates"];
 

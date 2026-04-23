@@ -6,7 +6,12 @@ import { AddToReadingListButton } from "@/components/manga/add-to-reading-list-b
 import { MangaActionBar } from "@/components/manga/manga-action-bar";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { getMangaDetails, getMangaSummaryById } from "@/lib/mangadex/service";
+import {
+  getMangaDetails,
+  getMangaSummaryById,
+  inferProviderFromId,
+  providerLabel,
+} from "@/lib/manga";
 
 interface MangaPageProps {
   params: Promise<{
@@ -70,7 +75,8 @@ export async function generateMetadata({
 }: MangaPageProps): Promise<Metadata> {
   const { id } = await params;
   const mangaId = decodeURIComponent(id);
-  const summary = await getMangaSummaryById(mangaId);
+  const provider = inferProviderFromId(mangaId);
+  const summary = await getMangaSummaryById(mangaId, provider);
 
   if (!summary) {
     return {
@@ -98,10 +104,12 @@ export async function generateMetadata({
 export default async function MangaPage({ params }: MangaPageProps) {
   const { id } = await params;
   const mangaId = decodeURIComponent(id);
+  const provider = inferProviderFromId(mangaId);
+  const isMangaUpdates = provider === "mangaupdates";
 
   const [user, manga] = await Promise.all([
     getCurrentUser(),
-    getMangaDetails(mangaId),
+    getMangaDetails(mangaId, provider),
   ]);
 
   if (!manga) {
@@ -120,7 +128,7 @@ export default async function MangaPage({ params }: MangaPageProps) {
         where: {
           userId_provider_mangaId: {
             userId: user.id,
-            provider: "mangadex",
+            provider,
             mangaId,
           },
         },
@@ -250,21 +258,30 @@ export default async function MangaPage({ params }: MangaPageProps) {
               </div>
 
             <div className="flex flex-col gap-2">
-              <AddToReadingListButton
-                mangaId={manga.id}
-                isAuthenticated={Boolean(user)}
-                initiallyAdded={Boolean(existingEntry)}
-                initialEntry={
-                  existingEntry
-                    ? {
-                        progress: existingEntry.progress,
-                        rating: existingEntry.rating,
-                        notes: existingEntry.notes,
-                      }
-                    : null
-                }
-                className="w-full"
-              />
+              {isMangaUpdates ? (
+                <div
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-xs text-white/60"
+                  title="Tracking MangaUpdates entries is coming soon"
+                >
+                  Tracking for MangaUpdates entries is coming soon.
+                </div>
+              ) : (
+                <AddToReadingListButton
+                  mangaId={manga.id}
+                  isAuthenticated={Boolean(user)}
+                  initiallyAdded={Boolean(existingEntry)}
+                  initialEntry={
+                    existingEntry
+                      ? {
+                          progress: existingEntry.progress,
+                          rating: existingEntry.rating,
+                          notes: existingEntry.notes,
+                        }
+                      : null
+                  }
+                  className="w-full"
+                />
+              )}
 
               <MangaActionBar title={manga.title} shareUrl={shareUrl} />
             </div>
@@ -278,18 +295,24 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   <p className="text-xs uppercase tracking-[0.28em] text-white/45">Authors</p>
                   <div className="mt-1 flex flex-col gap-1">
                     {authors.length ? (
-                      authors.map((author) => (
-                        <a
-                          key={author.id}
-                          href={buildCreatorUrl(author.id, "author")}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-accent transition hover:text-white"
-                        >
-                          {author.name}
-                          <span aria-hidden="true">&rarr;</span>
-                        </a>
-                      ))
+                      authors.map((author) =>
+                        isMangaUpdates ? (
+                          <span key={author.id} className="text-sm text-white/85">
+                            {author.name}
+                          </span>
+                        ) : (
+                          <a
+                            key={author.id}
+                            href={buildCreatorUrl(author.id, "author")}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-accent transition hover:text-white"
+                          >
+                            {author.name}
+                            <span aria-hidden="true">&rarr;</span>
+                          </a>
+                        ),
+                      )
                     ) : (
                       <p className="text-sm text-white/60">Unknown</p>
                     )}
@@ -299,18 +322,24 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   <p className="text-xs uppercase tracking-[0.28em] text-white/45">Artists</p>
                   <div className="mt-1 flex flex-col gap-1">
                     {artists.length ? (
-                      artists.map((artist) => (
-                        <a
-                          key={artist.id}
-                          href={buildCreatorUrl(artist.id, "artist")}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-accent transition hover:text-white"
-                        >
-                          {artist.name}
-                          <span aria-hidden="true">&rarr;</span>
-                        </a>
-                      ))
+                      artists.map((artist) =>
+                        isMangaUpdates ? (
+                          <span key={artist.id} className="text-sm text-white/85">
+                            {artist.name}
+                          </span>
+                        ) : (
+                          <a
+                            key={artist.id}
+                            href={buildCreatorUrl(artist.id, "artist")}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-accent transition hover:text-white"
+                          >
+                            {artist.name}
+                            <span aria-hidden="true">&rarr;</span>
+                          </a>
+                        ),
+                      )
                     ) : (
                       <p className="text-sm text-white/60">Unknown</p>
                     )}
@@ -383,17 +412,26 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   Tags
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {tags.map((tag) => (
-                    <a
-                      key={tag}
-                      href={`https://mangadex.org/titles?title=${encodeURIComponent(tag)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center rounded-md border border-white/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/40 hover:text-white"
-                    >
-                      {tag}
-                    </a>
-                  ))}
+                  {tags.map((tag) =>
+                    isMangaUpdates ? (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center rounded-md border border-white/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/70"
+                      >
+                        {tag}
+                      </span>
+                    ) : (
+                      <a
+                        key={tag}
+                        href={`https://mangadex.org/titles?title=${encodeURIComponent(tag)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-md border border-white/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/40 hover:text-white"
+                      >
+                        {tag}
+                      </a>
+                    ),
+                  )}
                 </div>
               </section>
             ) : null}
@@ -435,6 +473,19 @@ export default async function MangaPage({ params }: MangaPageProps) {
                 </div>
               </section>
             ) : null}
+
+            <p className="border-t border-white/10 pt-5 text-xs text-white/40 sm:pt-6">
+              Metadata provided by{" "}
+              <a
+                href={manga.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-white/60 underline-offset-2 transition hover:text-white hover:underline"
+              >
+                {providerLabel(provider)}
+              </a>
+              .
+            </p>
           </div>
         </section>
       </main>
