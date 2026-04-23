@@ -9,7 +9,7 @@ import type {
   MangaContributor,
   MangaDetails,
   MangaSummary,
-} from "@/lib/mangadex/types";
+} from "@/lib/manga/types";
 
 const DEFAULT_LIMIT = 12;
 
@@ -76,6 +76,7 @@ function buildSummary(record: MangaUpdatesSeriesRecord): MangaSummary {
 
   return {
     id: String(record.series_id),
+    provider: "mangaupdates",
     title: record.title,
     altTitles,
     description: record.description ?? undefined,

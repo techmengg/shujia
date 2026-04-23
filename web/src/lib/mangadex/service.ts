@@ -79,6 +79,7 @@ function createMangaSummary(manga: MangaDexManga): MangaSummary {
 
   return {
     id,
+    provider: "mangadex",
     title:
       getPreferredLocaleText(attributes.title, ["en", "en-us", "en-gb"]) ??
       // search English across all alt titles first

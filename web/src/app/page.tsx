@@ -8,7 +8,7 @@ import {
   getRecentlyUpdatedManga,
   getRecentPopularByOriginalLanguage,
 } from "@/lib/mangadex/service-cached";
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary, Provider } from "@/lib/mangadex/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
@@ -104,6 +104,7 @@ export default async function Home() {
 
   const followedSummaries: MangaSummary[] = readingListEntries.map((entry) => ({
     id: entry.mangaId,
+    provider: entry.provider as Provider,
     title: entry.title,
     altTitles: entry.altTitles,
     description: entry.description ?? undefined,
@@ -122,6 +123,7 @@ export default async function Home() {
     { length: 8 },
     (_, index) => ({
       id: `placeholder-${index}`,
+      provider: "mangadex" as const,
       title: "Hidden series",
       altTitles: [],
       description: undefined,

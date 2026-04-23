@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import * as service from "./service";
-import type { MangaDetails, MangaSummary } from "@/lib/mangadex/types";
+import type { MangaDetails, MangaSummary } from "@/lib/manga/types";
 
 export const searchSeries = unstable_cache(
   async (query: string, limit?: number): Promise<MangaSummary[]> =>
@@ -24,4 +24,4 @@ export const getSeriesDetailsById = unstable_cache(
 );
 
 export { MangaUpdatesAPIError } from "./client";
-export type { MangaDetails, MangaSummary } from "@/lib/mangadex/types";
+export type { MangaDetails, MangaSummary } from "@/lib/manga/types";
