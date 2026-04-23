@@ -118,8 +118,9 @@ export default async function MangaPage({ params }: MangaPageProps) {
   const existingEntry = user
     ? await prisma.readingListEntry.findUnique({
         where: {
-          userId_mangaId: {
+          userId_provider_mangaId: {
             userId: user.id,
+            provider: "mangadex",
             mangaId,
           },
         },

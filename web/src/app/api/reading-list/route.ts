@@ -186,13 +186,15 @@ export async function POST(request: Request) {
 
       const entry = await prisma.readingListEntry.upsert({
         where: {
-          userId_mangaId: {
+          userId_provider_mangaId: {
             userId: user.id,
+            provider: "mangadex",
             mangaId: summary.id,
           },
         },
         create: {
           userId: user.id,
+          provider: "mangadex",
           mangaId: summary.id,
           ...baseMetadata,
           progress: progressValue,

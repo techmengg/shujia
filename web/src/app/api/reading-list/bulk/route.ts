@@ -76,9 +76,10 @@ export async function POST(request: Request) {
 
     const mangaIds = Array.from(seen.keys());
 
-    // Fetch existing entries to decide which require full metadata load
+    // Fetch existing entries to decide which require full metadata load.
+    // Scoped to provider='mangadex' because this bulk import is MangaDex-only.
     const existing = await prisma.readingListEntry.findMany({
-      where: { userId, mangaId: { in: mangaIds } },
+      where: { userId, provider: "mangadex", mangaId: { in: mangaIds } },
       select: { mangaId: true },
     });
     const existingIds = new Set(existing.map((e) => e.mangaId));
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
                 : null;
           if ("notes" in patch) data.notes = (patch.notes ?? null) as string | null;
           return prisma.readingListEntry.updateMany({
-            where: { userId, mangaId },
+            where: { userId, provider: "mangadex", mangaId },
             data,
           });
         })
@@ -170,9 +171,12 @@ export async function POST(request: Request) {
               }
             }
             await prisma.readingListEntry.upsert({
-              where: { userId_mangaId: { userId, mangaId } },
+              where: {
+                userId_provider_mangaId: { userId, provider: "mangadex", mangaId },
+              },
               create: {
                 userId,
+                provider: "mangadex",
                 mangaId,
                 ...base,
                 progress: (patch.progress ?? null) as string | null,
@@ -191,9 +195,16 @@ export async function POST(request: Request) {
               continue;
             }
             await prisma.readingListEntry.upsert({
-              where: { userId_mangaId: { userId, mangaId: summary.id } },
+              where: {
+                userId_provider_mangaId: {
+                  userId,
+                  provider: "mangadex",
+                  mangaId: summary.id,
+                },
+              },
               create: {
                 userId,
+                provider: "mangadex",
                 mangaId: summary.id,
                 title: summary.title,
                 altTitles: summary.altTitles,

@@ -66,6 +66,7 @@ model AuthAttempt {
 model ReadingListEntry {
   id            String   @id @default(cuid())
   userId        String
+  provider      String   @default("mangadex")
   mangaId       String
   title         String
   altTitles     String[]
@@ -86,7 +87,7 @@ model ReadingListEntry {
   updatedAt     DateTime @updatedAt
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, mangaId])
+  @@unique([userId, provider, mangaId])
   @@index([userId, updatedAt])
 }
 
