@@ -15,14 +15,14 @@ if ($dockerInstalled) {
     docker run --name shujia-dev-db `
       -e POSTGRES_PASSWORD=devpassword `
       -e POSTGRES_DB=shujia_dev `
-      -p 5432:5432 `
+      -p 5433:5432 `
       -d postgres:16
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ Database container created successfully!" -ForegroundColor Green
         Write-Host ""
         Write-Host "📝 Add this to your .env file:" -ForegroundColor Yellow
-        Write-Host 'DATABASE_URL="postgresql://postgres:devpassword@localhost:5432/shujia_dev?schema=public"' -ForegroundColor White
+        Write-Host 'DATABASE_URL="postgresql://postgres:devpassword@localhost:5433/shujia_dev?schema=public"' -ForegroundColor White
         Write-Host ""
         Write-Host "⏳ Waiting 5 seconds for database to start..." -ForegroundColor Yellow
         Start-Sleep -Seconds 5
@@ -59,6 +59,6 @@ if ($dockerInstalled) {
     Write-Host "  createdb shujia_dev" -ForegroundColor White
     Write-Host ""
     Write-Host "Then add this to your .env file:" -ForegroundColor Yellow
-    Write-Host '  DATABASE_URL="postgresql://postgres:yourpassword@localhost:5432/shujia_dev?schema=public"' -ForegroundColor White
+    Write-Host '  DATABASE_URL="postgresql://postgres:yourpassword@localhost:5433/shujia_dev?schema=public"' -ForegroundColor White
 }
 

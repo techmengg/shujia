@@ -15,14 +15,14 @@ if command -v docker &> /dev/null; then
     docker run --name shujia-dev-db \
       -e POSTGRES_PASSWORD=devpassword \
       -e POSTGRES_DB=shujia_dev \
-      -p 5432:5432 \
+      -p 5433:5432 \
       -d postgres:16
     
     if [ $? -eq 0 ]; then
         echo "✅ Database container created successfully!"
         echo ""
         echo "📝 Add this to your .env file:"
-        echo "DATABASE_URL=\"postgresql://postgres:devpassword@localhost:5432/shujia_dev?schema=public\""
+        echo "DATABASE_URL=\"postgresql://postgres:devpassword@localhost:5433/shujia_dev?schema=public\""
         echo ""
         echo "⏳ Waiting 5 seconds for database to start..."
         sleep 5
@@ -59,6 +59,6 @@ else
     echo "  createdb shujia_dev"
     echo ""
     echo "Then add this to your .env file:"
-    echo "  DATABASE_URL=\"postgresql://postgres:yourpassword@localhost:5432/shujia_dev?schema=public\""
+    echo "  DATABASE_URL=\"postgresql://postgres:yourpassword@localhost:5433/shujia_dev?schema=public\""
 fi
 
