@@ -258,30 +258,22 @@ export default async function MangaPage({ params }: MangaPageProps) {
               </div>
 
             <div className="flex flex-col gap-2">
-              {isMangaUpdates ? (
-                <div
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-center text-xs text-white/60"
-                  title="Tracking MangaUpdates entries is coming soon"
-                >
-                  Tracking for MangaUpdates entries is coming soon.
-                </div>
-              ) : (
-                <AddToReadingListButton
-                  mangaId={manga.id}
-                  isAuthenticated={Boolean(user)}
-                  initiallyAdded={Boolean(existingEntry)}
-                  initialEntry={
-                    existingEntry
-                      ? {
-                          progress: existingEntry.progress,
-                          rating: existingEntry.rating,
-                          notes: existingEntry.notes,
-                        }
-                      : null
-                  }
-                  className="w-full"
-                />
-              )}
+              <AddToReadingListButton
+                mangaId={manga.id}
+                provider={provider}
+                isAuthenticated={Boolean(user)}
+                initiallyAdded={Boolean(existingEntry)}
+                initialEntry={
+                  existingEntry
+                    ? {
+                        progress: existingEntry.progress,
+                        rating: existingEntry.rating,
+                        notes: existingEntry.notes,
+                      }
+                    : null
+                }
+                className="w-full"
+              />
 
               <MangaActionBar title={manga.title} shareUrl={shareUrl} />
             </div>

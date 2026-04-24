@@ -25,6 +25,7 @@ interface ReadingListFormValues {
 
 interface AddToReadingListButtonProps {
   mangaId: string;
+  provider: "mangadex" | "mangaupdates";
   isAuthenticated: boolean;
   className?: string;
   initiallyAdded?: boolean;
@@ -36,6 +37,7 @@ type DialogStatus = "idle" | "saving" | "removing";
 
 export function AddToReadingListButton({
   mangaId,
+  provider,
   isAuthenticated,
   className,
   initiallyAdded = false,
@@ -122,7 +124,7 @@ export function AddToReadingListButton({
     setDialogError(null);
 
     try {
-      const payload: Record<string, unknown> = { mangaId };
+      const payload: Record<string, unknown> = { mangaId, provider };
       if (trimmedProgress) {
         payload.progress = trimmedProgress;
       }
@@ -200,7 +202,7 @@ export function AddToReadingListButton({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ mangaId }),
+        body: JSON.stringify({ mangaId, provider }),
       });
 
       let responseBody: unknown = null;
