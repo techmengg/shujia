@@ -88,7 +88,7 @@ export function SiteFooter() {
 
       <div className="border-t border-white/5">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-4 text-[0.65rem] text-white/40 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
-          <p>© {CURRENT_YEAR} shujia. Built by techmeng.</p>
+          <p>© {CURRENT_YEAR} shujia.</p>
           <p>
             Metadata provided by{" "}
             <a
