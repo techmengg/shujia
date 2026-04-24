@@ -64,6 +64,7 @@ export default async function RootLayout({
     <html lang="en" data-theme={theme}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col bg-surface text-surface-foreground antialiased`}
+        suppressHydrationWarning
       >
         <AuthProvider serverAuth={Boolean(user)}>
           <AnnouncementBar />
