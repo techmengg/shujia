@@ -217,6 +217,21 @@ export default async function Home() {
         </section>
       ) : null}
 
+      <section className="mt-10 space-y-4">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 className="text-sm font-semibold text-white sm:text-lg">
+            Recent Community Reviews
+          </h2>
+          <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/60">
+            Coming soon
+          </span>
+        </div>
+        <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
+          Fresh reviews from the shujia community will land here — the most
+          recently reviewed titles, served straight to your feed.
+        </p>
+      </section>
+
       {demographicTabs.length ? (
         <section className="mt-10 space-y-4">
           <TabbedCarousel heading="Demographic" tabs={demographicTabs} />
@@ -238,21 +253,6 @@ export default async function Home() {
           />
         </section>
       ) : null}
-
-      <section className="mt-10 space-y-4">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="text-sm font-semibold text-white sm:text-lg">
-            Recent Community Reviews
-          </h2>
-          <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/60">
-            Coming soon
-          </span>
-        </div>
-        <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
-          Fresh reviews from the shujia community will land here — the most
-          recently reviewed titles, served straight to your feed.
-        </p>
-      </section>
     </main>
   );
 }
