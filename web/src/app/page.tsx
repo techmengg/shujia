@@ -7,7 +7,6 @@ import { getDemographicHighlights } from "@/lib/mangadex/service-cached";
 import {
   getPopularNewTitles,
   getRecentReleases,
-  getRecentlyReviewedSeries,
   getTrendingByLanguage,
 } from "@/lib/mangaupdates/service-cached";
 import { migrateEntriesInBackground } from "@/lib/manga/migrate";
@@ -79,7 +78,6 @@ export default async function Home() {
     safe(getDemographicHighlights("shoujo", 50), []),
     safe(getDemographicHighlights("josei", 50), []),
     safe(getRecentReleases(50), []),
-    safe(getRecentlyReviewedSeries(30), []),
   ]);
 
   const [
@@ -92,7 +90,6 @@ export default async function Home() {
     shoujoHighlights,
     joseiHighlights,
     recentReleases,
-    recentlyReviewed,
   ] = await trendsPromise;
 
   const user = await userPromise;
@@ -242,21 +239,20 @@ export default async function Home() {
         </section>
       ) : null}
 
-      {recentlyReviewed.length ? (
-        <section className="mt-10 space-y-4">
+      <section className="mt-10 space-y-4">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-sm font-semibold text-white sm:text-lg">
-            Recently Reviewed
+            Recent Community Reviews
           </h2>
-          <MangaCarousel
-            items={recentlyReviewed}
-            emptyState={
-              <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
-                No recent reviews available right now.
-              </p>
-            }
-          />
-        </section>
-      ) : null}
+          <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/60">
+            Coming soon
+          </span>
+        </div>
+        <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
+          Fresh reviews from the shujia community will land here — the most
+          recently reviewed titles, served straight to your feed.
+        </p>
+      </section>
     </main>
   );
 }
