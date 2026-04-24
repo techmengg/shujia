@@ -105,11 +105,15 @@ function buildDetails(record: MangaUpdatesSeriesRecord): MangaDetails {
 
   const contributors: MangaContributor[] = (record.authors ?? [])
     .filter((a) => a.name)
-    .map((a) => ({
-      id: a.author_id !== undefined ? String(a.author_id) : a.name,
-      name: a.name,
-      role: a.type === "Artist" ? "artist" : "author",
-    }));
+    .map((a, index) => {
+      const hasId = a.author_id !== undefined && a.author_id !== null;
+      const role: MangaContributor["role"] = a.type === "Artist" ? "artist" : "author";
+      return {
+        id: hasId ? String(a.author_id) : `mu-${role}-${index}-${a.name}`,
+        name: a.name,
+        role,
+      };
+    });
 
   return {
     ...summary,

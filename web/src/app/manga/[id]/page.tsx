@@ -287,14 +287,14 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   <p className="text-xs uppercase tracking-[0.28em] text-white/45">Authors</p>
                   <div className="mt-1 flex flex-col gap-1">
                     {authors.length ? (
-                      authors.map((author) =>
+                      authors.map((author, index) =>
                         isMangaUpdates ? (
-                          <span key={author.id} className="text-sm text-white/85">
+                          <span key={`${author.id ?? "a"}-${index}`} className="text-sm text-white/85">
                             {author.name}
                           </span>
                         ) : (
                           <a
-                            key={author.id}
+                            key={`${author.id ?? "a"}-${index}`}
                             href={buildCreatorUrl(author.id, "author")}
                             target="_blank"
                             rel="noreferrer"
@@ -314,14 +314,14 @@ export default async function MangaPage({ params }: MangaPageProps) {
                   <p className="text-xs uppercase tracking-[0.28em] text-white/45">Artists</p>
                   <div className="mt-1 flex flex-col gap-1">
                     {artists.length ? (
-                      artists.map((artist) =>
+                      artists.map((artist, index) =>
                         isMangaUpdates ? (
-                          <span key={artist.id} className="text-sm text-white/85">
+                          <span key={`${artist.id ?? "a"}-${index}`} className="text-sm text-white/85">
                             {artist.name}
                           </span>
                         ) : (
                           <a
-                            key={artist.id}
+                            key={`${artist.id ?? "a"}-${index}`}
                             href={buildCreatorUrl(artist.id, "artist")}
                             target="_blank"
                             rel="noreferrer"
