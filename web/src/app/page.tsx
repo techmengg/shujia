@@ -1,13 +1,16 @@
+import { after } from "next/server";
+
 import { MangaCarousel } from "@/components/manga/manga-carousel";
-import { RecentlyUpdatedSection } from "@/components/manga/recently-updated-section";
 import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
 import { FollowedSection } from "@/components/home/followed-section";
+import { getDemographicHighlights } from "@/lib/mangadex/service-cached";
 import {
-  getDemographicHighlights,
   getPopularNewTitles,
-  getRecentlyUpdatedManga,
-  getRecentPopularByOriginalLanguage,
-} from "@/lib/mangadex/service-cached";
+  getRecentReleases,
+  getRecentlyReviewedSeries,
+  getTrendingByLanguage,
+} from "@/lib/mangaupdates/service-cached";
+import { migrateEntriesInBackground } from "@/lib/manga/migrate";
 import type { MangaSummary, Provider } from "@/lib/mangadex/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
@@ -67,15 +70,16 @@ export default async function Home() {
   const userPromise = getCurrentUser();
 
   const trendsPromise = Promise.all([
-    safe(getRecentPopularByOriginalLanguage("ja", 50), []),
-    safe(getRecentPopularByOriginalLanguage("ko", 50), []),
-    safe(getRecentPopularByOriginalLanguage("zh", 50), []),
+    safe(getTrendingByLanguage("ja", 50), []),
+    safe(getTrendingByLanguage("ko", 50), []),
+    safe(getTrendingByLanguage("zh", 50), []),
     safe(getPopularNewTitles(50), []),
     safe(getDemographicHighlights("shounen", 50), []),
     safe(getDemographicHighlights("seinen", 50), []),
     safe(getDemographicHighlights("shoujo", 50), []),
     safe(getDemographicHighlights("josei", 50), []),
-    safe(getRecentlyUpdatedManga(59), []),
+    safe(getRecentReleases(50), []),
+    safe(getRecentlyReviewedSeries(30), []),
   ]);
 
   const [
@@ -87,7 +91,8 @@ export default async function Home() {
     seinenHighlights,
     shoujoHighlights,
     joseiHighlights,
-    recentUpdates,
+    recentReleases,
+    recentlyReviewed,
   ] = await trendsPromise;
 
   const user = await userPromise;
@@ -101,6 +106,10 @@ export default async function Home() {
         })
         .catch(() => [])
     : [];
+
+  if (readingListEntries.length) {
+    after(() => migrateEntriesInBackground(readingListEntries));
+  }
 
   const followedSummaries: MangaSummary[] = readingListEntries.map((entry) => ({
     id: entry.mangaId,
@@ -217,12 +226,37 @@ export default async function Home() {
         </section>
       ) : null}
 
-      <section className="mt-10 space-y-4">
-        <h2 className="text-sm font-semibold text-white sm:text-lg">
-          Latest
-        </h2>
-        <RecentlyUpdatedSection initialItems={recentUpdates} pageSize={49} />
-      </section>
+      {recentReleases.length ? (
+        <section className="mt-10 space-y-4">
+          <h2 className="text-sm font-semibold text-white sm:text-lg">
+            Recent Releases
+          </h2>
+          <MangaCarousel
+            items={recentReleases}
+            emptyState={
+              <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
+                No recent releases available right now.
+              </p>
+            }
+          />
+        </section>
+      ) : null}
+
+      {recentlyReviewed.length ? (
+        <section className="mt-10 space-y-4">
+          <h2 className="text-sm font-semibold text-white sm:text-lg">
+            Recently Reviewed
+          </h2>
+          <MangaCarousel
+            items={recentlyReviewed}
+            emptyState={
+              <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
+                No recent reviews available right now.
+              </p>
+            }
+          />
+        </section>
+      ) : null}
     </main>
   );
 }

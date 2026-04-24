@@ -10,6 +10,7 @@ export {
 } from "./provider";
 
 export const ALL_PROVIDERS: Provider[] = ["mangadex", "mangaupdates"];
+export const DEFAULT_SEARCH_PROVIDERS: Provider[] = ["mangaupdates"];
 
 export interface SearchMangaOptions {
   limit?: number;
@@ -23,7 +24,7 @@ export async function searchManga(
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const providers = options.providers ?? ALL_PROVIDERS;
+  const providers = options.providers ?? DEFAULT_SEARCH_PROVIDERS;
   const limit = options.limit;
 
   const tasks = providers.map((provider) => runSearch(provider, trimmed, limit));

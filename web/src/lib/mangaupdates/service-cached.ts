@@ -23,5 +23,35 @@ export const getSeriesDetailsById = unstable_cache(
   { revalidate: 3600, tags: ["mangaupdates-details"] },
 );
 
+export const getTrendingByLanguage = unstable_cache(
+  async (
+    language: "ja" | "ko" | "zh",
+    limit?: number,
+  ): Promise<MangaSummary[]> => service.getTrendingByLanguage(language, limit),
+  ["mangaupdates-trending-sfw-v2"],
+  { revalidate: 1800, tags: ["mangaupdates-trending"] },
+);
+
+export const getPopularNewTitles = unstable_cache(
+  async (limit?: number): Promise<MangaSummary[]> =>
+    service.getPopularNewTitles(limit),
+  ["mangaupdates-popular-new-titles-sfw-v2"],
+  { revalidate: 3600, tags: ["mangaupdates-popular-new-titles"] },
+);
+
+export const getRecentReleases = unstable_cache(
+  async (limit?: number): Promise<MangaSummary[]> =>
+    service.getRecentReleases(limit),
+  ["mangaupdates-recent-releases-sfw-v2"],
+  { revalidate: 300, tags: ["mangaupdates-recent-releases"] },
+);
+
+export const getRecentlyReviewedSeries = unstable_cache(
+  async (limit?: number): Promise<MangaSummary[]> =>
+    service.getRecentlyReviewedSeries(limit),
+  ["mangaupdates-recently-reviewed-sfw-v2"],
+  { revalidate: 1800, tags: ["mangaupdates-recently-reviewed"] },
+);
+
 export { MangaUpdatesAPIError } from "./client";
 export type { MangaDetails, MangaSummary } from "@/lib/manga/types";

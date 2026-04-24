@@ -1,6 +1,9 @@
+import type { Provider } from "@/lib/manga/types";
+
 export interface ReadingListItem {
     id: string;
     mangaId: string;
+    provider: Provider;
     title: string;
     altTitles: string[];
     description?: string | null;

@@ -1,5 +1,8 @@
 import { MangaUpdatesAPIError, mangaupdatesFetch } from "./client";
 import type {
+  MangaUpdatesReleaseResponse,
+  MangaUpdatesReviewResponse,
+  MangaUpdatesReviewSearchRequest,
   MangaUpdatesSearchRequest,
   MangaUpdatesSearchResponse,
   MangaUpdatesSeriesRecord,
@@ -134,21 +137,9 @@ export interface SearchSeriesOptions {
   year?: string;
 }
 
-export async function searchSeries(
-  query: string,
-  options: SearchSeriesOptions = {},
+async function fetchSeriesSearch(
+  body: MangaUpdatesSearchRequest,
 ): Promise<MangaSummary[]> {
-  const body: MangaUpdatesSearchRequest = {
-    search: query,
-    perpage: options.limit ?? DEFAULT_LIMIT,
-    page: options.page,
-    orderby: options.orderby,
-    type: options.type,
-    genre: options.genre,
-    exclude_genre: options.excludeGenre,
-    year: options.year,
-  };
-
   const response = await mangaupdatesFetch<MangaUpdatesSearchResponse>(
     "/series/search",
     { body },
@@ -161,6 +152,139 @@ export async function searchSeries(
         Boolean(record && record.series_id && record.title && record.url),
     )
     .map(buildSummary);
+}
+
+export async function searchSeries(
+  query: string,
+  options: SearchSeriesOptions = {},
+): Promise<MangaSummary[]> {
+  return fetchSeriesSearch({
+    search: query,
+    perpage: options.limit ?? DEFAULT_LIMIT,
+    page: options.page,
+    orderby: options.orderby,
+    type: options.type,
+    genre: options.genre,
+    exclude_genre: options.excludeGenre,
+    year: options.year,
+  });
+}
+
+const COMIC_TYPES: MangaUpdatesSeriesType[] = ["Manga", "Manhwa", "Manhua", "OEL"];
+
+const TRENDING_TYPE_BY_LANGUAGE: Record<"ja" | "ko" | "zh", MangaUpdatesSeriesType> = {
+  ja: "Manga",
+  ko: "Manhwa",
+  zh: "Manhua",
+};
+
+const ADULT_EXCLUDE_GENRES = [
+  "Adult",
+  "Hentai",
+  "Mature",
+  "Smut",
+  "Ecchi",
+  "Yaoi",
+  "Yuri",
+];
+
+const ADULT_TAG_PATTERN = /\b(adult|hentai|mature|smut|ecchi|yaoi|yuri|lolicon|shotacon)\b/i;
+
+function isAdultSummary(summary: MangaSummary): boolean {
+  return summary.tags.some((tag) => ADULT_TAG_PATTERN.test(tag));
+}
+
+export async function getTrendingByLanguage(
+  language: "ja" | "ko" | "zh",
+  limit = DEFAULT_LIMIT,
+): Promise<MangaSummary[]> {
+  const results = await fetchSeriesSearch({
+    type: [TRENDING_TYPE_BY_LANGUAGE[language]],
+    orderby: "week_pos",
+    exclude_genre: ADULT_EXCLUDE_GENRES,
+    perpage: limit,
+  });
+  return results.filter((summary) => !isAdultSummary(summary));
+}
+
+export async function getPopularNewTitles(
+  limit = DEFAULT_LIMIT,
+): Promise<MangaSummary[]> {
+  const results = await fetchSeriesSearch({
+    year: String(new Date().getFullYear()),
+    type: COMIC_TYPES,
+    orderby: "week_pos",
+    exclude_genre: ADULT_EXCLUDE_GENRES,
+    perpage: limit,
+  });
+  return results.filter((summary) => !isAdultSummary(summary));
+}
+
+async function hydrateSummaries(
+  candidates: { id: number; chapter?: string }[],
+  limit: number,
+): Promise<MangaSummary[]> {
+  const overFetch = Math.min(candidates.length, Math.max(limit * 2, limit + 10));
+  const slice = candidates.slice(0, overFetch);
+
+  const summaries = await Promise.all(
+    slice.map(async ({ id, chapter }) => {
+      try {
+        const summary = await getSeriesSummaryById(id);
+        if (!summary || isAdultSummary(summary)) return null;
+        if (chapter && chapter.trim()) summary.latestChapter = chapter;
+        return summary;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  return summaries.filter((s): s is MangaSummary => s !== null).slice(0, limit);
+}
+
+export async function getRecentReleases(
+  limit = DEFAULT_LIMIT,
+): Promise<MangaSummary[]> {
+  const response = await mangaupdatesFetch<MangaUpdatesReleaseResponse>(
+    "/releases/days?include_metadata=true",
+    { method: "GET" },
+  );
+
+  const seen = new Set<number>();
+  const candidates: { id: number; chapter?: string }[] = [];
+  for (const result of response.results ?? []) {
+    const id = result.metadata?.series?.series_id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    candidates.push({ id, chapter: result.record?.chapter });
+  }
+
+  return hydrateSummaries(candidates, limit);
+}
+
+export async function getRecentlyReviewedSeries(
+  limit = DEFAULT_LIMIT,
+): Promise<MangaSummary[]> {
+  const body: MangaUpdatesReviewSearchRequest = {
+    perpage: Math.max(limit * 3, 30),
+  };
+
+  const response = await mangaupdatesFetch<MangaUpdatesReviewResponse>(
+    "/reviews/search",
+    { body },
+  );
+
+  const seen = new Set<number>();
+  const candidates: { id: number }[] = [];
+  for (const result of response.results ?? []) {
+    const id = result.record?.series?.series_id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    candidates.push({ id });
+  }
+
+  return hydrateSummaries(candidates, limit);
 }
 
 export async function getSeriesSummaryById(
