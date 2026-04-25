@@ -12,14 +12,14 @@ export const searchSeries = unstable_cache(
 export const getSeriesSummaryById = unstable_cache(
   async (seriesId: string): Promise<MangaSummary | null> =>
     service.getSeriesSummaryById(seriesId),
-  ["mangaupdates-summary"],
+  ["mangaupdates-summary-v2"],
   { revalidate: 3600, tags: ["mangaupdates-summary"] },
 );
 
 export const getSeriesDetailsById = unstable_cache(
   async (seriesId: string): Promise<MangaDetails | null> =>
     service.getSeriesDetailsById(seriesId),
-  ["mangaupdates-details"],
+  ["mangaupdates-details-v2"],
   { revalidate: 3600, tags: ["mangaupdates-details"] },
 );
 

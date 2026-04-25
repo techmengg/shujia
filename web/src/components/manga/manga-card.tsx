@@ -56,7 +56,13 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
     "w-full",
   ].join(" ");
 
-  const bodyClasses = ["flex flex-1 flex-col", "gap-1.5 p-1.5 sm:p-2"].join(" ");
+  const bodyClasses = [
+    "flex flex-1 flex-col",
+    "gap-1.5 p-1.5 sm:p-2",
+    isGrid ? "" : "min-h-[4.75rem] sm:min-h-[5.25rem]",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const titleClasses = [
     "line-clamp-2 font-semibold text-white group-hover:text-white",

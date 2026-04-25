@@ -46,8 +46,8 @@ function FooterLinkItem({ link }: { link: FooterLink }) {
 
 export function SiteFooter() {
   return (
-    <footer className="mt-12 border-t border-white/10 bg-black/30 text-white">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:px-10">
+    <footer className="mt-8 border-t border-white/10 bg-black/30 text-white sm:mt-12">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:flex-row lg:items-start lg:justify-between lg:px-10">
         <div className="space-y-2">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white">
             shujia
@@ -87,7 +87,7 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-white/5">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-4 text-[0.65rem] text-white/40 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-4 py-3 text-[0.65rem] text-white/40 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-6 sm:py-4 lg:px-10">
           <p>© {CURRENT_YEAR} shujia.</p>
           <p>
             Metadata provided by{" "}

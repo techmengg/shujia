@@ -28,6 +28,7 @@ model User {
   twoFactorRecoveryCodes String[]             @default([])
   passwordResetTokens    PasswordResetToken[]
   readingListEntries     ReadingListEntry[]
+  reviews                Review[]
   sessions               Session[]
 }
 
@@ -89,6 +90,24 @@ model ReadingListEntry {
 
   @@unique([userId, provider, mangaId])
   @@index([userId, updatedAt])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  authorId    String
+  provider    String
+  mangaId     String
+  rating      Int
+  body        String?
+  hasSpoilers Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([authorId, provider, mangaId])
+  @@index([provider, mangaId])
+  @@index([authorId])
+  @@index([provider, mangaId, createdAt])
 }
 
 model RegistrationVerification {

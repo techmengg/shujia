@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { after } from "next/server";
 
 import { MangaCarousel } from "@/components/manga/manga-carousel";
@@ -16,6 +17,55 @@ import { prisma } from "@/lib/prisma";
 
 // Home page has auth-dependent content, so force dynamic
 export const dynamic = "force-dynamic";
+
+interface RailHeaderProps {
+  label: string;
+  note?: string;
+  seeAllHref?: string;
+  seeAllLabel?: string;
+}
+
+function RailHeader({
+  label,
+  note,
+  seeAllHref,
+  seeAllLabel = "see all",
+}: RailHeaderProps) {
+  return (
+    <div className="mb-2 flex items-baseline justify-between gap-2 sm:mb-4 sm:gap-3">
+      <div className="flex min-w-0 items-baseline gap-1.5 sm:gap-3">
+        <h2 className="truncate text-sm font-semibold text-white sm:text-base">
+          {label}
+        </h2>
+        {note ? (
+          <span className="shrink-0 text-[0.7rem] italic text-surface-subtle sm:text-xs">
+            ({note})
+          </span>
+        ) : null}
+      </div>
+      {seeAllHref ? (
+        <Link
+          href={seeAllHref}
+          className="group inline-flex shrink-0 items-baseline gap-1 text-[0.7rem] font-medium text-accent transition-colors hover:text-white sm:text-xs"
+        >
+          <span className="underline-offset-4 group-hover:underline">
+            {seeAllLabel}
+          </span>
+          <span
+            aria-hidden
+            className="transition-transform duration-200 group-hover:translate-x-0.5"
+          >
+            →
+          </span>
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function EmptyLine({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm italic text-surface-subtle">{children}</p>;
+}
 
 export default async function Home() {
   function toProxyCoverUrl(mangaId: string, url?: string | null): string | undefined {
@@ -189,66 +239,54 @@ export default async function Home() {
   ].filter((tab) => tab.items.length > 0);
 
   return (
-    <main className="relative z-10 mx-auto w-full max-w-7xl px-4 pt-4 pb-6 sm:px-6 lg:px-10 lg:pb-10">
+    <main className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-6 lg:px-10">
       <h1 className="sr-only">Shujia</h1>
 
       <FollowedSection followedItems={followedItems} />
 
       {languageTabs.length ? (
-        <section className="mt-10 space-y-4">
+        <section className="mt-6 sm:mt-8">
           <TabbedCarousel heading="Trending" tabs={languageTabs} />
         </section>
       ) : null}
 
       {popularNewTitles.length ? (
-        <section className="mt-10 space-y-4">
-          <h2 className="text-sm font-semibold text-white sm:text-lg">
-            Popular New Titles
-          </h2>
+        <section className="mt-6 sm:mt-8">
+          <RailHeader label="Popular New Titles" seeAllHref="/explore" />
           <MangaCarousel
             items={popularNewTitles}
             emptyState={
-              <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
-                We could not load popular new releases right now. Try again in a
-                moment.
-              </p>
+              <EmptyLine>
+                Could not load new titles right now — try again in a moment.
+              </EmptyLine>
             }
           />
         </section>
       ) : null}
 
-      <section className="mt-10 space-y-4">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="text-sm font-semibold text-white sm:text-lg">
-            Recent Community Reviews
-          </h2>
-          <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-white/60">
-            Coming soon
-          </span>
+      <section className="mt-6 sm:mt-8">
+        <RailHeader label="Recent Community Reviews" note="coming soon" />
+        <div className="border border-white/15 px-3 py-2.5 sm:px-4 sm:py-3">
+          <p className="text-[0.8rem] italic text-surface-subtle sm:text-sm">
+            Fresh reviews from the shujia community will land here — the most
+            recently rated titles, straight to your feed.
+          </p>
         </div>
-        <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
-          Fresh reviews from the shujia community will land here — the most
-          recently reviewed titles, served straight to your feed.
-        </p>
       </section>
 
       {demographicTabs.length ? (
-        <section className="mt-10 space-y-4">
+        <section className="mt-6 sm:mt-8">
           <TabbedCarousel heading="Demographic" tabs={demographicTabs} />
         </section>
       ) : null}
 
       {recentReleases.length ? (
-        <section className="mt-10 space-y-4">
-          <h2 className="text-sm font-semibold text-white sm:text-lg">
-            Recent Releases
-          </h2>
+        <section className="mt-6 sm:mt-8">
+          <RailHeader label="Recent Releases" seeAllHref="/explore" />
           <MangaCarousel
             items={recentReleases}
             emptyState={
-              <p className="rounded-2xl border border-white/10 bg-[#0d0122]/70 p-6 text-sm text-surface-subtle">
-                No recent releases available right now.
-              </p>
+              <EmptyLine>No recent releases available right now.</EmptyLine>
             }
           />
         </section>

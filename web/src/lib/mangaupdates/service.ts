@@ -115,6 +115,20 @@ function buildDetails(record: MangaUpdatesSeriesRecord): MangaDetails {
       };
     });
 
+  const hasBayesian =
+    typeof record.bayesian_rating === "number" && Number.isFinite(record.bayesian_rating);
+  const hasVotes =
+    typeof record.rating_votes === "number" && Number.isFinite(record.rating_votes);
+  const statistics =
+    hasBayesian || hasVotes
+      ? {
+          rating: {
+            ...(hasBayesian ? { bayesian: record.bayesian_rating } : {}),
+            ...(hasVotes ? { votes: record.rating_votes } : {}),
+          },
+        }
+      : undefined;
+
   return {
     ...summary,
     descriptionFull: record.description ?? undefined,
@@ -125,7 +139,7 @@ function buildDetails(record: MangaUpdatesSeriesRecord): MangaDetails {
     lastVolume: undefined,
     contributors,
     scanlationGroups: undefined,
-    statistics: undefined,
+    statistics,
     tagsDetailed: tags,
     availableLanguages: [],
   };

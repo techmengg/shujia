@@ -59,6 +59,8 @@ export interface MangaUpdatesSeriesRecord {
   image?: MangaUpdatesImage;
   type?: MangaUpdatesSeriesType;
   year?: string;
+  bayesian_rating?: number;
+  rating_votes?: number;
   genres?: MangaUpdatesGenre[];
   categories?: MangaUpdatesCategory[];
   latest_chapter?: number;

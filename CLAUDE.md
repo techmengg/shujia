@@ -56,6 +56,10 @@ When the user asks for a commit:
 2. **Commit** — stage only the relevant files (not `-A`). Write a concise message focused on *why*. **Do NOT add `Co-Authored-By: Claude` or any Claude attribution.** No emoji unless asked.
 3. **Push** — only push when the user explicitly says so ("push it", "ship it", etc.). Never push on your own. Never force-push to `main`.
 
+## design
+
+When making any UI change (components, pages, layouts, styling), **read `design.md` at the repo root first**. It captures the established visual language (editorial minimalism, sentence-case headings, hairline boxes, text-link tabs, accent-only-for-interactive) and the do/don't list. Deviations need a reason.
+
 ## external API specs
 
 When touching MangaUpdates integration, **consult `MangaUpdateOpenAPI.json` at the repo root — do not guess endpoint shapes from memory**.
