@@ -1,149 +1,49 @@
 import { NextResponse } from "next/server";
-import { mangadexFetch } from "@/lib/mangadex/client";
-import type {
-  MangaDexCollectionResponse,
-  MangaDexManga,
-  MangaSummary,
-} from "@/lib/mangadex/types";
+import { searchSeries } from "@/lib/mangaupdates/service";
+import type { MangaUpdatesSearchOrderBy, MangaUpdatesSeriesType } from "@/lib/mangaupdates/types";
 
-function getPreferredLocaleText(
-  textRecord: Record<string, string>,
-  preferredLocales: string[] = ["en", "en-us", "en-gb"],
-): string | undefined {
-  for (const locale of preferredLocales) {
-    const value = textRecord[locale] ?? textRecord[locale.toLowerCase()];
-    if (value) return value;
-  }
+const VALID_ORDER: Set<string> = new Set<MangaUpdatesSearchOrderBy>([
+  "score", "title", "rating", "year", "date_added",
+  "week_pos", "month1_pos", "month3_pos", "month6_pos", "year_pos",
+]);
 
-  const firstValue = Object.values(textRecord).find(Boolean);
-  return firstValue?.trim() ? firstValue : undefined;
-}
+const VALID_TYPES: Set<string> = new Set<MangaUpdatesSeriesType>([
+  "Manga", "Manhwa", "Manhua", "OEL",
+]);
 
-function buildCoverArtUrl(mangaId: string, fileName: string): string {
-  const params = new URLSearchParams({
-    mangaId,
-    file: fileName,
-    size: "256",
-  });
-  return `/api/images/cover?${params.toString()}`;
-}
-
-function createMangaSummary(manga: MangaDexManga): MangaSummary {
-  const { attributes, id, relationships } = manga;
-
-  const coverRelationship = relationships.find(
-    (relationship) => relationship.type === "cover_art",
-  );
-
-  const coverFileName =
-    coverRelationship?.attributes &&
-    "fileName" in coverRelationship.attributes
-      ? (coverRelationship.attributes.fileName as string)
-      : undefined;
-
-  const altTitles = attributes.altTitles
-    .map(
-      (record) =>
-        getPreferredLocaleText(record, ["en", "en-us", "en-gb"]) ||
-        getPreferredLocaleText(record),
-    )
-    .filter((value): value is string => Boolean(value))
-    .slice(0, 3);
-
-  return {
-    id,
-    provider: "mangadex",
-    title:
-      getPreferredLocaleText(attributes.title, ["en", "en-us", "en-gb"]) ??
-      (attributes.altTitles.length
-        ? (attributes.altTitles
-            .map((rec) => getPreferredLocaleText(rec, ["en", "en-us", "en-gb"]))
-            .find((v) => Boolean(v)) as string | undefined)
-        : undefined) ??
-      getPreferredLocaleText(attributes.title) ??
-      getPreferredLocaleText(attributes.altTitles[0] ?? {}) ??
-      "Untitled series",
-    altTitles,
-    description: getPreferredLocaleText(attributes.description),
-    status: attributes.status ?? undefined,
-    year: attributes.year ?? undefined,
-    contentRating: attributes.contentRating ?? undefined,
-    demographic: attributes.publicationDemographic ?? undefined,
-    latestChapter: attributes.latestUploadedChapter ?? undefined,
-    languages: attributes.availableTranslatedLanguages ?? [],
-    originalLanguage: attributes.originalLanguage ?? undefined,
-    tags: attributes.tags
-      .map((tag) => getPreferredLocaleText(tag.attributes.name))
-      .filter((value): value is string => Boolean(value)),
-    coverImage:
-      coverFileName !== undefined
-        ? buildCoverArtUrl(id, coverFileName)
-        : undefined,
-    url: `https://mangadex.org/title/${id}`,
-  };
-}
+const ADULT_EXCLUDE = [
+  "Adult", "Hentai", "Mature", "Smut", "Ecchi", "Yaoi", "Yuri",
+];
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    
-    const limit = Math.min(Number(searchParams.get("limit")) || 30, 100);
-    const offset = Math.max(Number(searchParams.get("offset")) || 0, 0);
-    const orderField = searchParams.get("orderField") || "followedCount";
-    const orderDirection = searchParams.get("orderDirection") || "desc";
-    
-    const contentRatings = searchParams.getAll("contentRating[]");
-    const originalLanguages = searchParams.getAll("originalLanguage[]");
-    const demographics = searchParams.getAll("demographic[]");
-    const statuses = searchParams.getAll("status[]");
 
-    const searchParamsForAPI: Record<string, string | number | string[]> = {
-      limit,
-      offset,
-      "includes[]": ["cover_art"],
-      [`order[${orderField}]`]: orderDirection,
-      hasAvailableChapters: "true",
-    };
+    const perpage = Math.min(Number(searchParams.get("perpage")) || 30, 50);
+    const page = Math.max(Number(searchParams.get("page")) || 1, 1);
+    const orderby = searchParams.get("orderby") || "rating";
+    const types = searchParams.getAll("type[]").filter((t) => VALID_TYPES.has(t));
+    const genres = searchParams.getAll("genre[]");
+    const year = searchParams.get("year") || undefined;
+    const validOrder = VALID_ORDER.has(orderby)
+      ? (orderby as MangaUpdatesSearchOrderBy)
+      : "rating";
 
-    // Add content ratings or default to safe + suggestive
-    if (contentRatings.length > 0) {
-      searchParamsForAPI["contentRating[]"] = contentRatings;
-    } else {
-      searchParamsForAPI["contentRating[]"] = ["safe", "suggestive"];
-    }
-
-    // Add original languages if specified
-    if (originalLanguages.length > 0) {
-      searchParamsForAPI["originalLanguage[]"] = originalLanguages;
-    }
-
-    // Add demographics if specified
-    if (demographics.length > 0) {
-      searchParamsForAPI["publicationDemographic[]"] = demographics;
-    }
-
-    // Add statuses if specified
-    if (statuses.length > 0) {
-      searchParamsForAPI["status[]"] = statuses;
-    }
-
-    const response = await mangadexFetch<
-      MangaDexCollectionResponse<MangaDexManga>
-    >("/manga", {
-      searchParams: searchParamsForAPI,
-      next: {
-        revalidate: 60 * 5, // 5 minutes
-      },
+    const results = await searchSeries("", {
+      limit: perpage,
+      page,
+      orderby: validOrder,
+      type: types.length ? (types as MangaUpdatesSeriesType[]) : undefined,
+      genre: genres.length ? genres : undefined,
+      excludeGenre: ADULT_EXCLUDE,
+      year,
     });
 
-    const mangas = response.data.map(createMangaSummary);
-
     return NextResponse.json({
-      data: mangas,
-      total: response.total,
-      limit: response.limit,
-      offset: response.offset,
-      hasMore: response.offset + response.data.length < response.total,
+      data: results,
+      page,
+      perpage,
+      hasMore: results.length >= perpage,
     });
   } catch (error) {
     console.error("Explore API error:", error);
@@ -153,4 +53,3 @@ export async function GET(request: Request) {
     );
   }
 }
-

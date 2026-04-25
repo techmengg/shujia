@@ -14,7 +14,7 @@
 - **auth**: cookie sessions (bcrypt), Google OAuth, email verification, TOTP 2FA, recovery codes
 - **storage**: Vercel Blob (avatars) + local `public/uploads/avatars` fallback
 - **email**: Resend (default) or SMTP fallback
-- **data source**: MangaDex REST (primary); MangaUpdates staged (see `MangaUpdateOpenAPI.json`); Comick/Jikan/AniList/Consumet staged
+- **data source**: MangaUpdates REST (primary, see `MangaUpdateOpenAPI.json` at repo root); MangaDex legacy (being removed); Comick/Jikan/AniList/Consumet staged
 
 ## layout
 

@@ -219,27 +219,41 @@ export default async function MangaPage({ params }: MangaPageProps) {
   const authors = manga.contributors.filter((c) => c.role === "author");
   const artists = manga.contributors.filter((c) => c.role === "artist");
 
-  const existingEntry = user
-    ? await prisma.readingListEntry.findUnique({
-        where: {
-          userId_provider_mangaId: {
-            userId: user.id,
-            provider,
-            mangaId,
+  const [existingEntry, existingReview, shujiaAggregate] = await Promise.all([
+    user
+      ? prisma.readingListEntry.findUnique({
+          where: {
+            userId_provider_mangaId: {
+              userId: user.id,
+              provider,
+              mangaId,
+            },
           },
-        },
-        select: { id: true, progress: true, rating: true, notes: true },
+          select: { id: true, progress: true, rating: true, notes: true },
+        })
+      : Promise.resolve(null),
+    user
+      ? prisma.review.findUnique({
+          where: {
+            authorId_provider_mangaId: {
+              authorId: user.id,
+              provider,
+              mangaId,
+            },
+          },
+          select: { rating: true, body: true, hasSpoilers: true },
+        }).catch(() => null)
+      : Promise.resolve(null),
+    // Aggregate community ratings from the Review table (canonical source post-migration).
+    prisma.review
+      .aggregate({
+        where: { provider, mangaId },
+        _avg: { rating: true },
+        _count: { rating: true },
       })
-    : null;
+      .catch(() => null),
+  ]);
 
-  // Aggregate community ratings from reading-list entries (rating column is 0-10 in DB).
-  const shujiaAggregate = await prisma.readingListEntry
-    .aggregate({
-      where: { provider, mangaId, rating: { not: null } },
-      _avg: { rating: true },
-      _count: { rating: true },
-    })
-    .catch(() => null);
   const shujiaCount = shujiaAggregate?._count.rating ?? 0;
   const shujiaAverageOnFive =
     shujiaAggregate && shujiaAggregate._avg.rating !== null
@@ -382,11 +396,16 @@ export default async function MangaPage({ params }: MangaPageProps) {
           </div>
 
           <RatingsWidget
+            mangaId={mangaId}
+            provider={provider}
             bayesian={ratingBayesian}
             bayesianVotes={manga.statistics?.rating?.votes}
             providerLabel={providerLabel(provider)}
             shujiaAverage={shujiaAverageOnFive}
             shujiaVotes={shujiaCount}
+            initialUserRating={existingReview?.rating ?? null}
+            initialUserBody={existingReview?.body ?? null}
+            initialUserHasSpoilers={existingReview?.hasSpoilers ?? false}
           />
 
           <div className="space-y-2.5 border-t border-white/10 pt-4 sm:space-y-3">

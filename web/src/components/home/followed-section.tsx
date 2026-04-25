@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
 import { MangaCarousel } from "@/components/manga/manga-carousel";
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary } from "@/lib/manga/types";
 
 interface FollowedSectionProps {
   followedItems: MangaSummary[];

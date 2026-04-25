@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-const FALLBACK_AVATAR = "/noprofile.jpg";
+const FALLBACK_AVATAR = "/noprofile.png";
 const SHOWCASE_LOCAL_STORAGE_PREFIX = "shujia.ten-showcase";
 const SHOWCASE_LIMIT = 8;
 

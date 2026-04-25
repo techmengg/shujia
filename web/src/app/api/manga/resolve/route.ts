@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { MangaDexAPIError, searchManga } from "@/lib/mangadex/service";
+import { searchManga } from "@/lib/manga";
+import { MangaUpdatesAPIError } from "@/lib/mangaupdates/client";
 
 // Simple in-memory cache per server instance
 type CacheEntry = { id: string | null; ts: number };
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
             break;
           }
         } catch (error) {
-          if (error instanceof MangaDexAPIError && error.status === 404) {
+          if (error instanceof MangaUpdatesAPIError && error.status === 404) {
             titleCache.set(key, { id: null, ts: Date.now() });
           }
           // continue to next candidate

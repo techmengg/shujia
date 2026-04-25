@@ -11,7 +11,7 @@ import {
   getTrendingByLanguage,
 } from "@/lib/mangaupdates/service-cached";
 import { migrateEntriesInBackground } from "@/lib/manga/migrate";
-import type { MangaSummary, Provider } from "@/lib/mangadex/types";
+import type { MangaSummary, Provider } from "@/lib/manga/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 

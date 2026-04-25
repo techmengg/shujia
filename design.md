@@ -128,6 +128,12 @@ Left-baseline heading, right-aligned see-all, both on one row. The note (e.g., "
 - "Coming soon" placeholders for whole sections can use a minimal hairline box (above), but only when there's meaningful teaser copy.
 - On logged-out states, skip the fake blurred carousel. Use a text link ("log in to view →") and a one-line italic note.
 
+## text overflow
+
+- Headings in flex/grid children: always add `truncate` + `min-w-0` to prevent overflow on narrow screens.
+- Long unbreakable strings (URLs, tokens, hashes): use `break-all` so they wrap within the container instead of blowing it out. Example: dev-mode verification links in auth success messages.
+- Body copy with natural word boundaries: prefer `break-words` over `break-all`.
+
 ## responsive
 
 Mobile-first. Every meaningful size or gap should have a `sm:` (or `md:`) bump.

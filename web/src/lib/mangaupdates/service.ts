@@ -177,7 +177,7 @@ export async function searchSeries(
   options: SearchSeriesOptions = {},
 ): Promise<MangaSummary[]> {
   return fetchSeriesSearch({
-    search: query,
+    ...(query ? { search: query } : {}),
     perpage: options.limit ?? DEFAULT_LIMIT,
     page: options.page,
     orderby: options.orderby,
