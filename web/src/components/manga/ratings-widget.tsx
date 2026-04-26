@@ -15,8 +15,6 @@ interface RatingsWidgetProps {
   bayesian?: number | null;
   /** Vote count behind the bayesian rating. */
   bayesianVotes?: number | null;
-  /** Provider label so the bayesian section can credit its source. */
-  providerLabel?: string;
   /** Shujia community average, on a 0-5 scale. */
   shujiaAverage?: number | null;
   /** Number of community ratings backing the shujia average. */
@@ -102,7 +100,6 @@ export function RatingsWidget({
   provider,
   bayesian,
   bayesianVotes,
-  providerLabel,
   shujiaAverage,
   shujiaVotes,
   initialUserRating,
@@ -339,9 +336,7 @@ export function RatingsWidget({
               </div>
               <p className="text-[0.7rem] text-surface-subtle sm:text-xs">
                 /10
-                {providerLabel ? (
-                  <span className="italic"> · from {providerLabel}</span>
-                ) : null}
+                <span className="italic"> · weighted average</span>
               </p>
             </>
           ) : (

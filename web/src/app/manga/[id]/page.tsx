@@ -6,6 +6,7 @@ import { Fragment } from "react";
 import { AddToReadingListButton } from "@/components/manga/add-to-reading-list-button";
 import { MangaActionBar } from "@/components/manga/manga-action-bar";
 import { RatingsWidget } from "@/components/manga/ratings-widget";
+import { ReviewsSection } from "@/components/manga/reviews-section";
 import { TagList } from "@/components/manga/tag-list";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,6 @@ import {
   getMangaDetails,
   getMangaSummaryById,
   inferProviderFromId,
-  providerLabel,
 } from "@/lib/manga";
 
 interface MangaPageProps {
@@ -156,11 +156,6 @@ function mapLanguages(codes: string[]): string[] {
   });
 }
 
-function buildCreatorUrl(id: string, role: "author" | "artist"): string {
-  const base = role === "author" ? "author" : "artist";
-  return `https://mangadex.org/${base}/${id}`;
-}
-
 function buildScanlationGroupUrl(id: string): string {
   return `https://mangadex.org/group/${id}`;
 }
@@ -205,7 +200,6 @@ export default async function MangaPage({ params }: MangaPageProps) {
   const { id } = await params;
   const mangaId = decodeURIComponent(id);
   const provider = inferProviderFromId(mangaId);
-  const isMangaUpdates = provider === "mangaupdates";
 
   const [user, manga] = await Promise.all([
     getCurrentUser(),
@@ -400,7 +394,6 @@ export default async function MangaPage({ params }: MangaPageProps) {
             provider={provider}
             bayesian={ratingBayesian}
             bayesianVotes={manga.statistics?.rating?.votes}
-            providerLabel={providerLabel(provider)}
             shujiaAverage={shujiaAverageOnFive}
             shujiaVotes={shujiaCount}
             initialUserRating={existingReview?.rating ?? null}
@@ -418,18 +411,7 @@ export default async function MangaPage({ params }: MangaPageProps) {
                 <div className="space-y-0.5">
                   {authors.map((author, index) => (
                     <p key={`${author.id ?? "a"}-${index}`}>
-                      {isMangaUpdates ? (
-                        <span>{author.name}</span>
-                      ) : (
-                        <a
-                          href={buildCreatorUrl(author.id, "author")}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-accent underline-offset-4 transition-colors hover:text-white hover:underline"
-                        >
-                          {author.name}
-                        </a>
-                      )}
+                      {author.name}
                     </p>
                   ))}
                 </div>
@@ -443,18 +425,7 @@ export default async function MangaPage({ params }: MangaPageProps) {
                 <div className="space-y-0.5">
                   {artists.map((artist, index) => (
                     <p key={`${artist.id ?? "a"}-${index}`}>
-                      {isMangaUpdates ? (
-                        <span>{artist.name}</span>
-                      ) : (
-                        <a
-                          href={buildCreatorUrl(artist.id, "artist")}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-accent underline-offset-4 transition-colors hover:text-white hover:underline"
-                        >
-                          {artist.name}
-                        </a>
-                      )}
+                      {artist.name}
                     </p>
                   ))}
                 </div>
@@ -498,7 +469,7 @@ export default async function MangaPage({ params }: MangaPageProps) {
               <h2 className="text-sm font-semibold text-white sm:text-base">
                 Tags
               </h2>
-              <TagList tags={tags} linkable={!isMangaUpdates} initialLimit={20} />
+              <TagList tags={tags} linkable={false} initialLimit={20} />
             </div>
           ) : null}
         </aside>
@@ -581,18 +552,13 @@ export default async function MangaPage({ params }: MangaPageProps) {
             </section>
           ) : null}
 
-          <p className="border-t border-white/10 pt-4 text-[0.7rem] italic text-surface-subtle sm:pt-5 sm:text-xs">
-            metadata from{" "}
-            <a
-              href={manga.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-accent underline-offset-4 transition-colors hover:text-white hover:underline"
-            >
-              {providerLabel(provider)}
-            </a>
-            .
-          </p>
+          <ReviewsSection
+            mangaId={mangaId}
+            provider={provider}
+            initialUserRating={existingReview?.rating ?? null}
+            initialUserBody={existingReview?.body ?? null}
+            initialUserHasSpoilers={existingReview?.hasSpoilers ?? false}
+          />
         </article>
       </div>
     </main>

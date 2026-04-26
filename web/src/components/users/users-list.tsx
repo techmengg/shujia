@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-const FALLBACK_AVATAR = "/noprofile.png";
 
 export interface UserItemDto {
   id: string;
@@ -64,7 +63,7 @@ export function UsersList({ users }: UsersListProps) {
         <ul className="divide-y divide-white/10 rounded-xl border border-white/10 bg-white/5">
           {filtered.map((u) => {
             const displayName = u.name?.trim() || (u.username ? `@${u.username}` : "User");
-            const avatar = u.avatarUrl?.trim() ? u.avatarUrl : FALLBACK_AVATAR;
+            const avatar = u.avatarUrl?.trim() || null;
             const profileHref = u.username ? `/profile/${u.username}` : "/profile";
             const created = new Date(u.createdAt);
 
@@ -74,7 +73,8 @@ export function UsersList({ users }: UsersListProps) {
                   href={profileHref}
                   className="flex items-center gap-4 px-4 py-3 transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                 >
-                  <span className="relative block h-10 w-10 overflow-hidden rounded-2xl border border-white/15 bg-white/5">
+                  <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/5">
+                    {avatar ? (
                     <Image
                       src={avatar}
                       alt={`${displayName} avatar`}
@@ -84,6 +84,11 @@ export function UsersList({ users }: UsersListProps) {
                       unoptimized
                       className="object-cover"
                     />
+                    ) : (
+                      <span className="text-xs font-semibold text-white/70">
+                        {displayName.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </span>
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-sm font-medium text-white">{displayName}</span>

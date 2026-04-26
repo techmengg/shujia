@@ -14,7 +14,8 @@
 - **auth**: cookie sessions (bcrypt), Google OAuth, email verification, TOTP 2FA, recovery codes
 - **storage**: Vercel Blob (avatars) + local `public/uploads/avatars` fallback
 - **email**: Resend (default) or SMTP fallback
-- **data source**: MangaUpdates REST (primary, see `MangaUpdateOpenAPI.json` at repo root); MangaDex legacy (being removed); Comick/Jikan/AniList/Consumet staged
+- **data source**: MangaUpdates REST (primary, see `MangaUpdateOpenAPI.json` at repo root); Comick/Jikan/AniList/Consumet staged
+- **reviews**: `Review` + `ReviewReaction` models; reactions (thumbs up/down, heart, funny, confusing, angry); review upsert syncs rating to `ReadingListEntry`
 
 ## layout
 
@@ -22,7 +23,7 @@ Root is the repo; the app lives under `web/`.
 
 - `web/src/app/**` — app router pages + API routes (`(auth)`, `api`, `explore`, `manga`, `profile`, `reading-list`, `roadmap`, `settings`, `users`, `[username]`)
 - `web/src/components/**` — UI
-- `web/src/lib/{auth,email,mangadex,security,theme,prisma.ts}` — helpers/clients
+- `web/src/lib/{auth,email,mangaupdates,manga,security,theme,prisma.ts}` — helpers/clients
 - `web/prisma/{schema.prisma,migrations/}` — schema + timestamped SQL migrations
 - `web/src/middleware.ts` — edge middleware
 
@@ -66,7 +67,7 @@ When touching MangaUpdates integration, **consult `MangaUpdateOpenAPI.json` at t
 
 - The file is ~20k lines; don't `Read` it whole. Use `Grep` to find the exact `paths` entry or schema you need, then `Read` with `offset`/`limit`.
 - Before calling any endpoint, verify: HTTP method, path, whether auth is required (look for a `security` key on the operation — `/releases/search` needs a JWT, `/series/*` is public), and the request/response schema under `components/schemas`.
-- Respect the Acceptable Use Policy embedded in `info.description`: credit MangaUpdates in any user-visible surface that shows their data, space out requests, and cache aggressively. Mirror the caching patterns already in `src/lib/mangadex/service-cached.ts`.
+- Respect the Acceptable Use Policy embedded in `info.description`: credit MangaUpdates once in the site footer only — no per-page or per-component credits. Space out requests and cache aggressively. Mirror the caching patterns in `src/lib/mangaupdates/service-cached.ts`.
 - Field names and types must come from the spec, not guessed — e.g., `series_id` is `integer`, not UUID; `search` is POST-with-JSON, not GET-with-query.
 
 ## safety rules

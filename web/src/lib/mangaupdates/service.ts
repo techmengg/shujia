@@ -1,8 +1,6 @@
 import { MangaUpdatesAPIError, mangaupdatesFetch } from "./client";
 import type {
   MangaUpdatesReleaseResponse,
-  MangaUpdatesReviewResponse,
-  MangaUpdatesReviewSearchRequest,
   MangaUpdatesSearchRequest,
   MangaUpdatesSearchResponse,
   MangaUpdatesSeriesRecord,
@@ -276,30 +274,6 @@ export async function getRecentReleases(
     if (!id || seen.has(id)) continue;
     seen.add(id);
     candidates.push({ id, chapter: result.record?.chapter });
-  }
-
-  return hydrateSummaries(candidates, limit);
-}
-
-export async function getRecentlyReviewedSeries(
-  limit = DEFAULT_LIMIT,
-): Promise<MangaSummary[]> {
-  const body: MangaUpdatesReviewSearchRequest = {
-    perpage: Math.max(limit * 3, 30),
-  };
-
-  const response = await mangaupdatesFetch<MangaUpdatesReviewResponse>(
-    "/reviews/search",
-    { body },
-  );
-
-  const seen = new Set<number>();
-  const candidates: { id: number }[] = [];
-  for (const result of response.results ?? []) {
-    const id = result.record?.series?.series_id;
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    candidates.push({ id });
   }
 
   return hydrateSummaries(candidates, limit);

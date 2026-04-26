@@ -4,7 +4,6 @@ import { after } from "next/server";
 import { MangaCarousel } from "@/components/manga/manga-carousel";
 import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
 import { FollowedSection } from "@/components/home/followed-section";
-import { getDemographicHighlights } from "@/lib/mangadex/service-cached";
 import {
   getPopularNewTitles,
   getRecentReleases,
@@ -68,44 +67,8 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
 }
 
 export default async function Home() {
-  function toProxyCoverUrl(mangaId: string, url?: string | null): string | undefined {
-    if (!url) return undefined;
-
-    try {
-      // If already using our proxy, normalize to size=256
-      if (url.startsWith("/api/images/cover")) {
-        const u = new URL(url, "http://localhost"); // base is ignored for path parsing
-        u.searchParams.set("mangaId", mangaId);
-        u.searchParams.set("size", "256");
-        return `${u.pathname}?${u.searchParams.toString()}`;
-      }
-
-      const parsed = new URL(url);
-      const isUploads =
-        parsed.hostname === "uploads.mangadex.org" ||
-        parsed.hostname === "uploads-cdn.mangadex.org" ||
-        parsed.hostname === "mangadex.org";
-
-      if (!isUploads) {
-        // For any other host, leave as-is.
-        return url;
-      }
-
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      const fileSegment = segments[segments.length - 1] ?? "";
-      // Strip sized suffix if present: .256.jpg or .512.jpg
-      const originalFile = fileSegment.replace(/\.256\.jpg$|\.512\.jpg$/i, "");
-
-      const params = new URLSearchParams({
-        mangaId,
-        file: originalFile,
-        size: "256",
-      });
-
-      return `/api/images/cover?${params.toString()}`;
-    } catch {
-      return url ?? undefined;
-    }
+  function coverUrl(url?: string | null): string | undefined {
+    return url ?? undefined;
   }
 
   async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
@@ -123,24 +86,79 @@ export default async function Home() {
     safe(getTrendingByLanguage("ko", 50), []),
     safe(getTrendingByLanguage("zh", 50), []),
     safe(getPopularNewTitles(50), []),
-    safe(getDemographicHighlights("shounen", 50), []),
-    safe(getDemographicHighlights("seinen", 50), []),
-    safe(getDemographicHighlights("shoujo", 50), []),
-    safe(getDemographicHighlights("josei", 50), []),
     safe(getRecentReleases(50), []),
   ]);
 
+  // Recent community reviews — distinct manga, most recent first
+  const recentReviewsPromise = safe(
+    prisma.review
+      .findMany({
+        where: { body: { not: null } },
+        orderBy: { createdAt: "desc" },
+        take: 60,
+        select: { provider: true, mangaId: true },
+      })
+      .then((rows) => {
+        const seen = new Set<string>();
+        const unique: { provider: string; mangaId: string }[] = [];
+        for (const r of rows) {
+          const key = `${r.provider}:${r.mangaId}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          unique.push(r);
+          if (unique.length >= 20) break;
+        }
+        return unique;
+      })
+      .then(async (unique) => {
+        if (!unique.length) return [] as MangaSummary[];
+        // Look up metadata from reading list entries (any user's — just need the cached fields)
+        const entries = await prisma.readingListEntry.findMany({
+          where: {
+            OR: unique.map((u) => ({ provider: u.provider, mangaId: u.mangaId })),
+          },
+          distinct: ["provider", "mangaId"],
+          orderBy: { updatedAt: "desc" },
+        });
+        const entryMap = new Map(
+          entries.map((e) => [`${e.provider}:${e.mangaId}`, e]),
+        );
+        const summaries: MangaSummary[] = [];
+        for (const u of unique) {
+          const entry = entryMap.get(`${u.provider}:${u.mangaId}`);
+          if (!entry) continue;
+          summaries.push({
+            id: entry.mangaId,
+            provider: entry.provider as Provider,
+            title: entry.title,
+            altTitles: entry.altTitles,
+            description: entry.description ?? undefined,
+            status: entry.status ?? undefined,
+            year: entry.year ?? undefined,
+            contentRating: entry.contentRating ?? undefined,
+            demographic: entry.demographic ?? undefined,
+            latestChapter: entry.latestChapter ?? undefined,
+            languages: entry.languages,
+            tags: entry.tags,
+            coverImage: coverUrl(entry.coverImage),
+            url: entry.url,
+          });
+        }
+        return summaries;
+      }),
+    [],
+  );
+
   const [
-    trendingManga,
-    trendingManhwa,
-    trendingManhua,
-    popularNewTitles,
-    shounenHighlights,
-    seinenHighlights,
-    shoujoHighlights,
-    joseiHighlights,
-    recentReleases,
-  ] = await trendsPromise;
+    [
+      trendingManga,
+      trendingManhwa,
+      trendingManhua,
+      popularNewTitles,
+      recentReleases,
+    ],
+    recentlyReviewed,
+  ] = await Promise.all([trendsPromise, recentReviewsPromise]);
 
   const user = await userPromise;
 
@@ -171,7 +189,7 @@ export default async function Home() {
     latestChapter: entry.latestChapter ?? undefined,
     languages: entry.languages,
     tags: entry.tags,
-    coverImage: toProxyCoverUrl(entry.mangaId, entry.coverImage),
+    coverImage: coverUrl(entry.coverImage),
     url: entry.url,
   }));
 
@@ -215,29 +233,6 @@ export default async function Home() {
     },
   ].filter((tab) => tab.items.length > 0);
 
-  const demographicTabs = [
-    {
-      id: "shounen",
-      label: "Shounen",
-      items: shounenHighlights,
-    },
-    {
-      id: "seinen",
-      label: "Seinen",
-      items: seinenHighlights,
-    },
-    {
-      id: "shoujo",
-      label: "Shoujo",
-      items: shoujoHighlights,
-    },
-    {
-      id: "josei",
-      label: "Josei",
-      items: joseiHighlights,
-    },
-  ].filter((tab) => tab.items.length > 0);
-
   return (
     <main className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-6 lg:px-10">
       <h1 className="sr-only">Shujia</h1>
@@ -264,19 +259,15 @@ export default async function Home() {
         </section>
       ) : null}
 
-      <section className="mt-6 sm:mt-8">
-        <RailHeader label="Recent Community Reviews" note="coming soon" />
-        <div className="border border-white/15 px-3 py-2.5 sm:px-4 sm:py-3">
-          <p className="text-[0.8rem] italic text-surface-subtle sm:text-sm">
-            Fresh reviews from the shujia community will land here — the most
-            recently rated titles, straight to your feed.
-          </p>
-        </div>
-      </section>
-
-      {demographicTabs.length ? (
+      {recentlyReviewed.length ? (
         <section className="mt-6 sm:mt-8">
-          <TabbedCarousel heading="Demographic" tabs={demographicTabs} />
+          <RailHeader label="Recently Reviewed" />
+          <MangaCarousel
+            items={recentlyReviewed}
+            emptyState={
+              <EmptyLine>No recently reviewed titles right now.</EmptyLine>
+            }
+          />
         </section>
       ) : null}
 

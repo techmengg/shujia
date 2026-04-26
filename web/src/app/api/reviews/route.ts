@@ -22,6 +22,15 @@ const deleteSchema = z
   })
   .strict();
 
+interface ReactionCounts {
+  thumbs_up: number;
+  thumbs_down: number;
+  funny: number;
+  confusing: number;
+  heart: number;
+  angry: number;
+}
+
 interface SerializedReview {
   id: string;
   authorId: string;
@@ -35,23 +44,49 @@ interface SerializedReview {
   hasSpoilers: boolean;
   createdAt: string;
   updatedAt: string;
+  reactions: ReactionCounts;
+  userReactions: string[];
 }
 
-type ReviewWithAuthor = Review & {
+type ReviewWithRelations = Review & {
   author: {
     name: string | null;
     username: string;
     avatarUrl: string | null;
   };
+  reactions: { type: string; userId: string }[];
 };
 
-function serialize(review: Review, author?: ReviewWithAuthor["author"]): SerializedReview {
+function serialize(
+  review: ReviewWithRelations,
+  viewerId?: string | null,
+): SerializedReview {
+  const counts: ReactionCounts = {
+    thumbs_up: 0,
+    thumbs_down: 0,
+    funny: 0,
+    confusing: 0,
+    heart: 0,
+    angry: 0,
+  };
+
+  const userReactions: string[] = [];
+
+  for (const reaction of review.reactions) {
+    if (reaction.type in counts) {
+      counts[reaction.type as keyof ReactionCounts] += 1;
+    }
+    if (viewerId && reaction.userId === viewerId) {
+      userReactions.push(reaction.type);
+    }
+  }
+
   return {
     id: review.id,
     authorId: review.authorId,
-    authorName: author?.name ?? null,
-    authorUsername: author?.username ?? null,
-    authorAvatar: author?.avatarUrl ?? null,
+    authorName: review.author?.name ?? null,
+    authorUsername: review.author?.username ?? null,
+    authorAvatar: review.author?.avatarUrl ?? null,
     provider: review.provider,
     mangaId: review.mangaId,
     rating: review.rating,
@@ -59,6 +94,8 @@ function serialize(review: Review, author?: ReviewWithAuthor["author"]): Seriali
     hasSpoilers: review.hasSpoilers,
     createdAt: review.createdAt.toISOString(),
     updatedAt: review.updatedAt.toISOString(),
+    reactions: counts,
+    userReactions,
   };
 }
 
@@ -108,13 +145,16 @@ export async function GET(request: Request) {
           author: {
             select: { name: true, username: true, avatarUrl: true },
           },
+          reactions: {
+            select: { type: true, userId: true },
+          },
         },
       }),
       prisma.review.count({ where: { provider, mangaId } }),
     ]);
 
     return NextResponse.json({
-      data: reviews.map((r) => serialize(r, r.author)),
+      data: reviews.map((r) => serialize(r)),
       total,
       limit: take,
       offset: skip,
@@ -160,30 +200,41 @@ export async function POST(request: Request) {
     const trimmedBody = typeof reviewBody === "string" ? reviewBody.trim() : "";
     const bodyValue = trimmedBody.length > 0 ? trimmedBody : null;
 
-    const review = await prisma.review.upsert({
-      where: {
-        authorId_provider_mangaId: {
+    const [review] = await prisma.$transaction([
+      prisma.review.upsert({
+        where: {
+          authorId_provider_mangaId: {
+            authorId: user.id,
+            provider,
+            mangaId,
+          },
+        },
+        create: {
           authorId: user.id,
           provider,
           mangaId,
+          rating,
+          body: bodyValue,
+          hasSpoilers: hasSpoilers ?? false,
         },
-      },
-      create: {
-        authorId: user.id,
-        provider,
-        mangaId,
-        rating,
-        body: bodyValue,
-        hasSpoilers: hasSpoilers ?? false,
-      },
-      update: {
-        rating,
-        body: bodyValue,
-        ...(hasSpoilers !== undefined ? { hasSpoilers } : {}),
-      },
-    });
+        update: {
+          rating,
+          body: bodyValue,
+          ...(hasSpoilers !== undefined ? { hasSpoilers } : {}),
+        },
+        include: {
+          author: { select: { name: true, username: true, avatarUrl: true } },
+          reactions: { select: { type: true, userId: true } },
+        },
+      }),
+      // Sync rating to the user's reading list entry
+      prisma.readingListEntry.updateMany({
+        where: { userId: user.id, provider, mangaId },
+        data: { rating },
+      }),
+    ]);
 
-    return NextResponse.json({ data: serialize(review) }, { status: 200 });
+    return NextResponse.json({ data: serialize(review, user.id) }, { status: 200 });
   } catch (error) {
     console.error("Failed to upsert review", error);
     return NextResponse.json(
@@ -218,13 +269,20 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const result = await prisma.review.deleteMany({
-      where: {
-        authorId: user.id,
-        provider: parsed.data.provider,
-        mangaId: parsed.data.mangaId,
-      },
-    });
+    const [result] = await prisma.$transaction([
+      prisma.review.deleteMany({
+        where: {
+          authorId: user.id,
+          provider: parsed.data.provider,
+          mangaId: parsed.data.mangaId,
+        },
+      }),
+      // Clear rating from reading list entry
+      prisma.readingListEntry.updateMany({
+        where: { userId: user.id, provider: parsed.data.provider, mangaId: parsed.data.mangaId },
+        data: { rating: null },
+      }),
+    ]);
 
     return NextResponse.json({ data: { removed: result.count } });
   } catch (error) {

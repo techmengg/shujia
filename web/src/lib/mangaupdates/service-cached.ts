@@ -46,12 +46,5 @@ export const getRecentReleases = unstable_cache(
   { revalidate: 300, tags: ["mangaupdates-recent-releases"] },
 );
 
-export const getRecentlyReviewedSeries = unstable_cache(
-  async (limit?: number): Promise<MangaSummary[]> =>
-    service.getRecentlyReviewedSeries(limit),
-  ["mangaupdates-recently-reviewed-sfw-v2"],
-  { revalidate: 1800, tags: ["mangaupdates-recently-reviewed"] },
-);
-
 export { MangaUpdatesAPIError } from "./client";
 export type { MangaDetails, MangaSummary } from "@/lib/manga/types";

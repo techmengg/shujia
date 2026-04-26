@@ -165,17 +165,23 @@ export function NavAuthButtons({ avatar, username }: NavAuthButtonsProps) {
         }
       >
         {isAuthenticated ? (
-          <Image
-            src={avatar || "/noprofile.png"}
-            alt=""
-            width={160}
-            height={160}
-            sizes="(max-width: 640px) 36px, 40px"
-            className="h-full w-full object-cover"
-            quality={100}
-            priority
-            unoptimized
-          />
+          avatar ? (
+            <Image
+              src={avatar}
+              alt=""
+              width={160}
+              height={160}
+              sizes="(max-width: 640px) 36px, 40px"
+              className="h-full w-full object-cover"
+              quality={100}
+              priority
+              unoptimized
+            />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center bg-white/10 text-xs font-semibold text-white/70">
+              {(username ?? "?").charAt(0).toUpperCase()}
+            </span>
+          )
         ) : (
           <svg
             xmlns="http://www.w3.org/2000/svg"

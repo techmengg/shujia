@@ -347,9 +347,6 @@ export function SearchBar() {
                   const helperMessage = actionState.message;
                   const isSelected = index === selectedIndex;
 
-                  const providerNote =
-                    manga.provider === "mangadex" ? "mangadex" : "mangaupdates";
-
                   const metaBits: string[] = [];
                   if (manga.status) metaBits.push(manga.status);
                   if (manga.demographic) metaBits.push(manga.demographic);
@@ -394,20 +391,11 @@ export function SearchBar() {
                                 {manga.altTitles[0]}
                               </p>
                             ) : null}
-                            <p className="line-clamp-1 text-[0.7rem] text-surface-subtle/70">
-                              {metaBits.length > 0 ? (
-                                <>
-                                  {metaBits.join(" · ")}{" "}
-                                  <span className="italic text-surface-subtle/50">
-                                    · {providerNote}
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="italic text-surface-subtle/50">
-                                  {providerNote}
-                                </span>
-                              )}
-                            </p>
+                            {metaBits.length > 0 ? (
+                              <p className="line-clamp-1 text-[0.7rem] text-surface-subtle/70">
+                                {metaBits.join(" · ")}
+                              </p>
+                            ) : null}
                           </div>
                         </Link>
 

@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-const FALLBACK_AVATAR = "/noprofile.png";
 const SHOWCASE_LOCAL_STORAGE_PREFIX = "shujia.ten-showcase";
 const SHOWCASE_LIMIT = 8;
 
@@ -310,7 +309,7 @@ function getTopTags(readingList: ReadingListEntryDto[], limit = 10) {
 
 export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageContentProps) {
   const memberSince = formatMemberSince(user.memberSince);
-  const avatar = user.avatarUrl?.trim() ? user.avatarUrl : FALLBACK_AVATAR;
+  const avatar = user.avatarUrl?.trim() || null;
   const bio = user.bio?.trim();
   const showcaseUserKey = user.email || user.username || user.name || "guest";
   const readingListHref = isOwner
@@ -436,17 +435,23 @@ export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageCo
       <section className="space-y-5 border-b border-white/10 pb-5 sm:space-y-6 sm:pb-7">
         <div className="flex items-start gap-4 sm:gap-6">
           <div className="flex shrink-0 flex-col items-start">
-            <div className="relative h-24 w-24 overflow-hidden rounded-3xl border border-white/15 bg-white/5 shadow-[0_20px_40px_rgba(8,11,24,0.4)] sm:h-36 sm:w-36">
-              <Image
-                src={avatar}
-                alt={`${displayName} avatar`}
-                fill
-                priority
-                sizes="(min-width: 640px) 180px, 128px"
-                quality={100}
-                unoptimized
-                className="object-cover"
-              />
+            <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border border-white/15 bg-white/5 shadow-[0_20px_40px_rgba(8,11,24,0.4)] sm:h-36 sm:w-36">
+              {avatar ? (
+                <Image
+                  src={avatar}
+                  alt={`${displayName} avatar`}
+                  fill
+                  priority
+                  sizes="(min-width: 640px) 180px, 128px"
+                  quality={100}
+                  unoptimized
+                  className="object-cover"
+                />
+              ) : (
+                <span className="text-2xl font-semibold text-white/70 sm:text-4xl">
+                  {displayName.charAt(0).toUpperCase()}
+                </span>
+              )}
             </div>
           </div>
           <div className="min-w-0 flex-1 space-y-3">

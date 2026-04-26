@@ -41,9 +41,9 @@ const sections: RoadmapSection[] = [
           "covers, synopsis, authors, artists, tags, key facts, and one-click tracking.",
       },
       {
-        title: "MangaUpdates + MangaDex metadata pipeline",
+        title: "Metadata pipeline",
         detail:
-          "unified provider layer. legacy entries auto-migrate to mangaupdates when a confident title match is found.",
+          "unified provider layer pulling series data. legacy entries auto-migrate when a confident title match is found.",
       },
     ],
   },
@@ -95,7 +95,7 @@ const sections: RoadmapSection[] = [
           "submit a title that isn't indexed yet. moderated so spam doesn't leak in.",
       },
       {
-        title: "Import from MAL, AniList, MangaUpdates",
+        title: "Import from MAL, AniList, and more",
         detail:
           "bring your existing list over in one go. no re-tagging from scratch.",
       },

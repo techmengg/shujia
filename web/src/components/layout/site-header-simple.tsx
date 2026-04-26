@@ -36,7 +36,7 @@ export async function SiteHeader({ className }: SiteHeaderProps) {
         select: { avatarUrl: true },
       })
     : null;
-  const avatar = dbUser?.avatarUrl?.trim() ? dbUser.avatarUrl : "/noprofile.png";
+  const avatar = dbUser?.avatarUrl?.trim() ? dbUser.avatarUrl : undefined;
 
   return (
     <header className={combinedClassName}>
