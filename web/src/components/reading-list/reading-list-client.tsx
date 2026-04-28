@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ReadingListItem, ReadingListResponse } from "@/data/reading-list";
+import { normalizeStatus, statusLabel, type NormalizedStatus } from "@/lib/manga/status";
 
 type ReadingListClientProps = {
   username?: string;
@@ -25,10 +26,21 @@ function getMessage(body: unknown): string | undefined {
 type SortOption = "recent" | "alphabetical" | "rating" | "random";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "recent", label: "Recently updated" },
-  { value: "alphabetical", label: "Alphabetical" },
+  { value: "recent", label: "Recent" },
+  { value: "alphabetical", label: "A-Z" },
   { value: "rating", label: "Rating" },
   { value: "random", label: "Random" },
+];
+
+type StatusFilterValue = "all" | NormalizedStatus;
+
+const STATUS_FILTERS: { value: StatusFilterValue; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "reading", label: "Reading" },
+  { value: "completed", label: "Completed" },
+  { value: "plan-to-read", label: "Plan to read" },
+  { value: "on-hold", label: "On hold" },
+  { value: "dropped", label: "Dropped" },
 ];
 
 const IMPORT_DEFAULT_CONCURRENCY = 12; // Increased from 6
@@ -40,7 +52,6 @@ const IMPORT_RETRY_BASE_DELAY_MS = 600;
 const IMPORT_RETRY_MAX_DELAY_MS = 6000;
 const PROGRESS_UPDATE_INTERVAL = 3;    // Update UI more frequently
 const RESOLVE_BATCH_SIZE = 20;         // Resolve titles in batches
-const TABLE_COLUMNS = 6;
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
@@ -124,16 +135,12 @@ export function ReadingListClient({
   const [editStatus, setEditStatus] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ progress: "", rating: "", notes: "" });
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
 
   const isOwner = Boolean(viewerIsOwner);
   const normalizedUsername = username?.trim().replace(/^@/, "") || null;
   const displayOwnerLabel =
     initialOwnerLabel ?? (normalizedUsername ? `@${normalizedUsername}` : null);
-  const headingTitle = displayOwnerLabel
-    ? `${displayOwnerLabel} Reading List`
-    : isOwner
-      ? "Your Reading List"
-      : "Curated Reading List";
   const emptyListMessage = isOwner
     ? "Your reading list is empty. Use the search bar to add a series."
     : displayOwnerLabel
@@ -197,16 +204,37 @@ export function ReadingListClient({
     };
   }, [isOwner, normalizedUsername]);
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<NormalizedStatus, number> = {
+      completed: 0,
+      reading: 0,
+      "on-hold": 0,
+      dropped: 0,
+      "plan-to-read": 0,
+      unknown: 0,
+    };
+    for (const item of items) {
+      counts[normalizeStatus(item.status)] += 1;
+    }
+    return counts;
+  }, [items]);
+
   const filteredItems = useMemo(() => {
+    let list = items;
+    if (statusFilter !== "all") {
+      list = list.filter((i) => normalizeStatus(i.status) === statusFilter);
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((i) => {
-      if (i.title.toLowerCase().includes(q)) return true;
-      if (i.altTitles && i.altTitles.some((t) => t.toLowerCase().includes(q))) return true;
-      if (i.tags && i.tags.some((t) => t.toLowerCase().includes(q))) return true;
-      return false;
-    });
-  }, [items, query]);
+    if (q) {
+      list = list.filter((i) => {
+        if (i.title.toLowerCase().includes(q)) return true;
+        if (i.altTitles && i.altTitles.some((t) => t.toLowerCase().includes(q))) return true;
+        if (i.tags && i.tags.some((t) => t.toLowerCase().includes(q))) return true;
+        return false;
+      });
+    }
+    return list;
+  }, [items, query, statusFilter]);
 
   const sortedItems = useMemo(
     () => sortReadingList(filteredItems, sort, randomKey),
@@ -292,20 +320,20 @@ export function ReadingListClient({
   };
 
   const renderEditFields = (item: ReadingListItem) => (
-    <>
-      <div className="grid gap-3 md:grid-cols-3">
-        <label className="flex flex-col gap-1 text-xs text-white/70">
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-[0.7rem] text-white/55 sm:text-xs">
           <span>Progress</span>
           <input
             type="text"
             value={editForm.progress}
             onChange={(e) => setEditForm((f) => ({ ...f, progress: e.target.value }))}
-            className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
+            className="border-b border-white/15 bg-transparent py-1 text-sm text-white placeholder:italic placeholder:text-white/30 focus:border-accent focus:outline-none"
             placeholder="e.g. Chapter 12"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-white/70">
-          <span>Rating</span>
+        <label className="flex flex-col gap-1 text-[0.7rem] text-white/55 sm:text-xs">
+          <span>Rating (0&ndash;10)</span>
           <input
             type="number"
             min={0}
@@ -313,39 +341,44 @@ export function ReadingListClient({
             step={0.5}
             value={editForm.rating}
             onChange={(e) => setEditForm((f) => ({ ...f, rating: e.target.value }))}
-            className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
+            className="border-b border-white/15 bg-transparent py-1 text-sm text-white placeholder:italic placeholder:text-white/30 focus:border-accent focus:outline-none"
             placeholder="8.5"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-white/70 md:col-span-3">
+        <label className="flex flex-col gap-1 text-[0.7rem] text-white/55 sm:col-span-2 sm:text-xs">
           <span>Notes</span>
           <textarea
             rows={2}
             value={editForm.notes}
             onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-            className="rounded-md border border-white/15 bg-transparent px-2 py-1 text-sm text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-0"
+            className="border border-white/15 bg-transparent px-2 py-1.5 text-sm text-white placeholder:italic placeholder:text-white/30 focus:border-accent focus:outline-none"
             placeholder="Optional notes"
           />
         </label>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="flex items-baseline gap-4">
         <button
           type="button"
           onClick={() => saveEdit(item)}
-          className="inline-flex items-center justify-center rounded-md border border-accent bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent transition hover:border-accent/60 hover:bg-accent/20"
+          className="group inline-flex items-baseline gap-1 text-[0.7rem] font-medium text-accent transition-colors hover:text-white sm:text-xs"
         >
-          Save
+          <span className="underline-offset-4 group-hover:underline">save</span>
+          <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">
+            &rarr;
+          </span>
         </button>
         <button
           type="button"
           onClick={cancelEdit}
-          className="inline-flex items-center justify-center rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/80 transition hover:border-white/40 hover:text-white"
+          className="text-[0.7rem] font-medium text-white/45 transition hover:text-white sm:text-xs"
         >
-          Cancel
+          cancel
         </button>
-        {editStatus ? <span className="text-xs text-white/60">{editStatus}</span> : null}
+        {editStatus ? (
+          <span className="text-[0.7rem] italic text-surface-subtle sm:text-xs">{editStatus}</span>
+        ) : null}
       </div>
-    </>
+    </div>
   );
 
   const exportRows = useMemo(
@@ -1166,413 +1199,388 @@ export function ReadingListClient({
   };
 
   return (
-    <main className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 pb-10 pt-6 sm:gap-8 sm:px-6 lg:px-10">
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2.5">
-          <div>
-            <div className="flex items-baseline gap-2">
-              <h1 className="text-lg font-semibold text-white sm:text-3xl">{headingTitle}</h1>
-              <span className="text-[0.7rem] text-white/50 sm:text-xs">{items.length} entries</span>
-            </div>
-            {!isOwner && displayOwnerLabel ? (
-              <p className="mt-1 text-sm text-white/60">
-                Viewing {displayOwnerLabel}&rsquo;s saved series.
-              </p>
-            ) : null}
-          </div>
+    <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      {/* Header */}
+      <header className="mb-4 sm:mb-6">
+        <div className="flex items-baseline justify-between gap-3">
+          <h1 className="text-xl font-semibold text-white sm:text-2xl">Reading list</h1>
 
-          <div className="flex flex-wrap items-center justify-between gap-2.5">
-            <div className="min-w-0 grow sm:grow-0">
-              <label className="sr-only" htmlFor="reading-list-search">Search</label>
-              <input
-                id="reading-list-search"
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search your list"
-                className="w-full min-w-[10rem] rounded-md border border-white/20 bg-white/5 px-3 py-2 text-[0.8rem] text-white placeholder:text-white/40 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent sm:min-w-[14rem] sm:text-[0.9rem]"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="sr-only" htmlFor="sort-select">Sort</label>
-              <div className="relative">
-                <select
-                  id="sort-select"
-                  value={sort}
-                  onChange={(e) => handleSortChange(e.target.value as SortOption)}
-                  className="appearance-none rounded-md border border-white/15 bg-white/5 px-3 pr-8 py-2 text-[0.8rem] text-white/80 outline-none transition hover:border-white/30 focus:border-accent focus:text-white sm:text-[0.9rem]"
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value} className="bg-[#0b1220]">
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 20 20"
-                  className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60"
-                >
-                  <path d="M5.25 7.5L10 12.25L14.75 7.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-
-              <div className="relative">
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setActionsOpen((o) => !o)}
+              className="group inline-flex items-baseline gap-1 text-xs font-medium text-accent transition-colors hover:text-white"
+            >
+              <span className="underline-offset-4 group-hover:underline">actions</span>
+              <span
+                aria-hidden
+                className="transition-transform duration-200 group-hover:translate-x-0.5"
+              >
+                &rarr;
+              </span>
+            </button>
+            {actionsOpen ? (
+              <div className="absolute right-0 z-20 mt-2 w-48 border border-white/15 bg-surface">
                 <button
                   type="button"
-                  onClick={() => setActionsOpen((o) => !o)}
-                  className="inline-flex items-center rounded-md border border-white/15 bg-white/5 px-3 py-2 text-[0.85rem] text-white/80 transition hover:border-white/40 hover:text-white"
+                  onClick={() => {
+                    setActionsOpen(false);
+                    handleExport();
+                  }}
+                  className="block w-full px-3 py-2 text-left text-xs text-white/85 transition hover:bg-white/[0.04] hover:text-white"
                 >
-                  Actions
+                  Export JSON
                 </button>
-                {actionsOpen ? (
-                  <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-md border border-white/10 bg-white/5 p-1 shadow-lg backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionsOpen(false);
+                    handleExportCsv();
+                  }}
+                  className="block w-full border-t border-white/10 px-3 py-2 text-left text-xs text-white/85 transition hover:bg-white/[0.04] hover:text-white"
+                >
+                  Export CSV
+                </button>
+                {isOwner ? (
+                  <>
                     <button
                       type="button"
-                      onClick={() => { setActionsOpen(false); handleExport(); }}
-                      className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        triggerImport();
+                      }}
+                      className="block w-full border-t border-white/10 px-3 py-2 text-left text-xs text-white/85 transition hover:bg-white/[0.04] hover:text-white"
                     >
-                      Export JSON
+                      Import JSON / CSV
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setActionsOpen(false); handleExportCsv(); }}
-                      className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        malFileInputRef.current?.click();
+                      }}
+                      className="block w-full border-t border-white/10 px-3 py-2 text-left text-xs text-white/85 transition hover:bg-white/[0.04] hover:text-white"
                     >
-                      Export CSV
-                    </button>
-                    {isOwner ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => { setActionsOpen(false); triggerImport(); }}
-                          className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
-                        >
-                      Import JSON/CSV
+                      Import MAL XML
+                      <span className="ml-1 text-[0.65rem] italic text-surface-subtle">(legacy)</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setActionsOpen(false); malFileInputRef.current?.click(); }}
-                      className="mt-1 block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-white/85 transition hover:bg-white/10"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        if (
+                          window.confirm(
+                            "Delete your entire reading list? This cannot be undone.",
+                          )
+                        ) {
+                          handleDeleteAll();
+                        }
+                      }}
+                      className="block w-full border-t border-white/10 px-3 py-2 text-left text-xs text-red-300 transition hover:bg-red-500/10 hover:text-red-200"
                     >
-                      Import MAL (XML)
-                        </button>
-                        <div className="px-3 py-2 text-[0.7rem] text-white/50">
-                      MAL works but not recommended.
-                        </div>
-                      </>
-                    ) : null}
-                    {isOwner ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActionsOpen(false);
-                          if (window.confirm("Delete your entire reading list? This cannot be undone.")) {
-                            handleDeleteAll();
-                          }
-                        }}
-                        className="block w-full rounded-[6px] px-3 py-2 text-left text-[0.85rem] text-red-200 transition hover:bg-red-500/10"
-                      >
-                        Delete all
-                      </button>
-                    ) : null}
-                  </div>
+                      Delete all
+                    </button>
+                  </>
                 ) : null}
               </div>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json,.json,text/csv,.csv"
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const nameLower = file.name.toLowerCase();
-                  if (!nameLower.endsWith(".json") && !nameLower.endsWith(".csv")) {
-                    setImportStatus("Unsupported file type. Please select a .json or .csv file.");
-                  } else {
-                    handleImportFile(file);
-                  }
-                }
-                e.currentTarget.value = "";
-              }}
-            />
-            <input
-              ref={malFileInputRef}
-              type="file"
-              accept="application/xml,.xml,text/xml"
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const nameLower = file.name.toLowerCase();
-                  if (!nameLower.endsWith(".xml")) {
-                    setImportStatus("Unsupported file type. Please select a MAL .xml file.");
-                  } else {
-                    handleImportMalXml(file);
-                  }
-                }
-                e.currentTarget.value = "";
-              }}
-            />
+            ) : null}
           </div>
         </div>
+
+        <p className="mt-1 text-[0.7rem] text-white/40 sm:text-xs">
+          {!isOwner && normalizedUsername ? (
+            <>
+              <Link
+                href={`/${encodeURIComponent(normalizedUsername.toLowerCase())}`}
+                className="text-accent transition-colors hover:text-white"
+              >
+                @{normalizedUsername}
+              </Link>
+              <span className="mx-1.5 text-white/15">&middot;</span>
+            </>
+          ) : null}
+          <span className="tabular-nums text-white/60">{items.length}</span>
+          <span> entries</span>
+        </p>
       </header>
 
-      <section className="flex flex-col gap-3">
-        {importStatus ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-2 text-center text-[0.6rem] text-white/70 sm:rounded-2xl sm:p-3 sm:text-xs">
-            {importStatus}
-          </div>
-        ) : null}
-        {isLoading ? (
-          <div className="space-y-2.5">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="flex animate-pulse items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] p-2.5 sm:rounded-2xl sm:p-4"
-              >
-                <div className="h-24 w-16 shrink-0 rounded-lg bg-white/10" />
-                <div className="flex flex-1 flex-col gap-2">
-                  <div className="h-4 w-1/3 rounded bg-white/10" />
-                  <div className="h-3 w-1/2 rounded bg-white/10" />
-                  <div className="h-3 w-2/3 rounded bg-white/10" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : isAuthenticated === false ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/70">
-            Log in to manage your reading list.
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center text-sm text-red-200">
-            {error}
-          </div>
-          ) : sortedItems.length === 0 ? (
-          items.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/70">
-              {emptyListMessage}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/70">
-              No matches for your search.
-            </div>
-          )
-        ) : (
-          <div className="space-y-4">
-            <div className="hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_25px_50px_rgba(2,6,23,0.35)] md:block">
-            <table className="w-full table-fixed border-collapse text-sm text-white/80">
-              <thead className="bg-white/5 text-[0.65rem] uppercase tracking-[0.2em] text-white/50">
-                <tr>
-                  <th className="w-[42%] px-4 py-3 text-left font-medium">Series</th>
-                  <th className="w-[16%] px-4 py-3 text-left font-medium">Progress</th>
-                  <th className="w-[10%] px-4 py-3 text-left font-medium">Rating</th>
-                  <th className="w-[12%] px-4 py-3 text-left font-medium">Updated</th>
-                  <th className="w-[14%] px-4 py-3 text-left font-medium">Notes</th>
-                  <th className="w-[8%] px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedItems.map((item) => {
-                  const progressLabel =
-                    item.progress && item.progress.trim().length
-                      ? item.progress
-                      : "Not started yet";
-                  const ratingDisplay =
-                    typeof item.rating === "number" ? item.rating.toFixed(1) : "--";
-                  const tags = item.tags?.length ? item.tags : [];
-                  const tagsPreview = tags.slice(0, 3);
-                  const remainingTags = Math.max(tags.length - tagsPreview.length, 0);
-                  const titleInitial =
-                    item.title && item.title.trim().length
-                      ? item.title.trim().charAt(0).toUpperCase()
-                      : "?";
-                  const editFields = renderEditFields(item);
-
-                  return (
-                    <Fragment key={item.id}>
-                      <tr className="border-t border-white/5 text-white/80 transition hover:bg-white/5 first:border-t-0">
-                        <td className="px-4 py-3 align-top">
-                          <div className="flex items-stretch gap-3">
-                            <div className="relative h-20 w-14 overflow-hidden rounded-md border border-white/10 bg-white/10 sm:h-24 sm:w-16">
-                              {item.cover ? (
-                                <Image
-                                  src={item.cover}
-                                  alt={item.title}
-                                  fill
-                                  sizes="60px"
-                                  quality={90}
-                                  unoptimized
-                                  referrerPolicy="no-referrer"
-                                  className="object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-white/5 text-sm font-semibold text-white">
-                                  {titleInitial}
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <Link
-                                href={`/manga/${item.mangaId}`}
-                                className="block min-w-0 truncate text-[0.95rem] font-semibold text-white transition hover:text-accent md:max-w-[32rem] xl:max-w-[40rem]"
-                              >
-                                {item.title}
-                              </Link>
-                              {(item.demographic || item.status) ? (
-                                <p className="text-[0.65rem] uppercase tracking-[0.12em] text-white/50">
-                                  {[item.demographic, item.status].filter(Boolean).join(" / ")}
-                                </p>
-                              ) : null}
-                              {tagsPreview.length ? (
-                                <div className="flex flex-wrap gap-1 text-[0.6rem] text-white/60">
-                                  {tagsPreview.map((tag) => (
-                                    <span
-                                      key={tag}
-                                      className="rounded-full bg-white/5 px-2 py-0.5 uppercase tracking-[0.14em]"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                  {remainingTags > 0 ? (
-                                    <span className="text-white/40">+{remainingTags} more</span>
-                                  ) : null}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 align-top text-[0.85rem] text-white/80">
-                          {progressLabel}
-                        </td>
-                        <td className="px-4 py-3 align-top text-center text-base font-semibold text-accent">
-                          {ratingDisplay}
-                        </td>
-                        <td className="px-4 py-3 align-top text-xs text-white/60">
-                          {formatUpdatedAt(item.updatedAt)}
-                        </td>
-                        <td className="px-4 py-3 align-top text-xs text-white/70">
-                          {item.notes ? (
-                            <p className="max-w-[14rem] text-white/80 line-clamp-2">
-                              {item.notes.split(" ").slice(0, 25).join(" ")}
-                              {item.notes.split(" ").length > 25 ? "…" : ""}
-                            </p>
-                          ) : (
-                            <span className="text-white/30">--</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 align-top">
-                          {isOwner ? (
-                            <div className="flex justify-end gap-2 text-[0.75rem]">
-                              <button
-                                type="button"
-                                onClick={() => openEdit(item)}
-                                className="rounded-full border border-white/15 px-3 py-1 text-white/80 transition hover:border-accent/40 hover:text-white"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          ) : null}
-                        </td>
-                      </tr>
-                      {editingId === item.id ? (
-                        <tr className="border-t border-white/5 bg-white/5">
-                          <td className="px-4 pb-5 pt-3" colSpan={TABLE_COLUMNS}>
-                            {editFields}
-                          </td>
-                        </tr>
-                      ) : null}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="space-y-2 md:hidden">
-            {sortedItems.map((item) => {
-              const progressLabel =
-                item.progress && item.progress.trim().length
-                  ? item.progress
-                  : "Not started yet";
-              const ratingDisplay =
-                typeof item.rating === "number" ? item.rating.toFixed(1) : "--";
-              const titleInitial =
-                item.title && item.title.trim().length
-                  ? item.title.trim().charAt(0).toUpperCase()
-                  : "?";
-              const editFields = renderEditFields(item);
-
-              return (
-                <Fragment key={`mobile-${item.id}`}>
-                  <article className="rounded-md border border-white/10 bg-white/[0.06] p-1.5 shadow-[0_12px_20px_rgba(3,7,18,0.35)] sm:rounded-2xl sm:p-3">
-                    <div className="flex gap-2.5">
-                      <div className="relative h-20 w-14 overflow-hidden rounded-lg border border-white/10 bg-white/10 sm:h-24 sm:w-16">
-                        {item.cover ? (
-                          <Image
-                            src={item.cover}
-                            alt={item.title}
-                            fill
-                            sizes="96px"
-                            quality={90}
-                            unoptimized
-                            referrerPolicy="no-referrer"
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-white/5 text-sm font-semibold text-white sm:text-lg">
-                            {titleInitial}
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <Link
-                            href={`/manga/${item.mangaId}`}
-                            className="block min-w-0 truncate text-[0.9rem] font-semibold text-white transition hover:text-accent sm:text-base"
-                          >
-                            {item.title}
-                          </Link>
-                          {isOwner ? (
-                            <button
-                              type="button"
-                              onClick={() => openEdit(item)}
-                              className="shrink-0 rounded-md border border-white/15 px-2 py-0.5 text-[0.65rem] text-white/80 transition hover:border-accent/40 hover:text-white sm:hidden"
-                            >
-                              Edit
-                            </button>
-                          ) : null}
-                        </div>
-                        <p className="text-[0.7rem] text-white/70 sm:text-[0.8rem]">{progressLabel}</p>
-                        <p className="text-[0.6rem] text-white/55 sm:text-[0.7rem]">
-                          <span aria-hidden className="mr-1">★</span>
-                          {ratingDisplay} • {formatUpdatedAt(item.updatedAt)}
-                        </p>
-                        {item.notes ? (
-                          <p className="text-[0.65rem] text-white/60 line-clamp-1 sm:text-[0.75rem]">
-                            {item.notes}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-
-                  </article>
-                  {editingId === item.id ? (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-2 sm:rounded-2xl sm:p-3">
-                      {editFields}
-                    </div>
-                  ) : null}
-                </Fragment>
-              );
-            })}
-          </div>
+      {/* Toolbar: search + sort */}
+      <div className="mb-4 grid gap-3 sm:mb-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-6">
+        <div className="relative">
+          <label className="sr-only" htmlFor="reading-list-search">
+            Search
+          </label>
+          <input
+            id="reading-list-search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search your list"
+            className="w-full border-b border-white/15 bg-transparent py-1.5 pr-7 text-sm text-white placeholder:italic placeholder:text-white/30 focus:border-accent focus:outline-none"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-white/40 transition hover:text-white"
+            >
+              &times;
+            </button>
+          ) : null}
         </div>
-        )}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[0.7rem] sm:text-xs">
+          <span className="text-white/35">sort</span>
+          {SORT_OPTIONS.map((option, i) => (
+            <Fragment key={option.value}>
+              {i > 0 ? <span className="text-white/15">&middot;</span> : null}
+              <button
+                type="button"
+                onClick={() => handleSortChange(option.value)}
+                className={`font-medium transition ${
+                  sort === option.value
+                    ? "text-white underline underline-offset-[5px] decoration-accent decoration-2"
+                    : "text-surface-subtle hover:text-white"
+                }`}
+              >
+                {option.label.toLowerCase()}
+              </button>
+            </Fragment>
+          ))}
+        </div>
+      </div>
 
-      </section>
+      {/* Status filter chips */}
+      {items.length > 0 ? (
+        <div className="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-white/10 pb-3 text-[0.7rem] sm:mb-5 sm:gap-x-5 sm:text-xs">
+          {STATUS_FILTERS.map((filter) => {
+            const count =
+              filter.value === "all" ? items.length : statusCounts[filter.value];
+            if (filter.value !== "all" && count === 0) return null;
+            const active = statusFilter === filter.value;
+            return (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => setStatusFilter(filter.value)}
+                className={`group inline-flex items-baseline gap-1 font-medium transition ${
+                  active
+                    ? "text-white underline underline-offset-[5px] decoration-accent decoration-2"
+                    : "text-surface-subtle hover:text-white"
+                }`}
+              >
+                <span>{filter.label.toLowerCase()}</span>
+                <span
+                  className={`tabular-nums ${
+                    active ? "text-accent" : "text-white/25 group-hover:text-white/45"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* Status messages */}
+      {importStatus ? (
+        <p className="mb-4 border border-white/15 px-3 py-2 text-[0.7rem] italic text-surface-subtle sm:px-4 sm:text-xs">
+          {importStatus}
+        </p>
+      ) : null}
+
+      {/* Body */}
+      {isLoading ? (
+        <ul className="divide-y divide-white/10 border-y border-white/10">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <li
+              key={i}
+              className="flex animate-pulse items-center gap-3 py-3 sm:gap-4"
+            >
+              <div className="h-16 w-11 shrink-0 bg-white/5 sm:h-20 sm:w-14" />
+              <div className="flex flex-1 flex-col gap-2">
+                <div className="h-3 w-1/3 bg-white/5" />
+                <div className="h-2 w-1/2 bg-white/5" />
+                <div className="h-2 w-1/4 bg-white/5" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : isAuthenticated === false ? (
+        <p className="text-sm italic text-surface-subtle">
+          Log in to manage your reading list.
+        </p>
+      ) : error ? (
+        <p className="text-sm italic text-red-300">{error}</p>
+      ) : sortedItems.length === 0 ? (
+        items.length === 0 ? (
+          <p className="text-sm italic text-surface-subtle">{emptyListMessage}</p>
+        ) : (
+          <p className="text-sm italic text-surface-subtle">
+            {query ? `No matches for "${query}".` : "No entries match this filter."}
+          </p>
+        )
+      ) : (
+        <ul className="divide-y divide-white/10 border-y border-white/10">
+          {sortedItems.map((item) => {
+            const cleanStatus = statusLabel(item.status);
+            const ratingDisplay =
+              typeof item.rating === "number" ? item.rating.toFixed(1) : null;
+            const tags = item.tags?.length ? item.tags : [];
+            const tagsPreview = tags.slice(0, 3);
+            const remainingTags = Math.max(tags.length - tagsPreview.length, 0);
+            const titleInitial =
+              item.title?.trim().charAt(0).toUpperCase() || "?";
+            const isEditing = editingId === item.id;
+            const metaTopBits = [cleanStatus, item.demographic, ...tagsPreview].filter(
+              Boolean,
+            ) as string[];
+            const progressLabel = item.progress?.trim() || null;
+
+            return (
+              <li
+                key={item.id}
+                className={`relative transition-colors ${
+                  isEditing
+                    ? "before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-accent"
+                    : "hover:bg-white/[0.03]"
+                }`}
+              >
+                <div className="flex items-start gap-3 px-1 py-2.5 sm:gap-4 sm:px-2 sm:py-3">
+                  <Link
+                    href={`/manga/${item.mangaId}`}
+                    className="relative h-16 w-11 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85 sm:h-20 sm:w-14"
+                  >
+                    {item.cover ? (
+                      <Image
+                        src={item.cover}
+                        alt={item.title}
+                        fill
+                        sizes="56px"
+                        quality={90}
+                        unoptimized
+                        referrerPolicy="no-referrer"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/60">
+                        {titleInitial}
+                      </div>
+                    )}
+                  </Link>
+
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:gap-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <Link
+                        href={`/manga/${item.mangaId}`}
+                        className="line-clamp-1 min-w-0 text-sm font-medium text-white transition hover:text-accent sm:text-[0.95rem]"
+                      >
+                        {item.title}
+                      </Link>
+                      {ratingDisplay ? (
+                        <span className="shrink-0 text-xs font-medium tabular-nums text-accent sm:text-sm">
+                          {ratingDisplay}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {metaTopBits.length > 0 ? (
+                      <p className="line-clamp-1 text-[0.65rem] text-white/45 sm:text-[0.7rem]">
+                        {metaTopBits.join(" · ")}
+                        {remainingTags > 0 ? (
+                          <span className="text-white/30"> +{remainingTags}</span>
+                        ) : null}
+                      </p>
+                    ) : null}
+
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[0.65rem] text-white/45 sm:text-[0.7rem]">
+                      {progressLabel ? (
+                        <span className="text-white/65">{progressLabel}</span>
+                      ) : (
+                        <span className="italic text-white/30">Not started</span>
+                      )}
+                      <span className="text-white/15">&middot;</span>
+                      <span>{formatUpdatedAt(item.updatedAt)}</span>
+                      {isOwner ? (
+                        <button
+                          type="button"
+                          onClick={() => (isEditing ? cancelEdit() : openEdit(item))}
+                          className="group ml-auto inline-flex items-baseline gap-1 font-medium text-accent transition-colors hover:text-white"
+                        >
+                          <span className="underline-offset-4 group-hover:underline">
+                            {isEditing ? "close" : "edit"}
+                          </span>
+                          <span
+                            aria-hidden
+                            className="transition-transform duration-200 group-hover:translate-x-0.5"
+                          >
+                            &rarr;
+                          </span>
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {item.notes ? (
+                      <p className="mt-0.5 line-clamp-2 text-[0.7rem] italic text-white/55 sm:text-xs">
+                        &ldquo;{item.notes}&rdquo;
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {isEditing ? (
+                  <div className="border-l-2 border-accent/40 px-3 pb-3 pt-1 sm:pl-6">
+                    {renderEditFields(item)}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json,.json,text/csv,.csv"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            const nameLower = file.name.toLowerCase();
+            if (!nameLower.endsWith(".json") && !nameLower.endsWith(".csv")) {
+              setImportStatus(
+                "Unsupported file type. Please select a .json or .csv file.",
+              );
+            } else {
+              handleImportFile(file);
+            }
+          }
+          e.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={malFileInputRef}
+        type="file"
+        accept="application/xml,.xml,text/xml"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            const nameLower = file.name.toLowerCase();
+            if (!nameLower.endsWith(".xml")) {
+              setImportStatus(
+                "Unsupported file type. Please select a MAL .xml file.",
+              );
+            } else {
+              handleImportMalXml(file);
+            }
+          }
+          e.currentTarget.value = "";
+        }}
+      />
     </main>
   );
 }

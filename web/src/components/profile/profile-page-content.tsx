@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { normalizeStatus, statusLabel } from "@/lib/manga/status";
+
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -71,17 +73,6 @@ function formatShortDate(isoDate: string): string {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return "Recently";
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
-}
-
-function normalizeStatus(status: string | null): "completed" | "reading" | "on-hold" | "dropped" | "plan-to-read" | "unknown" {
-  if (!status) return "unknown";
-  const s = status.trim().toLowerCase();
-  if (s.includes("complete")) return "completed";
-  if (s.includes("reading") || s.includes("ongoing") || s.includes("current")) return "reading";
-  if (s.includes("hold") || s.includes("pause")) return "on-hold";
-  if (s.includes("drop")) return "dropped";
-  if (s.includes("plan") || s.includes("queue")) return "plan-to-read";
-  return "unknown";
 }
 
 function escapeHtml(input: string): string {
@@ -601,11 +592,9 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
   const displayName = user.name?.trim() || (user.username ? `@${user.username}` : user.email);
   const usernameLabel = user.username ? `@${user.username}` : null;
 
-  const readingListHref = isOwner
-    ? "/reading-list"
-    : user.username
-      ? `/reading-list?username=${encodeURIComponent(user.username)}`
-      : "/reading-list";
+  const readingListHref = user.username
+    ? `/${encodeURIComponent(user.username.toLowerCase())}/reading-list`
+    : "/reading-list";
 
   // --- Stats ---
   const totalSeries = readingList.length;
@@ -906,7 +895,9 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
                       {entry.title}
                     </Link>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.65rem] text-white/45 sm:text-xs">
-                      {entry.status ? <span>{entry.status}</span> : null}
+                      {statusLabel(entry.status) ? (
+                        <span>{statusLabel(entry.status)}</span>
+                      ) : null}
                       {entry.progress ? (
                         <>
                           <span className="text-white/20">·</span>

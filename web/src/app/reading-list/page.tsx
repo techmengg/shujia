@@ -1,68 +1,39 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { ReadingListClient } from "@/components/reading-list/reading-list-client";
 import { getCurrentUser } from "@/lib/auth/session";
 
-// Force dynamic rendering for auth-sensitive reading list
 export const dynamic = "force-dynamic";
 
-interface ReadingListPageProps {
+interface LegacyReadingListPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function ReadingListPage({ searchParams }: ReadingListPageProps) {
+function pickUsernameParam(value: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim().replace(/^@/, "");
+  return trimmed.length ? trimmed.toLowerCase() : undefined;
+}
+
+export default async function LegacyReadingListPage({
+  searchParams,
+}: LegacyReadingListPageProps) {
   const params = searchParams ? await searchParams : {};
-  const usernameParam = params.username;
-  const username =
-    typeof usernameParam === "string"
-      ? usernameParam
-      : Array.isArray(usernameParam)
-        ? usernameParam[0]
-        : undefined;
+  const requested = pickUsernameParam(params.username);
 
-  const viewer = await getCurrentUser();
-
-  if (!username && viewer?.username) {
-    const target = `/reading-list?username=${encodeURIComponent(viewer.username)}`;
-    redirect(target);
+  if (requested) {
+    redirect(`/${encodeURIComponent(requested)}/reading-list`);
   }
 
-  const normalizedUsername = username?.trim().length ? username.trim() : undefined;
-  const plainUsername = normalizedUsername?.replace(/^@/, "");
-  const normalizedUsernameLower = plainUsername?.toLowerCase();
-  const viewerUsernameLower = viewer?.username?.trim().toLowerCase();
-  const viewerIsOwner =
-    viewerUsernameLower && normalizedUsernameLower
-      ? viewerUsernameLower === normalizedUsernameLower
-      : Boolean(viewer && !normalizedUsernameLower);
-  const initialOwnerLabel = plainUsername ? `@${plainUsername}` : undefined;
+  const viewer = await getCurrentUser();
+  if (viewer?.username) {
+    redirect(`/${encodeURIComponent(viewer.username.toLowerCase())}/reading-list`);
+  }
 
-  return (
-    <ReadingListClient
-      username={normalizedUsername}
-      viewerIsOwner={viewerIsOwner || undefined}
-      initialOwnerLabel={initialOwnerLabel}
-    />
-  );
+  redirect("/login?redirect=/reading-list");
 }
 
-export async function generateMetadata({
-  searchParams,
-}: ReadingListPageProps): Promise<Metadata> {
-  const params = searchParams ? await searchParams : {};
-  const usernameParam = params.username;
-  const username =
-    typeof usernameParam === "string"
-      ? usernameParam
-      : Array.isArray(usernameParam)
-        ? usernameParam[0]
-        : undefined;
-
-  const plainUsername = username?.trim().replace(/^@/, "") ?? null;
-  const toPossessive = (value: string) =>
-    value.endsWith("s") || value.endsWith("S") ? `${value}'` : `${value}'s`;
-  const title = plainUsername ? `${toPossessive(plainUsername)} Reading List` : "Reading List";
-
-  return { title };
-}
+export const metadata: Metadata = {
+  title: "Reading list",
+};
