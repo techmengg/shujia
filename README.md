@@ -1,6 +1,6 @@
 # shujia
 
-**currently undergoing a massive revamp!**
+## **🟥🟥 currently undergoing a massive revamp! 🟥🟥**
 
 a full-stack tracker for manga, manhwa, and manhua built and maintained by me. powered by public apis for now, with more integrations and media expansion on the way.
 
