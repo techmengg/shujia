@@ -107,6 +107,21 @@ const sections: RoadmapSection[] = [
     blurb: "bigger swings, once the core is solid",
     items: [
       {
+        title: "Community forum",
+        detail:
+          "general-purpose discussion threads — recommendations, news, off-topic. distinct from per-series discussion below.",
+      },
+      {
+        title: "Series ranking & leaderboards",
+        detail:
+          "global top-100 by community rating, by genre, by year. a way to find canonical greats.",
+      },
+      {
+        title: "Recommendation lists",
+        detail:
+          "user-curated lists with writeups (\"my top 10 seinen of the decade\", \"best one-shots\"). different from algorithmic recs in that the focus is on the human take.",
+      },
+      {
         title: "Series discussion threads",
         detail:
           "per-series comments with replies, spoiler tags, and light moderation tools.",
@@ -115,11 +130,6 @@ const sections: RoadmapSection[] = [
         title: "Character, creator, group pages",
         detail:
           "imdb-style sidebars: author bibliographies, scanlation group pages, character wikis.",
-      },
-      {
-        title: "Collections and custom lists",
-        detail:
-          "hand-curated lists you can share (\"my top 10 seinen of the decade\", release schedules, etc).",
       },
       {
         title: "Anime expansion",

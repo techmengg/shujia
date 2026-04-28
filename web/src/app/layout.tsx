@@ -6,6 +6,8 @@ import "./globals.css";
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { LayoutWithSidebar } from "@/components/layout/layout-with-sidebar";
+import { RightSidebar } from "@/components/layout/right-sidebar";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
@@ -71,7 +73,9 @@ export default async function RootLayout({
           <AnnouncementBar />
           <SiteHeader />
 
-          <div className="flex flex-1 flex-col">{children}</div>
+          <LayoutWithSidebar sidebar={<RightSidebar />}>
+            {children}
+          </LayoutWithSidebar>
 
           <SiteFooter />
 
