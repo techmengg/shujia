@@ -320,19 +320,19 @@ export function SearchBar() {
             }}
           >
             {isLoading ? (
-              <p className="px-4 py-3 text-sm italic text-surface-subtle">
+              <p className="px-3 py-2 text-xs italic text-surface-subtle sm:px-4">
                 Searching…
               </p>
             ) : null}
 
             {error ? (
-              <p className="border-b border-red-400/30 bg-red-500/5 px-4 py-3 text-sm italic text-red-200">
+              <p className="border-b border-red-400/30 px-3 py-2 text-xs italic text-red-200 sm:px-4">
                 {error}
               </p>
             ) : null}
 
             {showEmptyState ? (
-              <p className="px-4 py-4 text-sm italic text-surface-subtle">
+              <p className="px-3 py-2.5 text-xs italic text-surface-subtle sm:px-4">
                 No results for &ldquo;{query.trim()}&rdquo;.
               </p>
             ) : null}
@@ -356,43 +356,40 @@ export function SearchBar() {
                     <li
                       key={manga.id}
                       className={`relative transition-colors ${
-                        isSelected ? "bg-accent-soft" : "hover:bg-white/5"
+                        isSelected
+                          ? "bg-accent-soft/40 before:absolute before:inset-y-0 before:left-0 before:w-[2px] before:bg-accent"
+                          : "hover:bg-white/5"
                       }`}
                     >
-                      <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
+                      <div className="flex items-center gap-2.5 px-3 py-2 sm:gap-3 sm:px-4">
                         <Link
                           href={`/manga/${manga.id}`}
-                          className="flex min-w-0 flex-1 items-center gap-3 focus:outline-none"
+                          className="flex min-w-0 flex-1 items-center gap-2.5 focus:outline-none sm:gap-3"
                           tabIndex={-1}
                         >
-                          <div className="relative h-14 w-10 shrink-0 overflow-hidden bg-white/5 sm:h-16 sm:w-11">
+                          <div className="relative h-10 w-7 shrink-0 overflow-hidden sm:h-11 sm:w-8">
                             {manga.coverImage ? (
                               <Image
                                 fill
                                 src={manga.coverImage}
                                 alt={manga.title}
-                                sizes="44px"
+                                sizes="32px"
                                 unoptimized
                                 className="object-cover"
                               />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/60">
+                              <div className="flex h-full w-full items-center justify-center border border-white/10 text-xs font-semibold text-white/60">
                                 {manga.title.charAt(0).toUpperCase()}
                               </div>
                             )}
                           </div>
 
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            <p className="line-clamp-1 text-sm font-semibold text-white sm:text-[0.95rem]">
+                          <div className="flex min-w-0 flex-1 flex-col gap-0">
+                            <p className="line-clamp-1 text-sm font-medium text-white">
                               {manga.title}
                             </p>
-                            {manga.altTitles[0] ? (
-                              <p className="line-clamp-1 text-xs text-surface-subtle">
-                                {manga.altTitles[0]}
-                              </p>
-                            ) : null}
                             {metaBits.length > 0 ? (
-                              <p className="line-clamp-1 text-[0.7rem] text-surface-subtle/70">
+                              <p className="line-clamp-1 text-[0.65rem] text-surface-subtle/80 sm:text-[0.7rem]">
                                 {metaBits.join(" · ")}
                               </p>
                             ) : null}
@@ -405,7 +402,7 @@ export function SearchBar() {
                             onClick={() => handleAddToReadingList(manga)}
                             disabled={isLoadingAction || isAdded}
                             className={[
-                              "shrink-0 bg-transparent p-0 text-[0.7rem] font-medium transition-colors sm:text-xs",
+                              "shrink-0 bg-transparent p-0 text-[0.65rem] font-medium transition-colors sm:text-[0.7rem]",
                               isAdded
                                 ? "text-surface-subtle"
                                 : isLoadingAction
@@ -422,7 +419,7 @@ export function SearchBar() {
                         ) : (
                           <Link
                             href="/login?redirect=/"
-                            className="shrink-0 text-[0.7rem] font-medium text-accent transition-colors hover:text-white sm:text-xs"
+                            className="shrink-0 text-[0.65rem] font-medium text-accent transition-colors hover:text-white sm:text-[0.7rem]"
                           >
                             log in →
                           </Link>
@@ -431,7 +428,7 @@ export function SearchBar() {
 
                       {helperMessage ? (
                         <p
-                          className={`px-3 pb-2 text-[0.7rem] italic sm:px-4 ${
+                          className={`px-3 pb-1.5 text-[0.65rem] italic sm:px-4 ${
                             isErrorState ? "text-red-300" : "text-surface-subtle"
                           }`}
                         >
@@ -445,9 +442,9 @@ export function SearchBar() {
             ) : null}
 
             {results.length > 0 ? (
-              <div className="border-t border-white/10 px-3 py-2 text-[0.65rem] text-surface-subtle/70 sm:px-4">
+              <div className="border-t border-white/10 px-3 py-1.5 text-[0.6rem] text-surface-subtle/70 sm:px-4 sm:text-[0.65rem]">
                 <span className="hidden sm:inline">
-                  ↑↓ navigate · Enter open · Esc close
+                  ↑↓ navigate · enter open · esc close
                 </span>
                 <span className="sm:hidden">Tap to open</span>
               </div>
@@ -460,7 +457,7 @@ export function SearchBar() {
   return (
     <>
       <div ref={containerRef} className="relative w-full">
-        <div className="group flex w-full items-center border border-white/15 bg-white/[0.04] px-2.5 transition-colors focus-within:border-accent hover:border-white/25 sm:px-3">
+        <div className="group flex w-full items-center border border-white/15 px-2.5 transition-colors focus-within:border-accent hover:border-white/25 sm:px-3">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"

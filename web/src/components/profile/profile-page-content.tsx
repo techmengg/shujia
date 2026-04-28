@@ -112,6 +112,10 @@ function markdownBioToHtml(raw?: string | null): string | null {
 
 const MAX_FAVORITES = 8;
 
+type FavoritesFilter = "all" | "rated" | "completed";
+
+const PICKER_VISIBLE_LIMIT = 16;
+
 function FavoritesEditor({
   readingList,
   currentIds,
@@ -124,84 +128,363 @@ function FavoritesEditor({
   onCancel: () => void;
 }) {
   const [draft, setDraft] = useState<string[]>(currentIds);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FavoritesFilter>("all");
+  const [showAll, setShowAll] = useState(false);
 
-  const toggle = (mangaId: string) => {
+  const entryById = useMemo(
+    () => new Map(readingList.map((e) => [e.mangaId, e])),
+    [readingList],
+  );
+
+  const slots: (ReadingListEntryDto | null)[] = Array.from(
+    { length: MAX_FAVORITES },
+    (_, i) => {
+      const id = draft[i];
+      return id ? entryById.get(id) ?? null : null;
+    },
+  );
+
+  const remove = (mangaId: string) => {
+    setDraft((prev) => prev.filter((id) => id !== mangaId));
+  };
+
+  const add = (mangaId: string) => {
     setDraft((prev) => {
-      if (prev.includes(mangaId)) return prev.filter((id) => id !== mangaId);
+      if (prev.includes(mangaId)) return prev;
       if (prev.length >= MAX_FAVORITES) return prev;
       return [...prev, mangaId];
     });
   };
 
-  const remaining = MAX_FAVORITES - draft.length;
+  const swap = (i: number, j: number) => {
+    setDraft((prev) => {
+      if (i < 0 || j < 0 || i >= prev.length || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+
+  const pickerEntries = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = readingList.filter((e) => !draft.includes(e.mangaId));
+
+    if (filter === "completed") {
+      list = list.filter((e) => normalizeStatus(e.status) === "completed");
+    } else if (filter === "rated") {
+      list = list.filter((e) => typeof e.rating === "number" && e.rating >= 8);
+    }
+
+    if (q) {
+      list = list.filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.altTitles.some((t) => t.toLowerCase().includes(q)),
+      );
+    }
+
+    return [...list].sort((a, b) => {
+      const ra = a.rating ?? -1;
+      const rb = b.rating ?? -1;
+      if (rb !== ra) return rb - ra;
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
+  }, [readingList, draft, query, filter]);
+
+  const filledCount = draft.length;
+  const remaining = MAX_FAVORITES - filledCount;
+  const slotsFull = remaining === 0;
+  const dirty =
+    draft.length !== currentIds.length ||
+    draft.some((id, i) => id !== currentIds[i]);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-[0.7rem] text-white/50 sm:text-xs">
-          {remaining > 0 ? `${remaining} slot${remaining === 1 ? "" : "s"} remaining` : "All slots filled"}
+    <div className="space-y-4 sm:space-y-5">
+      {/* Header: count + actions */}
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[0.7rem] text-white/45 sm:text-xs">
+          <span className="tabular-nums text-white/70">{filledCount}</span>
+          <span className="text-white/30"> of </span>
+          <span className="tabular-nums text-white/70">{MAX_FAVORITES}</span>
+          <span> pinned</span>
+          {remaining > 0 ? (
+            <span className="text-white/25"> · {remaining} open</span>
+          ) : null}
         </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => onSave(draft)}
-            className="border border-accent px-3 py-1 text-xs font-medium text-accent transition hover:border-white hover:text-white"
-          >
-            Save
-          </button>
+        <div className="flex items-baseline gap-4">
           <button
             type="button"
             onClick={onCancel}
-            className="border border-white/20 px-3 py-1 text-xs font-medium text-white/60 transition hover:border-white/40 hover:text-white"
+            className="text-[0.7rem] font-medium text-white/45 transition hover:text-white sm:text-xs"
           >
-            Cancel
+            cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave(draft)}
+            disabled={!dirty}
+            className="group inline-flex items-baseline gap-1 text-[0.7rem] font-medium text-accent transition-colors hover:text-white disabled:cursor-not-allowed disabled:text-white/25 disabled:hover:text-white/25 sm:text-xs"
+          >
+            <span className="underline-offset-4 group-hover:underline group-disabled:no-underline">
+              save
+            </span>
+            <span
+              aria-hidden
+              className="transition-transform duration-200 group-hover:translate-x-0.5 group-disabled:translate-x-0"
+            >
+              →
+            </span>
           </button>
         </div>
       </div>
-      <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8 sm:gap-2.5">
-        {readingList.map((item) => {
-          const selected = draft.includes(item.mangaId);
-          return (
-            <li key={item.id} className="min-w-0">
-              <button
-                type="button"
-                onClick={() => toggle(item.mangaId)}
-                className="group relative block w-full text-left"
-              >
-                <div
-                  className={`relative aspect-[2/3] w-full overflow-hidden transition ${
-                    selected ? "ring-2 ring-accent" : "opacity-50 hover:opacity-80"
-                  }`}
-                >
-                  {item.coverImage ? (
+
+      {/* Slot rail: 8 ordered slots, empty = dashed placeholder */}
+      <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-2.5">
+        {slots.map((entry, i) => (
+          <li key={i} className="min-w-0">
+            {entry ? (
+              <div className="group relative">
+                <div className="relative aspect-[2/3] w-full overflow-hidden border border-accent/50">
+                  {entry.coverImage ? (
                     <Image
-                      src={item.coverImage}
-                      alt={item.title}
+                      src={entry.coverImage}
+                      alt={entry.title}
                       fill
-                      sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 25vw"
+                      sizes="(min-width: 640px) 12vw, 25vw"
                       unoptimized
                       className="object-cover"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-white/5 text-sm font-semibold text-white/70">
-                      {item.title.charAt(0).toUpperCase()}
+                      {entry.title.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  {selected ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                      <span className="text-lg text-accent">✓</span>
+                  <span className="absolute left-0 top-0 inline-flex h-4 min-w-[1rem] items-center justify-center bg-black/85 px-1 text-[0.55rem] font-semibold tabular-nums text-accent sm:h-5 sm:text-[0.65rem]">
+                    {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => remove(entry.mangaId)}
+                    aria-label={`Unpin ${entry.title}`}
+                    className="absolute right-0 top-0 inline-flex h-4 w-4 items-center justify-center bg-black/85 text-[0.7rem] leading-none text-white/70 opacity-0 transition hover:text-white focus:opacity-100 group-hover:opacity-100 sm:h-5 sm:w-5 sm:text-xs"
+                  >
+                    ×
+                  </button>
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/85 to-transparent px-1 pb-0.5 pt-2 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => swap(i, i - 1)}
+                      disabled={i === 0}
+                      aria-label="Move left"
+                      className="text-[0.75rem] leading-none text-white/70 transition hover:text-accent disabled:cursor-not-allowed disabled:text-white/15 disabled:hover:text-white/15"
+                    >
+                      ←
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => swap(i, i + 1)}
+                      disabled={i >= filledCount - 1}
+                      aria-label="Move right"
+                      className="text-[0.75rem] leading-none text-white/70 transition hover:text-accent disabled:cursor-not-allowed disabled:text-white/15 disabled:hover:text-white/15"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-1 line-clamp-1 text-center text-[0.55rem] leading-tight text-white/55 sm:text-[0.6rem]">
+                  {entry.title}
+                </p>
+              </div>
+            ) : (
+              <div className="flex aspect-[2/3] w-full items-center justify-center border border-dashed border-white/15">
+                <span className="text-base font-semibold tabular-nums text-white/15 sm:text-lg">
+                  {i + 1}
+                </span>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {/* Picker controls */}
+      <div className="space-y-2.5 border-t border-white/10 pt-4 sm:space-y-3">
+        <div className="relative">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setShowAll(false);
+            }}
+            placeholder="Search your library"
+            className="w-full border-b border-white/15 bg-transparent py-1.5 pr-7 text-sm text-white placeholder:italic placeholder:text-white/30 focus:border-accent focus:outline-none"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setShowAll(false);
+              }}
+              aria-label="Clear search"
+              className="absolute right-0 top-1/2 -translate-y-1/2 text-sm leading-none text-white/40 transition hover:text-white"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[0.7rem] sm:text-xs">
+          <FavoritesFilterChip
+            active={filter === "all"}
+            onClick={() => {
+              setFilter("all");
+              setShowAll(false);
+            }}
+          >
+            all
+          </FavoritesFilterChip>
+          <FavoritesFilterChip
+            active={filter === "rated"}
+            onClick={() => {
+              setFilter("rated");
+              setShowAll(false);
+            }}
+          >
+            top rated
+          </FavoritesFilterChip>
+          <FavoritesFilterChip
+            active={filter === "completed"}
+            onClick={() => {
+              setFilter("completed");
+              setShowAll(false);
+            }}
+          >
+            completed
+          </FavoritesFilterChip>
+          <span className="ml-auto tabular-nums text-white/30">
+            {pickerEntries.length} {pickerEntries.length === 1 ? "result" : "results"}
+          </span>
+        </div>
+      </div>
+
+      {/* Picker grid — capped at 2 desktop rows; "show more" expands */}
+      {pickerEntries.length > 0 ? (
+        <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8 sm:gap-2.5">
+          {(showAll ? pickerEntries : pickerEntries.slice(0, PICKER_VISIBLE_LIMIT)).map((entry) => (
+            <li key={entry.mangaId} className="min-w-0">
+              <button
+                type="button"
+                onClick={() => add(entry.mangaId)}
+                disabled={slotsFull}
+                aria-label={`Pin ${entry.title}`}
+                className="group block w-full text-left disabled:cursor-not-allowed"
+              >
+                <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/5">
+                  {entry.coverImage ? (
+                    <Image
+                      src={entry.coverImage}
+                      alt={entry.title}
+                      fill
+                      sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 25vw"
+                      unoptimized
+                      className={`object-cover transition ${
+                        slotsFull ? "opacity-25" : "group-hover:opacity-40"
+                      }`}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/70">
+                      {entry.title.charAt(0).toUpperCase()}
                     </div>
+                  )}
+                  {!slotsFull ? (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
+                      <span className="text-[0.7rem] font-medium text-accent sm:text-xs">
+                        + pin
+                      </span>
+                    </div>
+                  ) : null}
+                  {typeof entry.rating === "number" ? (
+                    <span className="absolute bottom-0 right-0 bg-black/85 px-1 py-0.5 text-[0.55rem] font-medium tabular-nums text-accent sm:text-[0.65rem]">
+                      {entry.rating.toFixed(1)}
+                    </span>
                   ) : null}
                 </div>
                 <p className="mt-1 line-clamp-1 text-center text-[0.55rem] leading-tight text-white/50 sm:text-[0.6rem]">
-                  {item.title}
+                  {entry.title}
                 </p>
               </button>
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm italic text-surface-subtle">
+          {query
+            ? `No series match "${query}".`
+            : readingList.length === 0
+              ? "Add series to your reading list before pinning favorites."
+              : filter !== "all"
+                ? "Nothing in your library matches this filter."
+                : "Nothing left to pin."}
+        </p>
+      )}
+
+      {pickerEntries.length > PICKER_VISIBLE_LIMIT ? (
+        <div className="flex items-baseline justify-between gap-3 text-[0.7rem] sm:text-xs">
+          <p className="italic text-surface-subtle">
+            {showAll
+              ? `Showing all ${pickerEntries.length}.`
+              : `Showing ${PICKER_VISIBLE_LIMIT} of ${pickerEntries.length} — search to narrow.`}
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="group inline-flex items-baseline gap-1 font-medium text-accent transition-colors hover:text-white"
+          >
+            <span className="underline-offset-4 group-hover:underline">
+              {showAll ? "show less" : `show all (${pickerEntries.length})`}
+            </span>
+            <span
+              aria-hidden
+              className="transition-transform duration-200 group-hover:translate-x-0.5"
+            >
+              →
+            </span>
+          </button>
+        </div>
+      ) : null}
+
+      {slotsFull ? (
+        <p className="text-[0.7rem] italic text-surface-subtle sm:text-xs">
+          All 8 slots filled — unpin one to swap.
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+function FavoritesFilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`font-medium transition ${
+        active
+          ? "text-white underline underline-offset-[5px] decoration-accent decoration-2"
+          : "text-surface-subtle hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -391,7 +674,7 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
       {/* ============================================================ */}
       <div className="relative">
         {/* Banner */}
-        <div className="relative h-36 w-full overflow-hidden bg-white/5 sm:h-48 md:h-56">
+        <div className="relative h-28 w-full overflow-hidden bg-white/5 sm:h-40 md:h-48">
           {banner ? (
             <Image
               src={banner}
@@ -415,7 +698,7 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
         {/* Avatar — overlapping banner bottom edge */}
         <div className="relative mx-auto w-full max-w-4xl px-4 sm:px-6">
           <div className="relative -mt-12 sm:-mt-16">
-            <div className="relative flex aspect-square h-24 w-24 items-center justify-center overflow-hidden border-2 border-black bg-white/5 sm:h-32 sm:w-32">
+            <div className="relative flex aspect-square h-24 w-24 items-center justify-center overflow-hidden border-2 border-black bg-surface sm:h-32 sm:w-32">
               {avatar ? (
                 <Image
                   src={avatar}
@@ -462,12 +745,13 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
             ) : null}
             <Link
               href={readingListHref}
-              className="group inline-flex items-baseline gap-1 text-xs font-medium text-accent transition-colors hover:text-white"
+              className="group inline-flex items-center gap-1 border border-accent/40 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-accent hover:text-white"
             >
-              <span className="underline-offset-4 group-hover:underline">
-                {isOwner ? "Your list" : "Reading list"}
-              </span>
-              <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">
+              <span>{isOwner ? "Your list" : "Reading list"}</span>
+              <span
+                aria-hidden
+                className="transition-transform duration-200 group-hover:translate-x-0.5"
+              >
                 →
               </span>
             </Link>
@@ -486,7 +770,7 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
             <Link href="/settings/profile" className="text-accent hover:text-white transition">
               settings
             </Link>{" "}
-            to tell visitors what you&apos;re reading.
+            to tell visitors your thoughts.
           </p>
         ) : null}
       </div>
@@ -494,7 +778,7 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
       {/* ============================================================ */}
       {/*  Stats strip                                                 */}
       {/* ============================================================ */}
-      <div className="mx-auto mt-6 w-full max-w-4xl border-y border-white/10 px-4 py-4 sm:mt-8 sm:px-6 sm:py-5 lg:px-10">
+      <div className="mx-auto mt-6 w-full max-w-4xl border-y border-white/10 px-4 py-4 sm:mt-8 sm:px-6 sm:py-5">
         <div className="flex flex-wrap gap-x-8 gap-y-3 sm:gap-x-12">
           <StatCell label="Series tracked" value={totalSeries} />
           <StatCell label="Completed" value={statusCounts.completed} />
