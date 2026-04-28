@@ -47,9 +47,13 @@ const profileSchema = z.object({
   profileColor: z
     .string()
     .trim()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color (e.g. #6A88E0)")
-    .optional()
-    .nullable(),
+    .transform((value) => (value.length === 0 ? null : value))
+    .refine(
+      (value) => value === null || /^#[0-9a-fA-F]{6}$/.test(value),
+      { message: "Must be a valid hex color (e.g. #6A88E0)" },
+    )
+    .nullable()
+    .optional(),
   favoriteMangaIds: z
     .array(z.string().trim().min(1))
     .max(8, "You can pin up to 8 favorites")
