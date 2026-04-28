@@ -39,6 +39,23 @@ const GENRE_OPTIONS = [
   "Sports", "Supernatural", "Thriller", "Tragedy",
 ];
 
+function FilterRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+      <span className="w-12 shrink-0 text-[0.7rem] text-surface-subtle sm:text-xs">
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  );
+}
+
 function FilterChip({
   label,
   active,
@@ -53,10 +70,10 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={[
-        "border px-2.5 py-1 text-xs transition-colors sm:text-sm",
+        "border px-2 py-0.5 text-[0.7rem] transition-colors sm:text-xs",
         active
-          ? "border-white/30 text-white"
-          : "border-white/10 text-surface-subtle hover:border-white/20 hover:text-white",
+          ? "border-accent/50 text-white"
+          : "border-white/10 text-surface-subtle hover:border-white/25 hover:text-white",
       ].join(" ")}
     >
       {label}
@@ -70,7 +87,6 @@ export function ExploreClient() {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<ExploreFilters>(DEFAULT_FILTERS);
-  const [showFilters, setShowFilters] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
 
@@ -139,74 +155,60 @@ export function ExploreClient() {
     });
   };
 
+  const isDirty =
+    filters.orderby !== DEFAULT_FILTERS.orderby ||
+    filters.types.length > 0 ||
+    filters.genres.length > 0 ||
+    filters.year !== "";
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-6 sm:px-6 sm:pb-16 sm:pt-8 lg:px-10">
-      <div className="mb-4 flex items-baseline justify-between gap-2 sm:mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-white sm:text-3xl">
-            Explore
-          </h1>
-          <p className="mt-1 text-sm text-surface-subtle">
-            Browse the most popular manga, manhwa, and manhua.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowFilters((v) => !v)}
-          className="shrink-0 bg-transparent p-0 text-xs font-medium text-accent transition-colors hover:text-white sm:text-sm"
-        >
-          {showFilters ? "hide filters" : "filters"}
-        </button>
-      </div>
+      <header className="mb-4 sm:mb-5">
+        <h1 className="text-xl font-semibold text-white sm:text-2xl">Explore</h1>
+        <p className="mt-0.5 text-[0.7rem] text-surface-subtle sm:text-xs">
+          Browse the most popular manga, manhwa, and manhua.
+        </p>
+      </header>
 
-      {showFilters ? (
-        <div className="mb-6 space-y-4 border border-white/10 p-4 sm:p-5">
-          <div className="space-y-2">
-            <p className="text-xs text-surface-subtle">Sort by</p>
-            <div className="flex flex-wrap gap-1.5">
-              {SORT_OPTIONS.map((opt) => (
-                <FilterChip
-                  key={opt.value}
-                  label={opt.label}
-                  active={filters.orderby === opt.value}
-                  onClick={() =>
-                    setFilters((prev) => ({ ...prev, orderby: opt.value }))
-                  }
-                />
-              ))}
-            </div>
-          </div>
+      <div className="mb-5 space-y-1.5 border-b border-white/10 pb-3 sm:mb-6 sm:space-y-2 sm:pb-4">
+        <FilterRow label="sort">
+          {SORT_OPTIONS.map((opt) => (
+            <FilterChip
+              key={opt.value}
+              label={opt.label}
+              active={filters.orderby === opt.value}
+              onClick={() =>
+                setFilters((prev) => ({ ...prev, orderby: opt.value }))
+              }
+            />
+          ))}
+        </FilterRow>
 
-          <div className="space-y-2">
-            <p className="text-xs text-surface-subtle">Type</p>
-            <div className="flex flex-wrap gap-1.5">
-              {TYPE_OPTIONS.map((opt) => (
-                <FilterChip
-                  key={opt.value}
-                  label={opt.label}
-                  active={filters.types.includes(opt.value)}
-                  onClick={() => toggleArray("types", opt.value)}
-                />
-              ))}
-            </div>
-          </div>
+        <FilterRow label="type">
+          {TYPE_OPTIONS.map((opt) => (
+            <FilterChip
+              key={opt.value}
+              label={opt.label}
+              active={filters.types.includes(opt.value)}
+              onClick={() => toggleArray("types", opt.value)}
+            />
+          ))}
+        </FilterRow>
 
-          <div className="space-y-2">
-            <p className="text-xs text-surface-subtle">Genre</p>
-            <div className="flex flex-wrap gap-1.5">
-              {GENRE_OPTIONS.map((g) => (
-                <FilterChip
-                  key={g}
-                  label={g}
-                  active={filters.genres.includes(g)}
-                  onClick={() => toggleArray("genres", g)}
-                />
-              ))}
-            </div>
-          </div>
+        <FilterRow label="genre">
+          {GENRE_OPTIONS.map((g) => (
+            <FilterChip
+              key={g}
+              label={g}
+              active={filters.genres.includes(g)}
+              onClick={() => toggleArray("genres", g)}
+            />
+          ))}
+        </FilterRow>
 
-          <div className="space-y-2">
-            <p className="text-xs text-surface-subtle">Year</p>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pt-1 text-[0.7rem] sm:text-xs">
+          <div className="flex items-baseline gap-2">
+            <span className="w-12 shrink-0 text-surface-subtle">year</span>
             <input
               type="text"
               inputMode="numeric"
@@ -218,19 +220,26 @@ export function ExploreClient() {
                   year: e.target.value.replace(/[^0-9]/g, "").slice(0, 4),
                 }))
               }
-              className="w-24 border border-white/15 bg-transparent px-2.5 py-1.5 text-sm text-white placeholder:text-surface-subtle focus:border-accent focus:outline-none"
+              className="w-20 border-b border-white/15 bg-transparent py-0.5 text-sm text-white placeholder:italic placeholder:text-white/30 focus:border-accent focus:outline-none"
             />
           </div>
-
-          <button
-            type="button"
-            onClick={() => setFilters(DEFAULT_FILTERS)}
-            className="bg-transparent p-0 text-xs text-surface-subtle transition-colors hover:text-white"
-          >
-            reset filters
-          </button>
+          {isDirty ? (
+            <button
+              type="button"
+              onClick={() => setFilters(DEFAULT_FILTERS)}
+              className="group inline-flex items-baseline gap-1 font-medium text-accent transition-colors hover:text-white"
+            >
+              <span className="underline-offset-4 group-hover:underline">reset</span>
+              <span
+                aria-hidden
+                className="transition-transform duration-200 group-hover:translate-x-0.5"
+              >
+                &rarr;
+              </span>
+            </button>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       {mangas.length > 0 ? (
         <>
