@@ -121,16 +121,16 @@ export function RecentlyUpdatedSection({
         }
       />
 
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
+      {error ? <p className="text-sm italic text-red-300">{error}</p> : null}
 
       <div ref={sentinelRef} aria-hidden="true" className="h-1 w-full" />
       {isLoading ? (
-        <div className="flex justify-center">
-          <span className="text-sm text-white/60">Loading…</span>
-        </div>
+        <p className="text-center text-sm italic text-surface-subtle">Loading…</p>
       ) : null}
       {!isLoading && !hasMore ? (
-        <p className="text-center text-sm text-white/40">You’re all caught up.</p>
+        <p className="text-center text-sm italic text-surface-subtle">
+          You’re all caught up.
+        </p>
       ) : null}
     </div>
   );

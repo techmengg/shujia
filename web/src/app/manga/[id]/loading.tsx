@@ -1,11 +1,7 @@
-"use client";
-
 export default function MangaPageLoading() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface text-white">
-      <div className="animate-pulse text-sm uppercase tracking-[0.3em] text-white/60">
-        Loading series...
-      </div>
-    </div>
+    <main className="mx-auto w-full max-w-6xl px-4 pb-12 pt-5 sm:px-6 sm:pb-16 sm:pt-8 lg:px-10">
+      <p className="text-sm italic text-surface-subtle">Loading series…</p>
+    </main>
   );
 }

@@ -265,7 +265,7 @@ export function ReviewsSection({
         <h2 className="text-sm font-semibold text-white sm:text-base">
           Reviews
         </h2>
-        <p className="text-sm italic text-surface-subtle">Loading reviews...</p>
+        <p className="text-sm italic text-surface-subtle">Loading reviews…</p>
       </section>
     );
   }

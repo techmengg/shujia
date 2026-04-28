@@ -174,7 +174,7 @@ export function AddMangaSearch() {
 
       <div className="mt-4 sm:mt-6">
         {isLoading ? (
-          <p className="text-sm italic text-surface-subtle">Searching...</p>
+          <p className="text-sm italic text-surface-subtle">Searching…</p>
         ) : null}
 
         {error ? (

@@ -1392,21 +1392,7 @@ export function ReadingListClient({
 
       {/* Body */}
       {isLoading ? (
-        <ul className="divide-y divide-white/10 border-y border-white/10">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <li
-              key={i}
-              className="flex animate-pulse items-center gap-3 py-3 sm:gap-4"
-            >
-              <div className="h-16 w-11 shrink-0 bg-white/5 sm:h-20 sm:w-14" />
-              <div className="flex flex-1 flex-col gap-2">
-                <div className="h-3 w-1/3 bg-white/5" />
-                <div className="h-2 w-1/2 bg-white/5" />
-                <div className="h-2 w-1/4 bg-white/5" />
-              </div>
-            </li>
-          ))}
-        </ul>
+        <p className="text-sm italic text-surface-subtle">Loading…</p>
       ) : isAuthenticated === false ? (
         <p className="text-sm italic text-surface-subtle">
           Log in to manage your reading list.
