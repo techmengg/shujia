@@ -413,9 +413,9 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
         </div>
 
         {/* Avatar — overlapping banner bottom edge */}
-        <div className="relative mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-10">
+        <div className="relative mx-auto w-full max-w-4xl px-4 sm:px-6">
           <div className="relative -mt-12 sm:-mt-16">
-            <div className="flex h-24 w-24 items-center justify-center overflow-hidden border-2 border-black bg-white/5 sm:h-32 sm:w-32">
+            <div className="relative flex aspect-square h-24 w-24 items-center justify-center overflow-hidden border-2 border-black bg-white/5 sm:h-32 sm:w-32">
               {avatar ? (
                 <Image
                   src={avatar}
@@ -440,7 +440,7 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
       {/* ============================================================ */}
       {/*  Identity block                                              */}
       {/* ============================================================ */}
-      <div className="mx-auto w-full max-w-4xl px-4 pt-3 sm:px-6 sm:pt-4 lg:px-10">
+      <div className="mx-auto w-full max-w-4xl px-4 pt-3 sm:px-6 sm:pt-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0 space-y-1">
             <h1 className="text-xl font-semibold text-white sm:text-2xl">{displayName}</h1>
@@ -508,7 +508,7 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
       {/* ============================================================ */}
       {/*  Body content                                                */}
       {/* ============================================================ */}
-      <div className="mx-auto w-full max-w-4xl space-y-8 px-4 pt-6 sm:space-y-10 sm:px-6 sm:pt-8 lg:px-10">
+      <div className="mx-auto w-full max-w-4xl space-y-8 px-4 pt-6 sm:space-y-10 sm:px-6 sm:pt-8">
 
         {/* --- Status distribution bar --- */}
         {totalSeries > 0 ? (
