@@ -16,6 +16,9 @@ model User {
   updatedAt              DateTime             @updatedAt
   avatarUrl              String?
   bio                    String?
+  bannerUrl              String?
+  profileColor           String?
+  favoriteMangaIds       String[]             @default([])
   timezone               String               @default("UTC")
   marketingEmails        Boolean              @default(true)
   productUpdates         Boolean              @default(true)
@@ -28,6 +31,8 @@ model User {
   twoFactorRecoveryCodes String[]             @default([])
   passwordResetTokens    PasswordResetToken[]
   readingListEntries     ReadingListEntry[]
+  reviews                Review[]
+  reviewReactions        ReviewReaction[]
   sessions               Session[]
 }
 
@@ -89,6 +94,39 @@ model ReadingListEntry {
 
   @@unique([userId, provider, mangaId])
   @@index([userId, updatedAt])
+}
+
+model Review {
+  id          String           @id @default(cuid())
+  authorId    String
+  provider    String
+  mangaId     String
+  rating      Int
+  body        String?
+  hasSpoilers Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  author      User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions   ReviewReaction[]
+
+  @@unique([authorId, provider, mangaId])
+  @@index([provider, mangaId])
+  @@index([authorId])
+  @@index([provider, mangaId, createdAt])
+}
+
+model ReviewReaction {
+  id        String   @id @default(cuid())
+  reviewId  String
+  userId    String
+  type      String   // "thumbs_up" | "thumbs_down" | "funny" | "confusing" | "heart" | "angry"
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId, type])
+  @@index([reviewId])
+  @@index([userId])
 }
 
 model RegistrationVerification {

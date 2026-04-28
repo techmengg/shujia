@@ -34,6 +34,7 @@ export interface MangaStatistics {
   rating?: {
     average?: number;
     bayesian?: number;
+    votes?: number;
   };
 }
 

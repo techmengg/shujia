@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { MangaDexAPIError, searchManga } from "@/lib/mangadex/service";
+import { searchManga } from "@/lib/manga";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -42,24 +42,10 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error) {
-    if (error instanceof MangaDexAPIError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        {
-          status: error.status,
-        },
-      );
-    }
-
+    console.error("searchManga dispatch failed", error);
     return NextResponse.json(
-      {
-        error: "Unexpected error while reaching MangaDex.",
-      },
-      {
-        status: 500,
-      },
+      { error: "Unexpected error while searching." },
+      { status: 500 },
     );
   }
 }

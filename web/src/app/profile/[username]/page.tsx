@@ -31,10 +31,25 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
       name: true,
       bio: true,
       avatarUrl: true,
+      bannerUrl: true,
+      profileColor: true,
+      favoriteMangaIds: true,
       timezone: true,
       createdAt: true,
       readingListEntries: {
         orderBy: { updatedAt: "desc" },
+      },
+      reviews: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          provider: true,
+          mangaId: true,
+          rating: true,
+          body: true,
+          createdAt: true,
+        },
       },
     },
   });
@@ -45,35 +60,8 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
 
   const isOwner = viewer?.id === dbUser.id;
 
-  function toProxyCoverUrl(mangaId: string, url?: string | null): string | undefined {
-    if (!url) return undefined;
-    try {
-      if (url.startsWith("/api/images/cover")) {
-        const u = new URL(url, "http://localhost");
-        u.searchParams.set("mangaId", mangaId);
-        u.searchParams.set("size", "256");
-        return `${u.pathname}?${u.searchParams.toString()}`;
-      }
-      const parsed = new URL(url);
-      const isUploads =
-        parsed.hostname === "uploads.mangadex.org" ||
-        parsed.hostname === "uploads-cdn.mangadex.org" ||
-        parsed.hostname === "mangadex.org";
-      if (!isUploads) {
-        return url;
-      }
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      const fileSegment = segments[segments.length - 1] ?? "";
-      const originalFile = fileSegment.replace(/\.256\.jpg$|\.512\.jpg$/i, "");
-      const params = new URLSearchParams({
-        mangaId,
-        file: originalFile,
-        size: "256",
-      });
-      return `/api/images/cover?${params.toString()}`;
-    } catch {
-      return url ?? undefined;
-    }
+  function toProxyCoverUrl(_mangaId: string, url?: string | null): string | undefined {
+    return url ?? undefined;
   }
 
   return (
@@ -85,9 +73,20 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
         username: dbUser.username,
         bio: dbUser.bio,
         avatarUrl: dbUser.avatarUrl,
+        bannerUrl: dbUser.bannerUrl,
+        profileColor: dbUser.profileColor,
+        favoriteMangaIds: dbUser.favoriteMangaIds,
         timezone: dbUser.timezone,
         memberSince: dbUser.createdAt.toISOString(),
       }}
+      reviews={dbUser.reviews.map((review) => ({
+        id: review.id,
+        provider: review.provider,
+        mangaId: review.mangaId,
+        rating: review.rating,
+        body: review.body,
+        createdAt: review.createdAt.toISOString(),
+      }))}
       readingList={dbUser.readingListEntries.map((entry) => ({
         id: entry.id,
         mangaId: entry.mangaId,

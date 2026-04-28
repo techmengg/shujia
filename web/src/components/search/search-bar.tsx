@@ -11,12 +11,12 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import type { MangaSummary } from "@/lib/mangadex/types";
+import type { MangaSummary } from "@/lib/manga/types";
 import { useAuth } from "@/components/auth/auth-provider";
 
 const MIN_QUERY_LENGTH = 1;
 const DEBOUNCE_DELAY = 200;
-const OVERLAY_OFFSET_PX = 12;
+const OVERLAY_OFFSET_PX = 8;
 
 interface SearchResponse {
   data: MangaSummary[];
@@ -44,17 +44,19 @@ export function SearchBar() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [overlayPosition, setOverlayPosition] = useState<OverlayPosition | null>(null);
+  const [overlayPosition, setOverlayPosition] = useState<OverlayPosition | null>(
+    null,
+  );
   const [isMounted, setIsMounted] = useState(false);
   const [actionStates, setActionStates] = useState<ReadingListActionStates>({});
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Handle click outside to close
+  // Close on outside click
   useEffect(() => {
     const handleClickAway = (event: MouseEvent) => {
       if (!(event.target instanceof Node)) return;
@@ -77,7 +79,7 @@ export function SearchBar() {
     return () => window.removeEventListener("mousedown", handleClickAway);
   }, []);
 
-  // Keyboard shortcut: Press "/" to focus search
+  // Global "/" shortcut to focus the field
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "/" && !isFocused && document.activeElement?.tagName !== "INPUT") {
@@ -90,7 +92,7 @@ export function SearchBar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFocused]);
 
-  // Search functionality with debounce
+  // Debounced search
   useEffect(() => {
     if (query.trim().length < MIN_QUERY_LENGTH) {
       setResults([]);
@@ -99,7 +101,6 @@ export function SearchBar() {
       return;
     }
 
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -115,7 +116,7 @@ export function SearchBar() {
       try {
         const response = await fetch(
           `/api/manga/search?q=${encodeURIComponent(query)}&limit=10`,
-          { signal: controller.signal }
+          { signal: controller.signal },
         );
 
         if (!response.ok) {
@@ -130,10 +131,7 @@ export function SearchBar() {
 
         setResults(payload.data);
       } catch (error_) {
-        if ((error_ as Error).name === "AbortError") {
-          return;
-        }
-
+        if ((error_ as Error).name === "AbortError") return;
         setError((error_ as Error).message ?? "Something went wrong while searching.");
       } finally {
         setIsLoading(false);
@@ -146,100 +144,110 @@ export function SearchBar() {
     };
   }, [query]);
 
-  // Handle adding to reading list
-  const handleAddToReadingList = useCallback(async (manga: MangaSummary) => {
-    if (!isAuthenticated) {
-      setActionStates((prev) => ({
-        ...prev,
-        [manga.id]: {
-          status: "error",
-          message: "Log in to add to your reading list.",
-        },
-      }));
-      return;
-    }
-
-    setActionStates((prev) => ({
-      ...prev,
-      [manga.id]: { status: "loading" },
-    }));
-
-    try {
-      const response = await fetch("/api/reading-list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mangaId: manga.id }),
-      });
-
-      let responseBody: unknown = null;
-
-      try {
-        responseBody = await response.json();
-      } catch (parseError) {
-        console.warn("Could not parse reading list response", parseError);
-      }
-
-      const responseMessage =
-        responseBody &&
-        typeof responseBody === "object" &&
-        responseBody !== null &&
-        "message" in responseBody &&
-        typeof (responseBody as Record<string, unknown>).message === "string"
-          ? ((responseBody as Record<string, string>).message ?? undefined)
-          : undefined;
-
-      if (!response.ok && response.status !== 409) {
-        const errorMessage = responseMessage ?? "Could not save to your reading list.";
+  // Add-to-list (provider-aware)
+  const handleAddToReadingList = useCallback(
+    async (manga: MangaSummary) => {
+      if (!isAuthenticated) {
         setActionStates((prev) => ({
           ...prev,
-          [manga.id]: { status: "error", message: errorMessage },
+          [manga.id]: {
+            status: "error",
+            message: "Log in to add to your reading list.",
+          },
         }));
         return;
       }
 
       setActionStates((prev) => ({
         ...prev,
-        [manga.id]: {
-          status: "added",
-          message: response.status === 409 ? "Already in your list." : "Added to your list.",
-        },
+        [manga.id]: { status: "loading" },
       }));
-    } catch (error_) {
-      console.error("Failed to add to reading list", error_);
-      setActionStates((prev) => ({
-        ...prev,
-        [manga.id]: {
-          status: "error",
-          message: "Network error.",
-        },
-      }));
-    }
-  }, [isAuthenticated]);
 
-  // Keyboard navigation
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!results.length) return;
+      try {
+        const response = await fetch("/api/reading-list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mangaId: manga.id, provider: manga.provider }),
+        });
 
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
-    } else if (e.key === "Enter" && selectedIndex >= 0) {
-      e.preventDefault();
-      const selectedManga = results[selectedIndex];
-      if (selectedManga) {
-        window.location.href = `/manga/${selectedManga.id}`;
+        let responseBody: unknown = null;
+        try {
+          responseBody = await response.json();
+        } catch (parseError) {
+          console.warn("Could not parse reading list response", parseError);
+        }
+
+        const responseMessage =
+          responseBody &&
+          typeof responseBody === "object" &&
+          responseBody !== null &&
+          "message" in responseBody &&
+          typeof (responseBody as Record<string, unknown>).message === "string"
+            ? ((responseBody as Record<string, string>).message ?? undefined)
+            : undefined;
+
+        if (!response.ok && response.status !== 409) {
+          const errorMessage = responseMessage ?? "Could not save to your reading list.";
+          setActionStates((prev) => ({
+            ...prev,
+            [manga.id]: { status: "error", message: errorMessage },
+          }));
+          return;
+        }
+
+        setActionStates((prev) => ({
+          ...prev,
+          [manga.id]: {
+            status: "added",
+            message:
+              response.status === 409 ? "Already in your list." : "Added to your list.",
+          },
+        }));
+      } catch (error_) {
+        console.error("Failed to add to reading list", error_);
+        setActionStates((prev) => ({
+          ...prev,
+          [manga.id]: {
+            status: "error",
+            message: "Network error.",
+          },
+        }));
       }
-    } else if (e.key === "Escape") {
-      setIsFocused(false);
-      setSelectedIndex(-1);
-      inputRef.current?.blur();
-    }
-  }, [results, selectedIndex]);
+    },
+    [isAuthenticated],
+  );
 
-  const showOverlay = isFocused && (query.trim().length >= MIN_QUERY_LENGTH || isLoading);
+  // Keyboard nav inside the input
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsFocused(false);
+        setSelectedIndex(-1);
+        inputRef.current?.blur();
+        return;
+      }
+
+      if (!results.length) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+      } else if (e.key === "Enter" && selectedIndex >= 0) {
+        e.preventDefault();
+        const selectedManga = results[selectedIndex];
+        if (selectedManga) {
+          window.location.href = `/manga/${selectedManga.id}`;
+        }
+      }
+    },
+    [results, selectedIndex],
+  );
+
+  const showOverlay =
+    isFocused && (query.trim().length >= MIN_QUERY_LENGTH || isLoading);
 
   useEffect(() => {
     setIsMounted(true);
@@ -248,18 +256,15 @@ export function SearchBar() {
   useEffect(() => {
     setActionStates((previous) => {
       if (!results.length) return {};
-
       const next: ReadingListActionStates = {};
       for (const item of results) {
-        if (previous[item.id]) {
-          next[item.id] = previous[item.id];
-        }
+        if (previous[item.id]) next[item.id] = previous[item.id];
       }
       return next;
     });
   }, [results]);
 
-  // Position overlay
+  // Position the overlay relative to the input
   useLayoutEffect(() => {
     if (!showOverlay) {
       setOverlayPosition(null);
@@ -268,20 +273,17 @@ export function SearchBar() {
 
     const updatePosition = () => {
       if (!containerRef.current) return;
-      
       const rect = containerRef.current.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const isMobile = viewportWidth < 640;
-      
+
       if (isMobile) {
-        // Mobile: full width with margins
         setOverlayPosition({
           top: rect.bottom + OVERLAY_OFFSET_PX,
-          left: 16,
-          width: viewportWidth - 32,
+          left: 12,
+          width: viewportWidth - 24,
         });
       } else {
-        // Desktop: match search bar width and position
         setOverlayPosition({
           top: rect.bottom + OVERLAY_OFFSET_PX,
           left: rect.left,
@@ -302,172 +304,176 @@ export function SearchBar() {
     };
   }, [showOverlay]);
 
+  const hasQuery = query.trim().length >= MIN_QUERY_LENGTH;
+  const showEmptyState = !isLoading && !error && hasQuery && results.length === 0;
+
   const overlay =
     isMounted && showOverlay && overlayPosition
       ? createPortal(
           <div
             ref={overlayRef}
-            className="fixed z-[200] max-h-[calc(100vh-120px)] overflow-y-auto rounded-2xl border border-white/15 bg-[#0A0E1A]/98 shadow-2xl backdrop-blur-xl scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 hover:scrollbar-thumb-white/25 sm:max-h-[70vh] sm:rounded-3xl"
+            className="fixed z-[200] max-h-[calc(100vh-120px)] overflow-y-auto border border-white/15 bg-surface/95 backdrop-blur sm:max-h-[70vh]"
             style={{
               width: overlayPosition.width,
               left: overlayPosition.left,
               top: overlayPosition.top,
             }}
           >
-            <div className="p-3 sm:p-4">
-              {isLoading ? (
-                <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-                  <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>Searching...</span>
-                </div>
-              ) : null}
+            {isLoading ? (
+              <p className="px-4 py-3 text-sm italic text-surface-subtle">
+                Searching…
+              </p>
+            ) : null}
 
-              {error ? (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
-                  {error}
-                </div>
-              ) : null}
+            {error ? (
+              <p className="border-b border-red-400/30 bg-red-500/5 px-4 py-3 text-sm italic text-red-200">
+                {error}
+              </p>
+            ) : null}
 
-              {!isLoading && !error ? (
-                results.length > 0 ? (
-                  <div className="space-y-1">
-                    {results.map((manga, index) => {
-                      const actionState = actionStates[manga.id] ?? { status: "idle" };
-                      const isLoadingAction = actionState.status === "loading";
-                      const isAdded = actionState.status === "added";
-                      const helperMessage = actionState.message;
-                      const isErrorState = actionState.status === "error";
-                      const isSelected = index === selectedIndex;
+            {showEmptyState ? (
+              <p className="px-4 py-4 text-sm italic text-surface-subtle">
+                No results for &ldquo;{query.trim()}&rdquo;.
+              </p>
+            ) : null}
 
-                      const buttonLabel = (() => {
-                        if (!isAuthenticated) return "Login";
-                        if (isLoadingAction) return "...";
-                        if (isAdded) return "✓";
-                        return "+";
-                      })();
+            {results.length > 0 ? (
+              <ul className="divide-y divide-white/10">
+                {results.map((manga, index) => {
+                  const actionState = actionStates[manga.id] ?? { status: "idle" };
+                  const isLoadingAction = actionState.status === "loading";
+                  const isAdded = actionState.status === "added";
+                  const isErrorState = actionState.status === "error";
+                  const helperMessage = actionState.message;
+                  const isSelected = index === selectedIndex;
 
-                      const disableButton = isLoadingAction || (isAdded && isAuthenticated);
+                  const metaBits: string[] = [];
+                  if (manga.status) metaBits.push(manga.status);
+                  if (manga.demographic) metaBits.push(manga.demographic);
+                  if (manga.year) metaBits.push(String(manga.year));
 
-                      return (
-                        <div key={manga.id} className="space-y-1">
-                          <div
-                            className={`group relative flex items-center gap-3 rounded-xl border p-3 transition-all ${
-                              isSelected
-                                ? "border-accent/60 bg-accent/10 shadow-lg shadow-accent/20"
-                                : "border-white/8 bg-white/5 hover:border-white/20 hover:bg-white/10"
-                            }`}
-                          >
-                            <Link
-                              href={`/manga/${manga.id}`}
-                              className="flex flex-1 items-center gap-3 focus:outline-none"
-                              tabIndex={-1}
-                            >
-                              {/* Cover Image */}
-                              <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-white/5 ring-1 ring-white/10 sm:h-18 sm:w-13">
-                                {manga.coverImage ? (
-                                  <Image
-                                    fill
-                                    src={manga.coverImage}
-                                    alt={manga.title}
-                                    sizes="52px"
-                                    unoptimized
-                                    className="object-cover transition-transform group-hover:scale-105"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white/70">
-                                    {manga.title.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
+                  return (
+                    <li
+                      key={manga.id}
+                      className={`relative transition-colors ${
+                        isSelected ? "bg-accent-soft" : "hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3">
+                        <Link
+                          href={`/manga/${manga.id}`}
+                          className="flex min-w-0 flex-1 items-center gap-3 focus:outline-none"
+                          tabIndex={-1}
+                        >
+                          <div className="relative h-14 w-10 shrink-0 overflow-hidden bg-white/5 sm:h-16 sm:w-11">
+                            {manga.coverImage ? (
+                              <Image
+                                fill
+                                src={manga.coverImage}
+                                alt={manga.title}
+                                sizes="44px"
+                                unoptimized
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/60">
+                                {manga.title.charAt(0).toUpperCase()}
                               </div>
-
-                              {/* Info */}
-                              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                                <p className="line-clamp-2 text-sm font-semibold leading-snug text-white">
-                                  {manga.title}
-                                </p>
-                                {manga.altTitles.length > 0 && (
-                                  <p className="line-clamp-1 text-xs text-white/50">
-                                    {manga.altTitles[0]}
-                                  </p>
-                                )}
-                                <div className="flex flex-wrap items-center gap-2 text-[0.625rem] uppercase tracking-wider text-white/40">
-                                  {manga.status && <span>{manga.status}</span>}
-                                  {manga.demographic && <span>• {manga.demographic}</span>}
-                                  {manga.year && <span>• {manga.year}</span>}
-                                </div>
-                              </div>
-                            </Link>
-
-                            {/* Add Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleAddToReadingList(manga)}
-                              disabled={disableButton}
-                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-sm font-bold transition-all ${
-                                disableButton
-                                  ? "cursor-not-allowed border-white/10 text-white/30"
-                                  : "border-accent/50 text-accent hover:border-accent hover:bg-accent/20 hover:shadow-lg hover:shadow-accent/30"
-                              }`}
-                              title={isAuthenticated ? "Add to reading list" : "Login to add"}
-                            >
-                              {buttonLabel}
-                            </button>
+                            )}
                           </div>
 
-                          {helperMessage && (
-                            <p className={`pl-3 text-xs ${isErrorState ? "text-red-300" : "text-accent/80"}`}>
-                              {helperMessage}
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <p className="line-clamp-1 text-sm font-semibold text-white sm:text-[0.95rem]">
+                              {manga.title}
                             </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center">
-                    <p className="text-sm text-white/60">No results found</p>
-                    <p className="mt-1 text-xs text-white/40">Try a different search term</p>
-                  </div>
-                )
-              ) : null}
-            </div>
+                            {manga.altTitles[0] ? (
+                              <p className="line-clamp-1 text-xs text-surface-subtle">
+                                {manga.altTitles[0]}
+                              </p>
+                            ) : null}
+                            {metaBits.length > 0 ? (
+                              <p className="line-clamp-1 text-[0.7rem] text-surface-subtle/70">
+                                {metaBits.join(" · ")}
+                              </p>
+                            ) : null}
+                          </div>
+                        </Link>
 
-            {/* Footer hint */}
-            {results.length > 0 && !isLoading && (
-              <div className="border-t border-white/10 bg-white/5 px-4 py-2 text-xs text-white/40">
-                <span className="hidden sm:inline">Use ↑↓ to navigate, Enter to select, Esc to close</span>
-                <span className="sm:hidden">Tap to select</span>
+                        {isAuthenticated ? (
+                          <button
+                            type="button"
+                            onClick={() => handleAddToReadingList(manga)}
+                            disabled={isLoadingAction || isAdded}
+                            className={[
+                              "shrink-0 bg-transparent p-0 text-[0.7rem] font-medium transition-colors sm:text-xs",
+                              isAdded
+                                ? "text-surface-subtle"
+                                : isLoadingAction
+                                  ? "text-surface-subtle/70"
+                                  : "text-accent hover:text-white",
+                            ].join(" ")}
+                          >
+                            {isLoadingAction
+                              ? "adding…"
+                              : isAdded
+                                ? "✓ added"
+                                : "+ add"}
+                          </button>
+                        ) : (
+                          <Link
+                            href="/login?redirect=/"
+                            className="shrink-0 text-[0.7rem] font-medium text-accent transition-colors hover:text-white sm:text-xs"
+                          >
+                            log in →
+                          </Link>
+                        )}
+                      </div>
+
+                      {helperMessage ? (
+                        <p
+                          className={`px-3 pb-2 text-[0.7rem] italic sm:px-4 ${
+                            isErrorState ? "text-red-300" : "text-surface-subtle"
+                          }`}
+                        >
+                          {helperMessage}
+                        </p>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+
+            {results.length > 0 ? (
+              <div className="border-t border-white/10 px-3 py-2 text-[0.65rem] text-surface-subtle/70 sm:px-4">
+                <span className="hidden sm:inline">
+                  ↑↓ navigate · Enter open · Esc close
+                </span>
+                <span className="sm:hidden">Tap to open</span>
               </div>
-            )}
+            ) : null}
           </div>,
-          document.body
+          document.body,
         )
       : null;
 
   return (
     <>
       <div ref={containerRef} className="relative w-full">
-        <div className="group relative flex w-full items-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-r from-white/5 to-white/10 pl-3 pr-2 shadow-lg transition-all focus-within:border-accent/40 focus-within:from-white/10 focus-within:to-white/15 focus-within:shadow-xl focus-within:shadow-accent/20 hover:border-white/20 sm:pl-4 sm:pr-3">
-          {/* Search Icon */}
-          <div className="flex items-center text-white/50 transition-colors group-focus-within:text-accent">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="h-4 w-4 sm:h-5 sm:w-5"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-          </div>
+        <div className="group flex w-full items-center border border-white/15 bg-white/[0.04] px-2.5 transition-colors focus-within:border-accent hover:border-white/25 sm:px-3">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="h-4 w-4 shrink-0 text-surface-subtle transition-colors group-focus-within:text-accent sm:h-[18px] sm:w-[18px]"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
 
-          {/* Input - 16px font size on mobile prevents zoom */}
           <input
             ref={inputRef}
             type="search"
@@ -475,33 +481,32 @@ export function SearchBar() {
             onFocus={() => setIsFocused(true)}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search titles, tags, creators..."
-            className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[16px] text-white placeholder:text-white/40 focus:outline-none sm:py-2.5 sm:text-sm"
+            placeholder="Search titles, tags, creators…"
+            className="min-w-0 flex-1 bg-transparent px-2.5 py-2 text-[16px] text-white placeholder:text-surface-subtle/60 focus:outline-none sm:py-2 sm:text-sm"
             aria-label="Search manga"
             autoComplete="off"
             spellCheck="false"
           />
 
-          {/* Keyboard Shortcut Badge */}
-          <kbd className="hidden items-center gap-1 rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[0.65rem] font-medium text-white/50 transition-colors group-focus-within:border-accent/30 group-focus-within:text-accent/70 sm:inline-flex">
-            /
-          </kbd>
-
-          {/* Clear Button */}
-          {query && (
+          {query ? (
             <button
               type="button"
               onClick={() => {
                 setQuery("");
                 inputRef.current?.focus();
               }}
-              className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white sm:ml-2"
               aria-label="Clear search"
+              className="ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center text-base leading-none text-surface-subtle transition-colors hover:text-white"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-              </svg>
+              ×
             </button>
+          ) : (
+            <span
+              aria-hidden
+              className="hidden shrink-0 select-none font-mono text-[0.7rem] text-surface-subtle/50 sm:inline"
+            >
+              /
+            </span>
           )}
         </div>
       </div>

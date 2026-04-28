@@ -5,6 +5,20 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { isSafeRequestOrigin } from "@/lib/security/origin";
 
+const imageUrlSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value.length === 0 ||
+      value.startsWith("http://") ||
+      value.startsWith("https://") ||
+      value.startsWith("/uploads/"),
+    { message: "Enter a valid image URL" },
+  )
+  .transform((value) => (value.length === 0 ? undefined : value))
+  .optional();
+
 const profileSchema = z.object({
   name: z
     .string()
@@ -28,18 +42,17 @@ const profileSchema = z.object({
     .trim()
     .min(1, "Timezone is required")
     .max(100, "Timezone must be 100 characters or fewer"),
-  avatarUrl: z
+  avatarUrl: imageUrlSchema,
+  bannerUrl: imageUrlSchema,
+  profileColor: z
     .string()
     .trim()
-    .refine(
-      (value) =>
-        value.length === 0 ||
-        value.startsWith("http://") ||
-        value.startsWith("https://") ||
-        value.startsWith("/uploads/"),
-      { message: "Enter a valid image URL" },
-    )
-    .transform((value) => (value.length === 0 ? undefined : value))
+    .regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color (e.g. #6A88E0)")
+    .optional()
+    .nullable(),
+  favoriteMangaIds: z
+    .array(z.string().trim().min(1))
+    .max(8, "You can pin up to 8 favorites")
     .optional(),
 });
 
@@ -99,7 +112,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ errors }, { status: 422 });
   }
 
-  const { name, username, bio, timezone, avatarUrl } = parsed.data;
+  const { name, username, bio, timezone, avatarUrl, bannerUrl, profileColor, favoriteMangaIds } = parsed.data;
 
   if (containsProhibitedWords(username) || containsProhibitedWords(name ?? null)) {
     const errors: Record<string, string[]> = {};
@@ -138,6 +151,9 @@ export async function PATCH(request: Request) {
         bio: toNullable(bio),
         timezone,
         avatarUrl: toNullable(avatarUrl),
+        ...(bannerUrl !== undefined ? { bannerUrl: toNullable(bannerUrl) } : {}),
+        ...(profileColor !== undefined ? { profileColor: profileColor || null } : {}),
+        ...(favoriteMangaIds !== undefined ? { favoriteMangaIds } : {}),
       },
       select: {
         id: true,
@@ -147,6 +163,9 @@ export async function PATCH(request: Request) {
         bio: true,
         timezone: true,
         avatarUrl: true,
+        bannerUrl: true,
+        profileColor: true,
+        favoriteMangaIds: true,
       },
     });
 

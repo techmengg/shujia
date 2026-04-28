@@ -15,6 +15,9 @@ export interface SettingsUser {
   name: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  bannerUrl: string | null;
+  profileColor: string | null;
+  favoriteMangaIds: string[];
   timezone: string;
   marketingEmails: boolean;
   productUpdates: boolean;
@@ -35,6 +38,9 @@ type ProfileFormState = {
   bio: string;
   timezone: string;
   avatarUrl: string;
+  bannerUrl: string;
+  profileColor: string;
+  favoriteMangaIds: string[];
 };
 
 type Status = "idle" | "saving" | "success" | "error";
@@ -161,6 +167,9 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
     bio: user.bio ?? "",
     timezone: user.timezone ?? "UTC",
     avatarUrl: user.avatarUrl ?? "",
+    bannerUrl: user.bannerUrl ?? "",
+    profileColor: user.profileColor ?? "",
+    favoriteMangaIds: user.favoriteMangaIds ?? [],
   });
   const [savedProfile, setSavedProfile] = useState<ProfileFormState>({
     name: user.name ?? "",
@@ -168,12 +177,18 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
     bio: user.bio ?? "",
     timezone: user.timezone ?? "UTC",
     avatarUrl: user.avatarUrl ?? "",
+    bannerUrl: user.bannerUrl ?? "",
+    profileColor: user.profileColor ?? "",
+    favoriteMangaIds: user.favoriteMangaIds ?? [],
   });
   const [profileStatus, setProfileStatus] = useState<Status>("idle");
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [avatarUploadStatus, setAvatarUploadStatus] = useState<Status>("idle");
   const [avatarUploadMessage, setAvatarUploadMessage] =
     useState<string | null>(null);
+  const [bannerUploadStatus, setBannerUploadStatus] = useState<Status>("idle");
+  const [bannerUploadMessage, setBannerUploadMessage] = useState<string | null>(null);
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarFallbackInitial =
     profileForm.name?.trim()?.charAt(0) ||
@@ -192,6 +207,9 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       bio: next.bio.trim(),
       timezone: next.timezone,
       avatarUrl: next.avatarUrl.trim(),
+      bannerUrl: next.bannerUrl.trim(),
+      profileColor: next.profileColor.trim(),
+      favoriteMangaIds: next.favoriteMangaIds,
     };
     return sanitized;
   };
@@ -374,6 +392,76 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
       setProfileForm((prev) => ({ ...prev, avatarUrl: previousAvatarUrl }));
       setAvatarUploadStatus("error");
       setAvatarUploadMessage("Upload failed. Please try again.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleBannerFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setBannerUploadStatus("saving");
+    setBannerUploadMessage("Uploading...");
+
+    const formData = new FormData();
+    formData.append("banner", file);
+    const previousBannerUrl = profileForm.bannerUrl;
+
+    try {
+      const response = await fetch("/api/uploads/banner", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || typeof result?.url !== "string") {
+        setBannerUploadStatus("error");
+        setBannerUploadMessage(
+          typeof result?.message === "string" ? result.message : "Upload failed. Please try again.",
+        );
+        return;
+      }
+
+      const nextBannerUrl = result.url;
+      const payload = buildProfilePayload(savedProfile, { bannerUrl: nextBannerUrl });
+
+      if (!payload.username || payload.username.length < 3) {
+        setBannerUploadStatus("error");
+        setBannerUploadMessage("Set a username before uploading a banner.");
+        return;
+      }
+
+      setProfileForm((prev) => ({ ...prev, bannerUrl: nextBannerUrl }));
+      setBannerUploadStatus("saving");
+      setBannerUploadMessage("Saving to profile...");
+
+      const profileResponse = await fetch("/api/settings/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const profileResult = await profileResponse.json().catch(() => ({}));
+
+      if (!profileResponse.ok) {
+        setProfileForm((prev) => ({ ...prev, bannerUrl: previousBannerUrl }));
+        setBannerUploadStatus("error");
+        setBannerUploadMessage(extractErrorMessage(profileResult));
+        return;
+      }
+
+      setSavedProfile(payload);
+      setProfileForm(payload);
+      router.refresh();
+      setBannerUploadStatus("success");
+      setBannerUploadMessage("Banner updated.");
+    } catch (error) {
+      console.error(error);
+      setProfileForm((prev) => ({ ...prev, bannerUrl: previousBannerUrl }));
+      setBannerUploadStatus("error");
+      setBannerUploadMessage("Upload failed. Please try again.");
     } finally {
       event.target.value = "";
     }
@@ -872,6 +960,118 @@ export function SettingsPageContent({ user, sessionCount, sections }: SettingsPa
             />
             <span className={helpTextClass}>{profileForm.bio.length}/500 characters</span>
           </label>
+
+          {/* Banner upload */}
+          <label className={labelClass}>
+            <span>Profile banner</span>
+            <div className="space-y-2">
+              {profileForm.bannerUrl ? (
+                <div className="relative h-24 w-full overflow-hidden border border-white/10 bg-white/5 sm:h-32">
+                  <Image
+                    src={profileForm.bannerUrl}
+                    alt="Banner preview"
+                    fill
+                    className="object-cover"
+                    sizes="100vw"
+                    unoptimized
+                  />
+                </div>
+              ) : (
+                <div className="flex h-24 w-full items-center justify-center border border-dashed border-white/15 text-xs text-white/40 sm:h-32">
+                  No banner set
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className={neutralButtonClass}
+                  onClick={() => bannerInputRef.current?.click()}
+                  disabled={bannerUploadStatus === "saving"}
+                >
+                  {bannerUploadStatus === "saving" ? "Working..." : "Upload banner"}
+                </button>
+                {profileForm.bannerUrl ? (
+                  <button
+                    type="button"
+                    className={`${neutralButtonClass} text-red-300 border-red-400/40 hover:border-red-300 hover:text-red-200`}
+                    onClick={async () => {
+                      const payload = buildProfilePayload(savedProfile, { bannerUrl: "" });
+                      const res = await fetch("/api/settings/profile", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                      });
+                      if (res.ok) {
+                        setProfileForm((prev) => ({ ...prev, bannerUrl: "" }));
+                        setSavedProfile(payload);
+                        router.refresh();
+                        setBannerUploadMessage("Banner removed.");
+                        setBannerUploadStatus("success");
+                      }
+                    }}
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              <span className={helpTextClass}>
+                PNG, JPG, or WebP up to 8MB. Recommended 1500 x 500px or wider.
+              </span>
+              {bannerUploadMessage ? (
+                <span className={`text-xs ${statusToneClass(bannerUploadStatus)}`}>
+                  {bannerUploadMessage}
+                </span>
+              ) : null}
+            </div>
+            <input
+              ref={bannerInputRef}
+              type="file"
+              accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+              className="sr-only"
+              onChange={handleBannerFileChange}
+            />
+          </label>
+
+          {/* Profile accent color */}
+          <label className={labelClass}>
+            <span>Profile accent color</span>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={profileForm.profileColor || "#6A88E0"}
+                onChange={(event) =>
+                  setProfileForm((prev) => ({ ...prev, profileColor: event.target.value }))
+                }
+                className="h-9 w-12 cursor-pointer border border-white/10 bg-transparent p-0.5"
+              />
+              <input
+                type="text"
+                value={profileForm.profileColor}
+                onChange={(event) => {
+                  const val = event.target.value;
+                  if (val === "" || /^#[0-9a-fA-F]{0,6}$/.test(val)) {
+                    setProfileForm((prev) => ({ ...prev, profileColor: val }));
+                  }
+                }}
+                className={`${inputClass} w-28 font-mono`}
+                placeholder="#6A88E0"
+                maxLength={7}
+              />
+              {profileForm.profileColor ? (
+                <button
+                  type="button"
+                  className="text-xs text-white/50 hover:text-white transition"
+                  onClick={() => setProfileForm((prev) => ({ ...prev, profileColor: "" }))}
+                >
+                  Reset
+                </button>
+              ) : null}
+            </div>
+            <span className={helpTextClass}>
+              Tints your profile banner and accent when visitors view your page. Leave blank for default.
+            </span>
+          </label>
+
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             {profileMessage ? (
               <p className={`text-sm ${statusToneClass(profileStatus)}`}>{profileMessage}</p>

@@ -1,15 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import type { ReadingListEntry } from "@prisma/client";
 
 import type { ReadingListItem } from "@/data/reading-list";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { MangaDexAPIError, getMangaSummaryById } from "@/lib/mangadex/service";
+import { getMangaSummaryById, type Provider } from "@/lib/manga";
+import { migrateEntriesInBackground } from "@/lib/manga/migrate";
 
 const addToReadingListSchema = z
   .object({
     mangaId: z.string().min(1, "Manga identifier is required."),
+    provider: z.enum(["mangadex", "mangaupdates"]).optional(),
     progress: z.string().optional(),
     rating: z
       .number()
@@ -23,6 +25,7 @@ const addToReadingListSchema = z
 const removeFromReadingListSchema = z
   .object({
     mangaId: z.string().min(1, "Manga identifier is required."),
+    provider: z.enum(["mangadex", "mangaupdates"]).optional(),
   })
   .strict();
 
@@ -39,6 +42,7 @@ function serializeEntry(entry: ReadingListEntry): ReadingListItem {
   return {
     id: entry.id,
     mangaId: entry.mangaId,
+    provider: entry.provider as Provider,
     title: entry.title,
     altTitles: entry.altTitles,
     description: entry.description,
@@ -111,6 +115,8 @@ export async function GET(request: Request) {
       ...(take ? { take } : {}),
     });
 
+    after(() => migrateEntriesInBackground(entries));
+
     return NextResponse.json({
       data: entries.map(serializeEntry),
     });
@@ -152,80 +158,70 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors: issues }, { status: 422 });
     }
 
-    const { mangaId, progress, rating, notes } = parsed.data;
+    const { mangaId, provider: providerInput, progress, rating, notes } = parsed.data;
+    const provider: Provider = providerInput ?? "mangaupdates";
 
-    try {
-      const summary = await getMangaSummaryById(mangaId);
+    const summary = await getMangaSummaryById(mangaId, provider).catch(() => null);
 
-      if (!summary) {
-        return NextResponse.json(
-          { message: "Could not find that series on MangaDex." },
-          { status: 404 },
-        );
-      }
-
-      const progressValue = normalizeOptionalText(progress);
-      const notesValue = normalizeOptionalText(notes);
-      const ratingValue =
-        typeof rating === "number" ? Number.parseFloat(rating.toFixed(2)) : null;
-
-      const baseMetadata = {
-        title: summary.title,
-        altTitles: summary.altTitles,
-        description: summary.description ?? null,
-        status: summary.status ?? null,
-        year: summary.year ?? null,
-        contentRating: summary.contentRating ?? null,
-        demographic: summary.demographic ?? null,
-        latestChapter: summary.latestChapter ?? null,
-        languages: summary.languages,
-        tags: summary.tags,
-        coverImage: summary.coverImage ?? null,
-        url: summary.url,
-      };
-
-      const entry = await prisma.readingListEntry.upsert({
-        where: {
-          userId_provider_mangaId: {
-            userId: user.id,
-            provider: "mangadex",
-            mangaId: summary.id,
-          },
-        },
-        create: {
-          userId: user.id,
-          provider: "mangadex",
-          mangaId: summary.id,
-          ...baseMetadata,
-          progress: progressValue,
-          rating: ratingValue,
-          notes: notesValue,
-        },
-        update: {
-          ...baseMetadata,
-          ...(progress !== undefined ? { progress: progressValue } : {}),
-          ...(rating !== undefined ? { rating: ratingValue } : {}),
-          ...(notes !== undefined ? { notes: notesValue } : {}),
-        },
-      });
-
+    if (!summary) {
       return NextResponse.json(
-        {
-          data: serializeEntry(entry),
-          message: "Saved to your reading list.",
-        },
-        { status: 200 },
+        { message: "Could not find that series." },
+        { status: 404 },
       );
-    } catch (error) {
-      if (error instanceof MangaDexAPIError && error.status === 404) {
-        return NextResponse.json(
-          { message: "Could not find that series on MangaDex." },
-          { status: 404 },
-        );
-      }
-
-      throw error;
     }
+
+    const progressValue = normalizeOptionalText(progress);
+    const notesValue = normalizeOptionalText(notes);
+    const ratingValue =
+      typeof rating === "number" ? Number.parseFloat(rating.toFixed(2)) : null;
+
+    const baseMetadata = {
+      title: summary.title,
+      altTitles: summary.altTitles,
+      description: summary.description ?? null,
+      status: summary.status ?? null,
+      year: summary.year ?? null,
+      contentRating: summary.contentRating ?? null,
+      demographic: summary.demographic ?? null,
+      latestChapter: summary.latestChapter ?? null,
+      languages: summary.languages,
+      tags: summary.tags,
+      coverImage: summary.coverImage ?? null,
+      url: summary.url,
+    };
+
+    const entry = await prisma.readingListEntry.upsert({
+      where: {
+        userId_provider_mangaId: {
+          userId: user.id,
+          provider,
+          mangaId: summary.id,
+        },
+      },
+      create: {
+        userId: user.id,
+        provider,
+        mangaId: summary.id,
+        ...baseMetadata,
+        progress: progressValue,
+        rating: ratingValue,
+        notes: notesValue,
+      },
+      update: {
+        ...baseMetadata,
+        ...(progress !== undefined ? { progress: progressValue } : {}),
+        ...(rating !== undefined ? { rating: ratingValue } : {}),
+        ...(notes !== undefined ? { notes: notesValue } : {}),
+      },
+    });
+
+    return NextResponse.json(
+      {
+        data: serializeEntry(entry),
+        message: "Saved to your reading list.",
+      },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Failed to update reading list", error);
     return NextResponse.json(
@@ -276,12 +272,13 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ errors: issues }, { status: 422 });
     }
 
-    const { mangaId } = parsed.data;
+    const { mangaId, provider } = parsed.data;
 
     const result = await prisma.readingListEntry.deleteMany({
       where: {
         userId: user.id,
         mangaId,
+        ...(provider ? { provider } : {}),
       },
     });
 

@@ -59,6 +59,8 @@ export interface MangaUpdatesSeriesRecord {
   image?: MangaUpdatesImage;
   type?: MangaUpdatesSeriesType;
   year?: string;
+  bayesian_rating?: number;
+  rating_votes?: number;
   genres?: MangaUpdatesGenre[];
   categories?: MangaUpdatesCategory[];
   latest_chapter?: number;
@@ -104,4 +106,61 @@ export interface MangaUpdatesSearchRequest {
   page?: number;
   perpage?: number;
   orderby?: MangaUpdatesSearchOrderBy;
+}
+
+export interface MangaUpdatesReleaseRecord {
+  id: number;
+  title?: string;
+  volume?: string;
+  chapter?: string;
+  groups?: { name: string; group_id?: number; url?: string }[];
+  release_date?: string;
+}
+
+export interface MangaUpdatesReleaseResult {
+  record: MangaUpdatesReleaseRecord;
+  metadata?: {
+    series?: Partial<MangaUpdatesSeriesRecord> & { series_id: number; title: string };
+  };
+}
+
+export interface MangaUpdatesReleaseResponse {
+  total_hits?: number;
+  page?: number;
+  per_page?: number;
+  results?: MangaUpdatesReleaseResult[];
+}
+
+export interface MangaUpdatesReviewSearchRequest {
+  search?: string;
+  series_id?: number;
+  added_by?: number;
+  page?: number;
+  perpage?: number;
+}
+
+export interface MangaUpdatesReviewRecord {
+  id: number;
+  title?: string;
+  body_excerpt?: string;
+  author?: { user_id?: number; name?: string; url?: string };
+  series?: Partial<MangaUpdatesSeriesRecord> & { series_id: number; title: string };
+  review?: {
+    plot?: number;
+    drawing?: number;
+    characters?: number;
+    enjoy?: number;
+    overall?: number;
+  };
+}
+
+export interface MangaUpdatesReviewResult {
+  record: MangaUpdatesReviewRecord;
+}
+
+export interface MangaUpdatesReviewResponse {
+  total_hits?: number;
+  page?: number;
+  per_page?: number;
+  results?: MangaUpdatesReviewResult[];
 }

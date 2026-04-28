@@ -12,15 +12,38 @@ export const searchSeries = unstable_cache(
 export const getSeriesSummaryById = unstable_cache(
   async (seriesId: string): Promise<MangaSummary | null> =>
     service.getSeriesSummaryById(seriesId),
-  ["mangaupdates-summary"],
+  ["mangaupdates-summary-v2"],
   { revalidate: 3600, tags: ["mangaupdates-summary"] },
 );
 
 export const getSeriesDetailsById = unstable_cache(
   async (seriesId: string): Promise<MangaDetails | null> =>
     service.getSeriesDetailsById(seriesId),
-  ["mangaupdates-details"],
+  ["mangaupdates-details-v2"],
   { revalidate: 3600, tags: ["mangaupdates-details"] },
+);
+
+export const getTrendingByLanguage = unstable_cache(
+  async (
+    language: "ja" | "ko" | "zh",
+    limit?: number,
+  ): Promise<MangaSummary[]> => service.getTrendingByLanguage(language, limit),
+  ["mangaupdates-trending-sfw-v2"],
+  { revalidate: 1800, tags: ["mangaupdates-trending"] },
+);
+
+export const getPopularNewTitles = unstable_cache(
+  async (limit?: number): Promise<MangaSummary[]> =>
+    service.getPopularNewTitles(limit),
+  ["mangaupdates-popular-new-titles-sfw-v2"],
+  { revalidate: 3600, tags: ["mangaupdates-popular-new-titles"] },
+);
+
+export const getRecentReleases = unstable_cache(
+  async (limit?: number): Promise<MangaSummary[]> =>
+    service.getRecentReleases(limit),
+  ["mangaupdates-recent-releases-sfw-v2"],
+  { revalidate: 300, tags: ["mangaupdates-recent-releases"] },
 );
 
 export { MangaUpdatesAPIError } from "./client";

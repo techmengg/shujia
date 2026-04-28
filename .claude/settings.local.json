@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm exec *)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm lint *)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(npx vercel *)",
+      "Bash(pnpm install *)",
+      "Bash(curl -s -X POST \"https://api.mangaupdates.com/v1/reviews/search\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"User-Agent: Shujia/0.1\" -d '{\"perpage\":2}')"
+    ]
+  }
+}

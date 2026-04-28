@@ -7,6 +7,9 @@ export type SettingsUser = {
   name: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  bannerUrl: string | null;
+  profileColor: string | null;
+  favoriteMangaIds: string[];
   timezone: string;
   marketingEmails: boolean;
   productUpdates: boolean;

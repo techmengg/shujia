@@ -14,17 +14,17 @@ export function AuthCard({
   footer,
 }: AuthCardProps) {
   return (
-    <div className="w-full max-w-md rounded-3xl border border-white/15 bg-black/80 p-8 text-white shadow-2xl shadow-black/40 backdrop-blur">
+    <div className="w-full max-w-md border border-white/15 p-8 text-white">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold uppercase tracking-[0.2em]">
-          {title}
-        </h1>
+        <h1 className="text-2xl font-semibold text-white">{title}</h1>
         {description ? (
-          <p className="text-sm text-white/65">{description}</p>
+          <p className="text-sm text-surface-subtle">{description}</p>
         ) : null}
       </header>
       <div className="mt-6 space-y-4">{children}</div>
-      {footer ? <footer className="mt-6 text-sm text-white/60">{footer}</footer> : null}
+      {footer ? (
+        <footer className="mt-6 text-sm text-surface-subtle">{footer}</footer>
+      ) : null}
     </div>
   );
 }

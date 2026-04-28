@@ -13,11 +13,7 @@ export default function LoginPage() {
       title="Sign in"
       description="Access your personalised shelf, reading history, and recommendations."
     >
-      <Suspense
-        fallback={
-          <div className="h-40 w-full animate-pulse rounded-2xl border border-white/10 bg-white/5" />
-        }
-      >
+      <Suspense fallback={<div className="h-40 w-full" />}>
         <LoginForm />
       </Suspense>
     </AuthCard>

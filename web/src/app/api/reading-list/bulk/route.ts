@@ -4,11 +4,12 @@ import type { Prisma } from "@prisma/client";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { MangaDexAPIError, getMangaSummaryById } from "@/lib/mangadex/service";
+import { getMangaSummaryById, type Provider } from "@/lib/manga";
 
 const BULK_LIMIT = 150;
 
 const bulkSchema = z.object({
+  provider: z.enum(["mangadex", "mangaupdates"]).optional(),
   items: z
     .array(
       z
@@ -17,7 +18,7 @@ const bulkSchema = z.object({
           progress: z.string().optional(),
           rating: z.number().min(0).max(10).optional(),
           notes: z.string().optional(),
-          // Optional metadata to skip MangaDex fetch when available
+          // Optional metadata to skip provider fetch when available
           title: z.string().optional(),
           altTitles: z.array(z.string()).optional(),
           description: z.string().nullable().optional(),
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const provider: Provider = parsed.data.provider ?? "mangaupdates";
     const items = parsed.data.items;
     const incoming = items.slice(0, BULK_LIMIT);
     // De-dupe by mangaId (last wins)
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
     // Fetch existing entries to decide which require full metadata load.
     // Scoped to provider='mangadex' because this bulk import is MangaDex-only.
     const existing = await prisma.readingListEntry.findMany({
-      where: { userId, provider: "mangadex", mangaId: { in: mangaIds } },
+      where: { userId, provider, mangaId: { in: mangaIds } },
       select: { mangaId: true },
     });
     const existingIds = new Set(existing.map((e) => e.mangaId));
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
                 : null;
           if ("notes" in patch) data.notes = (patch.notes ?? null) as string | null;
           return prisma.readingListEntry.updateMany({
-            where: { userId, provider: "mangadex", mangaId },
+            where: { userId, provider, mangaId },
             data,
           });
         })
@@ -143,12 +145,16 @@ export async function POST(request: Request) {
               languages: provided.languages ?? [],
               tags: provided.tags ?? [],
               coverImage: provided.coverImage ?? null,
-              url: provided.url ?? `https://mangadex.org/title/${mangaId}`,
+              url:
+                provided.url ??
+                (provider === "mangadex"
+                  ? `https://mangadex.org/title/${mangaId}`
+                  : `https://www.mangaupdates.com/series/${mangaId}`),
             };
-            // If critical fields like cover/title are missing, hydrate from MangaDex (cached)
+            // If critical fields like cover/title are missing, hydrate from the provider (cached)
             if (!base.coverImage || !base.title) {
               try {
-                const summary = await getMangaSummaryById(mangaId);
+                const summary = await getMangaSummaryById(mangaId, provider);
                 if (summary) {
                   base = {
                     ...base,
@@ -172,11 +178,11 @@ export async function POST(request: Request) {
             }
             await prisma.readingListEntry.upsert({
               where: {
-                userId_provider_mangaId: { userId, provider: "mangadex", mangaId },
+                userId_provider_mangaId: { userId, provider, mangaId },
               },
               create: {
                 userId,
-                provider: "mangadex",
+                provider,
                 mangaId,
                 ...base,
                 progress: (patch.progress ?? null) as string | null,
@@ -189,7 +195,7 @@ export async function POST(request: Request) {
               update: {},
             });
           } else {
-            const summary = await getMangaSummaryById(mangaId);
+            const summary = await getMangaSummaryById(mangaId, provider);
             if (!summary) {
               skipped += 1;
               continue;
@@ -198,13 +204,13 @@ export async function POST(request: Request) {
               where: {
                 userId_provider_mangaId: {
                   userId,
-                  provider: "mangadex",
+                  provider,
                   mangaId: summary.id,
                 },
               },
               create: {
                 userId,
-                provider: "mangadex",
+                provider,
                 mangaId: summary.id,
                 title: summary.title,
                 altTitles: summary.altTitles,
@@ -229,13 +235,9 @@ export async function POST(request: Request) {
             });
           }
           added += 1;
-        } catch (error) {
-          if (error instanceof MangaDexAPIError && error.status === 404) {
-            skipped += 1;
-          } else {
-            // soft-skip on transient failures
-            skipped += 1;
-          }
+        } catch {
+          // soft-skip on transient failures or not-found
+          skipped += 1;
         }
       }
     }

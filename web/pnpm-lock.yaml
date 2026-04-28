@@ -20,6 +20,9 @@ importers:
       bcryptjs:
         specifier: ^3.0.2
         version: 3.0.3
+      embla-carousel:
+        specifier: ^8.6.0
+        version: 8.6.0
       embla-carousel-class-names:
         specifier: ^8.6.0
         version: 8.6.0(embla-carousel@8.6.0)

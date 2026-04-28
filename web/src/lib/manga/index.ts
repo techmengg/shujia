@@ -1,10 +1,15 @@
-import * as mangadex from "@/lib/mangadex/service-cached";
 import * as mangaupdates from "@/lib/mangaupdates/service-cached";
 import type { MangaDetails, MangaSummary, Provider } from "./types";
 
 export type { MangaDetails, MangaSummary, Provider } from "./types";
+export {
+  inferProviderFromId,
+  providerLabel,
+  providerShortLabel,
+} from "./provider";
 
 export const ALL_PROVIDERS: Provider[] = ["mangadex", "mangaupdates"];
+export const DEFAULT_SEARCH_PROVIDERS: Provider[] = ["mangaupdates"];
 
 export interface SearchMangaOptions {
   limit?: number;
@@ -18,7 +23,7 @@ export async function searchManga(
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const providers = options.providers ?? ALL_PROVIDERS;
+  const providers = options.providers ?? DEFAULT_SEARCH_PROVIDERS;
   const limit = options.limit;
 
   const tasks = providers.map((provider) => runSearch(provider, trimmed, limit));
@@ -44,7 +49,8 @@ function runSearch(
 ): Promise<MangaSummary[]> {
   switch (provider) {
     case "mangadex":
-      return mangadex.searchManga(query, limit);
+      // MangaDex search removed — legacy entries migrate via lib/manga/migrate.ts
+      return Promise.resolve([]);
     case "mangaupdates":
       return mangaupdates.searchSeries(query, limit);
   }
@@ -56,7 +62,7 @@ export async function getMangaSummaryById(
 ): Promise<MangaSummary | null> {
   switch (provider) {
     case "mangadex":
-      return mangadex.getMangaSummaryById(id);
+      return null;
     case "mangaupdates":
       return mangaupdates.getSeriesSummaryById(id);
   }
@@ -68,7 +74,7 @@ export async function getMangaDetails(
 ): Promise<MangaDetails | null> {
   switch (provider) {
     case "mangadex":
-      return mangadex.getMangaDetails(id);
+      return null;
     case "mangaupdates":
       return mangaupdates.getSeriesDetailsById(id);
   }
