@@ -31,10 +31,25 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
       name: true,
       bio: true,
       avatarUrl: true,
+      bannerUrl: true,
+      profileColor: true,
+      favoriteMangaIds: true,
       timezone: true,
       createdAt: true,
       readingListEntries: {
         orderBy: { updatedAt: "desc" },
+      },
+      reviews: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          provider: true,
+          mangaId: true,
+          rating: true,
+          body: true,
+          createdAt: true,
+        },
       },
     },
   });
@@ -58,9 +73,20 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
         username: dbUser.username,
         bio: dbUser.bio,
         avatarUrl: dbUser.avatarUrl,
+        bannerUrl: dbUser.bannerUrl,
+        profileColor: dbUser.profileColor,
+        favoriteMangaIds: dbUser.favoriteMangaIds,
         timezone: dbUser.timezone,
         memberSince: dbUser.createdAt.toISOString(),
       }}
+      reviews={dbUser.reviews.map((review) => ({
+        id: review.id,
+        provider: review.provider,
+        mangaId: review.mangaId,
+        rating: review.rating,
+        body: review.body,
+        createdAt: review.createdAt.toISOString(),
+      }))}
       readingList={dbUser.readingListEntries.map((entry) => ({
         id: entry.id,
         mangaId: entry.mangaId,

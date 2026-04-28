@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-const SHOWCASE_LOCAL_STORAGE_PREFIX = "shujia.ten-showcase";
-const SHOWCASE_LIMIT = 8;
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
 
 interface ProfileUser {
   name: string | null;
@@ -13,6 +15,9 @@ interface ProfileUser {
   username: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  bannerUrl: string | null;
+  profileColor: string | null;
+  favoriteMangaIds: string[];
   timezone: string;
   memberSince: string;
 }
@@ -36,106 +41,222 @@ interface ReadingListEntryDto {
   updatedAt: string;
 }
 
+interface ReviewDto {
+  id: string;
+  provider: string;
+  mangaId: string;
+  rating: number;
+  body: string | null;
+  createdAt: string;
+}
+
 interface ProfilePageContentProps {
   user: ProfileUser;
   readingList: ReadingListEntryDto[];
+  reviews: ReviewDto[];
   isOwner: boolean;
 }
 
-interface RatedTenShowcaseProps {
-  entries: ReadingListEntryDto[];
-  userKey: string;
-  isOwner: boolean;
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function formatMemberSince(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return new Intl.DateTimeFormat("en", { year: "numeric", month: "long" }).format(date);
 }
 
-function RatedTenShowcase({ entries, userKey, isOwner }: RatedTenShowcaseProps) {
-  const storageKey = `${SHOWCASE_LOCAL_STORAGE_PREFIX}:${userKey}`;
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftIds, setDraftIds] = useState<string[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+function formatShortDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "Recently";
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
+}
 
-  useEffect(() => {
-    if (!userKey) return;
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as string[];
-        if (Array.isArray(parsed)) {
-          setSelectedIds(parsed);
-        }
-      } else if (entries.length) {
-        const initial = entries.slice(0, SHOWCASE_LIMIT).map((entry) => entry.id);
-        setSelectedIds(initial);
-      }
-    } catch (error) {
-      console.warn("Failed to load showcase selections", error);
-    } finally {
-      setHydrated(true);
-    }
-  }, [entries, storageKey, userKey]);
+function normalizeStatus(status: string | null): "completed" | "reading" | "on-hold" | "dropped" | "plan-to-read" | "unknown" {
+  if (!status) return "unknown";
+  const s = status.trim().toLowerCase();
+  if (s.includes("complete")) return "completed";
+  if (s.includes("reading") || s.includes("ongoing") || s.includes("current")) return "reading";
+  if (s.includes("hold") || s.includes("pause")) return "on-hold";
+  if (s.includes("drop")) return "dropped";
+  if (s.includes("plan") || s.includes("queue")) return "plan-to-read";
+  return "unknown";
+}
 
-  useEffect(() => {
-    if (!hydrated) return;
-    setSelectedIds((current) => current.filter((id) => entries.some((entry) => entry.id === id)));
-  }, [entries, hydrated]);
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
-  const selectedEntries = useMemo(() => {
-    const map = new Map(entries.map((entry) => [entry.id, entry]));
-    const ordered = selectedIds
-      .map((id) => map.get(id))
-      .filter((entry): entry is ReadingListEntryDto => Boolean(entry));
-    if (ordered.length) {
-      return ordered;
-    }
-    return entries.slice(0, SHOWCASE_LIMIT);
-  }, [entries, selectedIds]);
+function markdownBioToHtml(raw?: string | null): string | null {
+  if (!raw) return null;
+  const escaped = escapeHtml(raw);
+  let html = escaped.replace(
+    /\[([^\]]+)\]\((https?:[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noreferrer" class="text-accent hover:text-white transition">$1</a>',
+  );
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>");
+  html = html.replace(/\n/g, "<br/>");
+  return html;
+}
 
-  const remainingSlots = SHOWCASE_LIMIT - draftIds.length;
+/* ------------------------------------------------------------------ */
+/*  Sub-components                                                     */
+/* ------------------------------------------------------------------ */
 
-  const toggleDraft = (entryId: string) => {
-    setDraftIds((current) => {
-      if (current.includes(entryId)) {
-        return current.filter((id) => id !== entryId);
-      }
-      if (current.length >= SHOWCASE_LIMIT) {
-        return current;
-      }
-      return [...current, entryId];
+const MAX_FAVORITES = 8;
+
+function FavoritesEditor({
+  readingList,
+  currentIds,
+  onSave,
+  onCancel,
+}: {
+  readingList: ReadingListEntryDto[];
+  currentIds: string[];
+  onSave: (ids: string[]) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<string[]>(currentIds);
+
+  const toggle = (mangaId: string) => {
+    setDraft((prev) => {
+      if (prev.includes(mangaId)) return prev.filter((id) => id !== mangaId);
+      if (prev.length >= MAX_FAVORITES) return prev;
+      return [...prev, mangaId];
     });
   };
 
-  const startEditing = () => {
-    setDraftIds(selectedIds.length ? selectedIds : entries.slice(0, SHOWCASE_LIMIT).map((entry) => entry.id));
-    setIsEditing(true);
-  };
+  const remaining = MAX_FAVORITES - draft.length;
 
-  const cancelEditing = () => {
-    setDraftIds([]);
-    setIsEditing(false);
-  };
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[0.7rem] text-white/50 sm:text-xs">
+          {remaining > 0 ? `${remaining} slot${remaining === 1 ? "" : "s"} remaining` : "All slots filled"}
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => onSave(draft)}
+            className="border border-accent px-3 py-1 text-xs font-medium text-accent transition hover:border-white hover:text-white"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="border border-white/20 px-3 py-1 text-xs font-medium text-white/60 transition hover:border-white/40 hover:text-white"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+      <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8 sm:gap-2.5">
+        {readingList.map((item) => {
+          const selected = draft.includes(item.mangaId);
+          return (
+            <li key={item.id} className="min-w-0">
+              <button
+                type="button"
+                onClick={() => toggle(item.mangaId)}
+                className="group relative block w-full text-left"
+              >
+                <div
+                  className={`relative aspect-[2/3] w-full overflow-hidden transition ${
+                    selected ? "ring-2 ring-accent" : "opacity-50 hover:opacity-80"
+                  }`}
+                >
+                  {item.coverImage ? (
+                    <Image
+                      src={item.coverImage}
+                      alt={item.title}
+                      fill
+                      sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 25vw"
+                      unoptimized
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-white/5 text-sm font-semibold text-white/70">
+                      {item.title.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {selected ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <span className="text-lg text-accent">✓</span>
+                    </div>
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-1 text-center text-[0.55rem] leading-tight text-white/50 sm:text-[0.6rem]">
+                  {item.title}
+                </p>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
-  const saveDraft = () => {
-    setSelectedIds(draftIds);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(storageKey, JSON.stringify(draftIds));
-    }
-    setIsEditing(false);
-  };
+function StatCell({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-lg font-semibold text-white sm:text-xl">{value}</p>
+      <p className="text-[0.7rem] text-white/50 sm:text-xs">{label}</p>
+      {sub ? <p className="text-[0.6rem] text-white/35 sm:text-[0.7rem]">{sub}</p> : null}
+    </div>
+  );
+}
 
-  const cards = (list: ReadingListEntryDto[]) => (
-    <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
-      {list.map((item) => (
+function RatingDistribution({ ratings }: { ratings: number[] }) {
+  const buckets = Array.from({ length: 10 }, (_, i) => {
+    const score = 10 - i;
+    return { score, count: ratings.filter((r) => Math.round(r) === score).length };
+  });
+  const maxCount = Math.max(...buckets.map((b) => b.count), 1);
+
+  return (
+    <div className="space-y-1">
+      {buckets.map(({ score, count }) => (
+        <div key={score} className="flex items-center gap-2 text-[0.7rem] sm:text-xs">
+          <span className="w-4 text-right font-medium text-white/60">{score}</span>
+          <div className="relative h-2.5 flex-1 overflow-hidden bg-white/5">
+            <div
+              className="absolute inset-y-0 left-0 bg-accent/70 transition-all duration-300"
+              style={{ width: `${(count / maxCount) * 100}%` }}
+            />
+          </div>
+          <span className="w-5 text-right tabular-nums text-white/45">{count || ""}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CoverGrid({ entries, emptyText }: { entries: ReadingListEntryDto[]; emptyText?: string }) {
+  if (!entries.length && emptyText) {
+    return <p className="text-sm italic text-surface-subtle">{emptyText}</p>;
+  }
+
+  return (
+    <ul className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8 sm:gap-2.5">
+      {entries.map((item) => (
         <li key={item.id} className="min-w-0">
           <Link href={`/manga/${item.mangaId}`} className="group block">
-            <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-white/5">
+            <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/5">
               {item.coverImage ? (
                 <Image
                   src={item.coverImage}
                   alt={item.title}
                   fill
-                  sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 30vw"
+                  sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 25vw"
                   unoptimized
                   className="object-cover transition duration-200 group-hover:scale-[1.02]"
                 />
@@ -145,709 +266,445 @@ function RatedTenShowcase({ entries, userKey, isOwner }: RatedTenShowcaseProps) 
                 </div>
               )}
             </div>
-            <p className="mt-1 line-clamp-2 text-center text-[0.55rem] text-white/70 sm:text-[0.6rem]">{item.title}</p>
+            <p className="mt-1 line-clamp-2 text-center text-[0.55rem] leading-tight text-white/60 sm:text-[0.65rem]">
+              {item.title}
+            </p>
           </Link>
         </li>
       ))}
     </ul>
   );
+}
 
-  return (
-    <section className="space-y-3">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-white">Showcase</h2>
-        </div>
-        {isOwner ? (
-          <div className="flex flex-wrap gap-2 text-xs">
-            {isEditing ? (
-              <>
-                <button
-                  type="button"
-                  onClick={saveDraft}
-                  disabled={!draftIds.length}
-                  className="rounded-md border border-accent px-3 py-1 font-medium text-accent transition enabled:hover:border-accent/70 enabled:hover:text-white disabled:border-white/15 disabled:text-white/40"
-                >
-                  Save selection
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelEditing}
-                  className="rounded-md border border-white/20 px-3 py-1 font-medium text-white/70 transition hover:border-white/40 hover:text-white"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={startEditing}
-                className="rounded-md border border-white/20 px-3 py-1 font-medium text-white/70 transition hover:border-white/40 hover:text-white"
-              >
-                Edit showcase
-              </button>
-            )}
-          </div>
-        ) : null}
-      </header>
+/* ------------------------------------------------------------------ */
+/*  Main component                                                     */
+/* ------------------------------------------------------------------ */
 
-      {!entries.length ? (
-        <p className="text-sm text-white/60">Start rating series with a perfect score to curate this space.</p>
-      ) : null}
+export function ProfilePageContent({ user, readingList, reviews, isOwner }: ProfilePageContentProps) {
+  const router = useRouter();
+  const [editingFavorites, setEditingFavorites] = useState(false);
+  const [currentFavoriteIds, setCurrentFavoriteIds] = useState(user.favoriteMangaIds);
 
-      {!isEditing ? (
-        cards(selectedEntries)
-      ) : (
-        <div className="space-y-3">
-          <p className="text-[0.7rem] text-white/60">
-            Pick up to {SHOWCASE_LIMIT} titles. {remainingSlots > 0 ? `${remainingSlots} slot${remainingSlots === 1 ? "" : "s"} open.` : "All slots filled."}
-          </p>
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {entries.map((entry) => {
-              const selected = draftIds.includes(entry.id);
-              return (
-                <li key={entry.id}>
-                  <button
-                    type="button"
-                    onClick={() => toggleDraft(entry.id)}
-                    className={`flex w-full min-h-[3.25rem] items-start gap-3 rounded-xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
-                      selected
-                        ? "border-accent bg-accent/10 text-white shadow-[0_10px_25px_rgba(0,0,0,0.25)]"
-                        : "border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white"
-                    }`}
-                  >
-                    <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${selected ? "bg-accent" : "bg-white/30"}`} aria-hidden />
-                    <span className="flex-1 text-xs font-medium leading-snug text-white line-clamp-2 break-words">
-                      {entry.title}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </section>
+  const saveFavorites = useCallback(
+    async (ids: string[]) => {
+      try {
+        const res = await fetch("/api/settings/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: user.username,
+            timezone: user.timezone,
+            favoriteMangaIds: ids,
+          }),
+        });
+        if (res.ok) {
+          setCurrentFavoriteIds(ids);
+          setEditingFavorites(false);
+          router.refresh();
+        }
+      } catch {
+        // silently fail — user can retry
+      }
+    },
+    [user.username, user.timezone, router],
   );
-}
 
-function formatMemberSince(isoDate: string): string {
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown";
-  }
-  return new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "long",
-  }).format(date);
-}
-
-function formatUpdatedAt(isoDate: string): string {
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) {
-    return "Recently";
-  }
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
-}
-
-function normalizeStatus(status: string | null): "completed" | "in-progress" | "planned" | "unknown" {
-  if (!status) return "unknown";
-  const normalized = status.trim().toLowerCase();
-  if (normalized.includes("complete")) return "completed";
-  if (normalized.includes("plan") || normalized.includes("queue")) return "planned";
-  if (
-    normalized.includes("reading") ||
-    normalized.includes("ongoing") ||
-    normalized.includes("current")
-  ) {
-    return "in-progress";
-  }
-  return "unknown";
-}
-
-function groupByStatus(readingList: ReadingListEntryDto[]) {
-  const groups: Record<string, ReadingListEntryDto[]> = {
-    "In progress": [],
-    Completed: [],
-    "Plan to read": [],
-    Other: [],
-  };
-
-  for (const entry of readingList) {
-    const status = normalizeStatus(entry.status);
-    if (status === "completed") {
-      groups.Completed.push(entry);
-    } else if (status === "in-progress") {
-      groups["In progress"].push(entry);
-    } else if (status === "planned") {
-      groups["Plan to read"].push(entry);
-    } else {
-      groups.Other.push(entry);
-    }
-  }
-
-  return groups;
-}
-
-function getTopTags(readingList: ReadingListEntryDto[], limit = 10) {
-  const tagCounts = new Map<string, number>();
-  for (const entry of readingList) {
-    for (const tag of entry.tags) {
-      const key = tag.trim();
-      if (!key) continue;
-      tagCounts.set(key, (tagCounts.get(key) ?? 0) + 1);
-    }
-  }
-
-  return Array.from(tagCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit);
-}
-
-export function ProfilePageContent({ user, readingList, isOwner }: ProfilePageContentProps) {
   const memberSince = formatMemberSince(user.memberSince);
   const avatar = user.avatarUrl?.trim() || null;
+  const banner = user.bannerUrl?.trim() || null;
+  const profileColor = user.profileColor?.trim() || null;
   const bio = user.bio?.trim();
-  const showcaseUserKey = user.email || user.username || user.name || "guest";
+
+  const displayName = user.name?.trim() || (user.username ? `@${user.username}` : user.email);
+  const usernameLabel = user.username ? `@${user.username}` : null;
+
   const readingListHref = isOwner
     ? "/reading-list"
     : user.username
       ? `/reading-list?username=${encodeURIComponent(user.username)}`
       : "/reading-list";
-  const toPossessive = (value: string) =>
-    value.endsWith("s") || value.endsWith("S") ? `${value}'` : `${value}'s`;
-  const readingListLabel = isOwner
-    ? "View your list"
-    : user.username
-      ? `View @${toPossessive(user.username)} list`
-      : "View reading list";
 
+  // --- Stats ---
   const totalSeries = readingList.length;
-  const completedCount = readingList.filter(
-    (entry) => normalizeStatus(entry.status) === "completed",
-  ).length;
-  const inProgressCount = readingList.filter(
-    (entry) => normalizeStatus(entry.status) === "in-progress",
-  ).length;
-  const plannedCount = readingList.filter(
-    (entry) => normalizeStatus(entry.status) === "planned",
-  ).length;
-
-  const getPercentLabel = (count: number) => {
-    if (!totalSeries) return "0%";
-    return `${Math.round((count / totalSeries) * 100)}%`;
-  };
-
-  const primaryStatusSegments = [
-    { label: "Completed", value: completedCount, barClass: "bg-emerald-400", dotClass: "bg-emerald-400" },
-    { label: "In progress", value: inProgressCount, barClass: "bg-sky-500", dotClass: "bg-sky-500" },
-    { label: "Planned", value: plannedCount, barClass: "bg-amber-400", dotClass: "bg-amber-400" },
-  ].map((segment) => ({
-    ...segment,
-    percentLabel: getPercentLabel(segment.value),
-  }));
-
-  const remainderCount = Math.max(
-    totalSeries - primaryStatusSegments.reduce((sum, segment) => sum + segment.value, 0),
-    0,
-  );
-  const statusBarSegments =
-    remainderCount > 0
-      ? [
-          ...primaryStatusSegments,
-          {
-            label: "Other",
-            value: remainderCount,
-            barClass: "bg-white/20",
-            dotClass: "bg-white/40",
-            percentLabel: getPercentLabel(remainderCount),
-          },
-        ]
-      : primaryStatusSegments;
-  const statusBarDenominator = statusBarSegments.reduce((sum, segment) => sum + segment.value, 0) || 1;
-
-  const ratings = readingList
-    .map((entry) => entry.rating)
-    .filter((rating): rating is number => typeof rating === "number");
+  const ratings = readingList.map((e) => e.rating).filter((r): r is number => typeof r === "number");
   const averageRating = ratings.length
-    ? (ratings.reduce((total, rating) => total + rating, 0) / ratings.length).toFixed(1)
+    ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
     : null;
-  const ratedCount = ratings.length;
-  const unratedCount = Math.max(totalSeries - ratedCount, 0);
-  const completionRateLabel = getPercentLabel(completedCount);
-  const backlogCount = inProgressCount + plannedCount;
-  const backlogRateLabel = getPercentLabel(backlogCount);
-  const ratedShareLabel = ratedCount ? `${getPercentLabel(ratedCount)} of library` : "No ratings yet";
-  const unratedShareLabel = unratedCount ? `${getPercentLabel(unratedCount)} remaining` : "All rated";
 
-  const latestUpdates = readingList.slice(0, 3);
-  const ratedTens = readingList.filter((entry) => typeof entry.rating === "number" && entry.rating === 10);
-  const statusGroups = groupByStatus(readingList);
-  const topTags = getTopTags(readingList);
+  const statusCounts = useMemo(() => {
+    const counts = { completed: 0, reading: 0, "on-hold": 0, dropped: 0, "plan-to-read": 0, unknown: 0 };
+    for (const entry of readingList) {
+      counts[normalizeStatus(entry.status)]++;
+    }
+    return counts;
+  }, [readingList]);
 
-  const mostRecentRating =
-    readingList.find((entry) => typeof entry.rating === "number")?.rating ?? null;
-  const lastUpdatedDisplay = readingList.length ? formatUpdatedAt(readingList[0].updatedAt) : "-";
+  // --- Favorites (server-persisted) ---
+  const favorites = useMemo(() => {
+    if (!currentFavoriteIds.length) return [];
+    const map = new Map(readingList.map((e) => [e.mangaId, e]));
+    return currentFavoriteIds
+      .map((id) => map.get(id))
+      .filter((e): e is ReadingListEntryDto => Boolean(e));
+  }, [currentFavoriteIds, readingList]);
 
-  const languageSet = new Set<string>();
-  for (const entry of readingList) {
-    for (const language of entry.languages) {
-      const trimmed = language.trim();
-      if (trimmed) {
-        languageSet.add(trimmed);
+  // --- Top tags ---
+  const topTags = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entry of readingList) {
+      for (const tag of entry.tags) {
+        const key = tag.trim();
+        if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
       }
     }
-  }
-  const languagesLabel = languageSet.size ? Array.from(languageSet).join(", ") : "-";
-  const hasStatusData = Object.values(statusGroups).some((items) => items.length > 0);
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12);
+  }, [readingList]);
 
-  const usernameLabel = user.username ? `@${user.username}` : null;
-  const displayOwnerLabel = usernameLabel ?? user.name?.trim() ?? null;
-  const displayName =
-    user.name?.trim() ||
-    usernameLabel ||
-    user.email;
+  // --- Status bar segments ---
+  const statusSegments = [
+    { label: "Completed", count: statusCounts.completed, color: "bg-emerald-400" },
+    { label: "Reading", count: statusCounts.reading, color: "bg-sky-500" },
+    { label: "On hold", count: statusCounts["on-hold"], color: "bg-amber-400" },
+    { label: "Dropped", count: statusCounts.dropped, color: "bg-red-400" },
+    { label: "Plan to read", count: statusCounts["plan-to-read"], color: "bg-violet-400" },
+  ].filter((s) => s.count > 0);
 
-  function escapeHtml(input: string): string {
-    return input
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
+  const statusTotal = statusSegments.reduce((sum, s) => sum + s.count, 0) || 1;
 
-  function markdownBioToHtml(raw?: string | null): string | null {
-    if (!raw) return null;
-    const escaped = escapeHtml(raw);
-    let html = escaped.replace(/\[([^\]]+)\]\((https?:[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" class="text-accent hover:text-white">$1</a>');
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1<\/strong>');
-    html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1<\/em>');
-    html = html.replace(/\n/g, '<br/>');
-    return html;
-  }
+  // --- Recent activity (last 5 updates) ---
+  const recentActivity = readingList.slice(0, 5);
+
+  // --- CSS variable override for profile accent ---
+  const profileStyle = profileColor
+    ? ({ "--profile-accent": profileColor } as React.CSSProperties)
+    : undefined;
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-8 px-4 pb-12 pt-10 sm:space-y-10 sm:px-6 lg:px-10">
-      <section className="space-y-5 border-b border-white/10 pb-5 sm:space-y-6 sm:pb-7">
-        <div className="flex items-start gap-4 sm:gap-6">
-          <div className="flex shrink-0 flex-col items-start">
-            <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border border-white/15 bg-white/5 shadow-[0_20px_40px_rgba(8,11,24,0.4)] sm:h-36 sm:w-36">
+    <main
+      className="mx-auto w-full max-w-4xl pb-16"
+      style={profileStyle}
+    >
+      {/* ============================================================ */}
+      {/*  Banner + Avatar hero                                        */}
+      {/* ============================================================ */}
+      <div className="relative">
+        {/* Banner */}
+        <div className="relative h-36 w-full overflow-hidden bg-white/5 sm:h-48 md:h-56">
+          {banner ? (
+            <Image
+              src={banner}
+              alt="Profile banner"
+              fill
+              priority
+              sizes="100vw"
+              unoptimized
+              className="object-cover"
+            />
+          ) : (
+            <div
+              className="h-full w-full"
+              style={profileColor ? { backgroundColor: `${profileColor}22` } : undefined}
+            />
+          )}
+          {/* Gradient fade at bottom so text is readable */}
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent sm:h-20" />
+        </div>
+
+        {/* Avatar — overlapping banner bottom edge */}
+        <div className="relative mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-10">
+          <div className="relative -mt-12 sm:-mt-16">
+            <div className="flex h-24 w-24 items-center justify-center overflow-hidden border-2 border-black bg-white/5 sm:h-32 sm:w-32">
               {avatar ? (
                 <Image
                   src={avatar}
                   alt={`${displayName} avatar`}
                   fill
                   priority
-                  sizes="(min-width: 640px) 180px, 128px"
+                  sizes="(min-width: 640px) 128px, 96px"
                   quality={100}
                   unoptimized
                   className="object-cover"
                 />
               ) : (
-                <span className="text-2xl font-semibold text-white/70 sm:text-4xl">
+                <span className="text-2xl font-semibold text-white/70 sm:text-3xl">
                   {displayName.charAt(0).toUpperCase()}
                 </span>
               )}
             </div>
           </div>
-          <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 space-y-1">
-                <h1 className="text-2xl font-semibold text-white sm:text-3xl">{displayName}</h1>
-                {usernameLabel ? (
-                  <p className="text-sm text-white/60">{usernameLabel}</p>
-                ) : null}
-                {/* Email hidden from profile view */}
-                <p className="text-sm text-white/45">
-                  Member since {memberSince} | {user.timezone || "UTC"}
-                </p>
-              </div>
-            </div>
-            {bio ? (
-              <div
-                className="hidden text-sm text-white/65 sm:block sm:max-w-2xl"
-                dangerouslySetInnerHTML={{ __html: markdownBioToHtml(bio) ?? "" }}
-              />
-            ) : isOwner ? (
-              <p className="hidden text-sm text-white/65 sm:block sm:max-w-2xl">
-                {"Add a short bio in settings to share what keeps you turning pages."}
-              </p>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/*  Identity block                                              */}
+      {/* ============================================================ */}
+      <div className="mx-auto w-full max-w-4xl px-4 pt-3 sm:px-6 sm:pt-4 lg:px-10">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0 space-y-1">
+            <h1 className="text-xl font-semibold text-white sm:text-2xl">{displayName}</h1>
+            {usernameLabel && displayName !== `@${user.username}` ? (
+              <p className="text-sm text-white/50">{usernameLabel}</p>
             ) : null}
-            {/* Stats moved below bio for better mobile flow */}
+            <p className="text-[0.7rem] text-white/40 sm:text-xs">
+              Joined {memberSince}
+            </p>
           </div>
-          <div className="ml-auto">
+          <div className="flex shrink-0 gap-2">
+            {isOwner ? (
+              <Link
+                href="/settings/profile"
+                className="inline-flex items-center border border-white/20 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-white/40 hover:text-white"
+              >
+                Edit profile
+              </Link>
+            ) : null}
             <Link
               href={readingListHref}
-              className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:border-white/40 hover:text-white sm:text-sm"
+              className="group inline-flex items-baseline gap-1 text-xs font-medium text-accent transition-colors hover:text-white"
             >
-              {readingListLabel}
+              <span className="underline-offset-4 group-hover:underline">
+                {isOwner ? "Your list" : "Reading list"}
+              </span>
+              <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">
+                →
+              </span>
             </Link>
           </div>
         </div>
-        {/* Mobile bio below avatar + text */}
+
+        {/* Bio */}
         {bio ? (
           <div
-            className="text-sm text-white/65 sm:hidden"
+            className="mt-3 max-w-2xl text-sm leading-relaxed text-white/65"
             dangerouslySetInnerHTML={{ __html: markdownBioToHtml(bio) ?? "" }}
           />
         ) : isOwner ? (
-          <p className="text-sm text-white/65 sm:hidden">
-            {"Add a short bio in settings to share what keeps you turning pages."}
+          <p className="mt-3 max-w-2xl text-sm italic text-surface-subtle">
+            Add a bio in{" "}
+            <Link href="/settings/profile" className="text-accent hover:text-white transition">
+              settings
+            </Link>{" "}
+            to tell visitors what you&apos;re reading.
           </p>
         ) : null}
-        {/* Stats below bio (all breakpoints) */}
-        <ul className="mt-2 flex flex-nowrap items-center gap-x-3 overflow-x-auto text-xs text-white/60 scrollbar-none sm:mt-0 sm:gap-x-6 sm:text-sm">
-          <li className="whitespace-nowrap">
-            <span className="text-white/75">Total series:</span> {totalSeries}
-          </li>
-          <li className="whitespace-nowrap">
-            <span className="text-white/75">Completed:</span> {completedCount}
-          </li>
-          <li className="whitespace-nowrap">
-            <span className="text-white/75">In progress:</span> {inProgressCount}
-          </li>
-          <li className="whitespace-nowrap">
-            <span className="text-white/75">Planned:</span> {plannedCount}
-          </li>
-          {averageRating ? (
-            <li className="whitespace-nowrap">
-              <span className="text-white/75">Average rating:</span> {averageRating}
-            </li>
-          ) : null}
-        </ul>
-      </section>
+      </div>
 
-      <section className="space-y-3 sm:space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-          <div className="space-y-1">
-            <p className="text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-white/45">Library pulse</p>
-            <div className="flex items-baseline gap-1.5">
-              <p className="text-2xl font-semibold text-white sm:text-3xl">{totalSeries || "-"}</p>
-              <span className="text-xs text-white/45">series tracked</span>
-            </div>
-          </div>
-          <div className="flex flex-nowrap gap-4 overflow-x-auto text-[0.65rem] text-white/65 scrollbar-none sm:gap-6 sm:text-xs">
-            <div className="min-w-[6.5rem]">
-              <p className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Average rating</p>
-              <p className="text-sm font-semibold text-white sm:text-base">{averageRating ?? "-"}</p>
-            </div>
-            <div className="min-w-[6.5rem]">
-              <p className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Backlog</p>
-              <p className="text-sm font-semibold text-white sm:text-base">
-                {backlogCount}
-                <span className="ml-1.5 text-[0.6rem] text-white/50 sm:ml-2 sm:text-[0.65rem]">{backlogRateLabel}</span>
-              </p>
-            </div>
-            <div className="min-w-[6.5rem]">
-              <p className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Rated</p>
-              <p className="text-sm font-semibold text-white sm:text-base">
-                {ratedCount}
-                <span className="ml-1.5 text-[0.6rem] text-white/50 sm:ml-2 sm:text-[0.65rem]">{ratedShareLabel}</span>
-              </p>
-            </div>
-          </div>
+      {/* ============================================================ */}
+      {/*  Stats strip                                                 */}
+      {/* ============================================================ */}
+      <div className="mx-auto mt-6 w-full max-w-4xl border-y border-white/10 px-4 py-4 sm:mt-8 sm:px-6 sm:py-5 lg:px-10">
+        <div className="flex flex-wrap gap-x-8 gap-y-3 sm:gap-x-12">
+          <StatCell label="Series tracked" value={totalSeries} />
+          <StatCell label="Completed" value={statusCounts.completed} />
+          <StatCell label="Reading" value={statusCounts.reading} />
+          <StatCell label="Plan to read" value={statusCounts["plan-to-read"]} />
+          {averageRating ? <StatCell label="Mean score" value={averageRating} sub={`${ratings.length} rated`} /> : null}
+          <StatCell label="Reviews" value={reviews.length} />
         </div>
+      </div>
 
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center justify-between text-[0.58rem] font-semibold uppercase tracking-[0.24em] text-white/40">
-            <span>Collection mix</span>
-            <span className="text-white/55">{totalSeries ? `${totalSeries} total` : "No entries yet"}</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
-            <div className="flex h-full w-full">
-              {statusBarSegments.map((segment) => (
-                <div
-                  key={segment.label}
-                  className={`${segment.barClass} h-full`}
-                  style={{ width: `${(segment.value / statusBarDenominator) * 100}%` }}
-                  title={`${segment.label}: ${segment.value}`}
-                  aria-label={`${segment.label}: ${segment.value}`}
-                />
-              ))}
+      {/* ============================================================ */}
+      {/*  Body content                                                */}
+      {/* ============================================================ */}
+      <div className="mx-auto w-full max-w-4xl space-y-8 px-4 pt-6 sm:space-y-10 sm:px-6 sm:pt-8 lg:px-10">
+
+        {/* --- Status distribution bar --- */}
+        {totalSeries > 0 ? (
+          <section className="space-y-2">
+            <div className="h-2 w-full overflow-hidden bg-white/5">
+              <div className="flex h-full">
+                {statusSegments.map((seg) => (
+                  <div
+                    key={seg.label}
+                    className={`${seg.color} h-full`}
+                    style={{ width: `${(seg.count / statusTotal) * 100}%` }}
+                    title={`${seg.label}: ${seg.count}`}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="flex flex-nowrap gap-3 overflow-x-auto text-[0.65rem] text-white/65 scrollbar-none sm:text-[0.75rem]">
-            {primaryStatusSegments.map((segment) => (
-              <span key={segment.label} className="flex min-w-[7rem] items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${segment.dotClass}`} />
-                <span className="text-white/80">{segment.label}</span>
-                <span className="text-white/50">{segment.value}</span>
-                <span className="text-white/40">{segment.percentLabel}</span>
-              </span>
-            ))}
-            {remainderCount > 0 ? (
-              <span className="flex min-w-[7rem] items-center gap-2 text-white/60">
-                <span className="h-2 w-2 rounded-full bg-white/40" />
-                <span>Other</span>
-                <span>{remainderCount}</span>
-                <span className="text-white/40">{getPercentLabel(remainderCount)}</span>
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <dl className="flex flex-nowrap gap-4 overflow-x-auto border-t border-white/10 pt-3 text-[0.65rem] text-white/65 scrollbar-none sm:grid sm:grid-cols-2 sm:gap-4 sm:text-xs lg:grid-cols-3">
-          <div className="min-w-[8.5rem]">
-            <dt className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Completion</dt>
-            <dd className="text-sm font-semibold text-white sm:text-base">{completionRateLabel}</dd>
-            <p className="text-white/50">{completedCount} finished</p>
-          </div>
-          <div className="min-w-[8.5rem]">
-            <dt className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Active</dt>
-            <dd className="text-sm font-semibold text-white sm:text-base">{inProgressCount}</dd>
-            <p className="text-white/50">{getPercentLabel(inProgressCount)} of library</p>
-          </div>
-          <div className="min-w-[8.5rem]">
-            <dt className="text-[0.56rem] uppercase tracking-[0.24em] text-white/40">Unrated</dt>
-            <dd className="text-sm font-semibold text-white sm:text-base">{unratedCount}</dd>
-            <p className="text-white/50">{unratedShareLabel}</p>
-          </div>
-        </dl>
-      </section>
-
-      {(ratedTens.length || isOwner) ? (
-        <RatedTenShowcase entries={ratedTens} userKey={showcaseUserKey} isOwner={isOwner} />
-      ) : null}
-
-      {ratedTens.length ? (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold text-white">Recently Rated 10</h2>
-          <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8 sm:gap-3">
-            {ratedTens.slice(0, 8).map((item) => (
-              <li key={item.id} className="min-w-0">
-                <Link href={`/manga/${item.mangaId}`} className="block">
-                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-white/5">
-                    {item.coverImage ? (
-                      <Image
-                        src={item.coverImage}
-                        alt={item.title}
-                        fill
-                        sizes="(min-width: 1024px) 12.5vw, (min-width: 640px) 12.5vw, 12.5vw"
-                        unoptimized
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/70">
-                        {item.title.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-center text-[0.55rem] text-white/70 sm:text-[0.6rem]">
-                    {item.title}
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      
-
-      <section className="space-y-4">
-        <header className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white sm:text-base">Latest reading activity</h2>
-          <Link href="/reading-list" className="text-xs text-accent transition hover:text-white sm:text-sm">
-            View reading list
-          </Link>
-        </header>
-        {latestUpdates.length ? (
-          <ul className="space-y-3 sm:space-y-4">
-            {latestUpdates.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex gap-3 border-b border-white/10 pb-3 last:border-0 last:pb-0 sm:gap-4 sm:pb-4"
-              >
-                <div className="relative h-20 w-14 overflow-hidden rounded-xl bg-white/5 sm:h-24 sm:w-16">
-                  {entry.coverImage ? (
-                    <Image
-                      src={entry.coverImage}
-                      alt={entry.title}
-                      fill
-                      sizes="(min-width: 768px) 96px, 64px"
-                      unoptimized
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/50">
-                      {entry.title.charAt(0)}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div className="space-y-1">
-                    <h3 className="text-xs font-semibold text-white sm:text-sm">{entry.title}</h3>
-                    {entry.altTitles.length ? (
-                      <p className="text-[0.7rem] text-white/55 sm:text-xs">{entry.altTitles[0]}</p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-[0.7rem] text-white/50 sm:text-xs">
-                    {entry.status ? <span>{entry.status}</span> : null}
-                    {entry.demographic ? <span>{entry.demographic}</span> : null}
-                    <span>Updated {formatUpdatedAt(entry.updatedAt)}</span>
-                  </div>
-                  {entry.progress ? (
-                    <p className="text-[0.7rem] text-white/65 sm:text-xs">{entry.progress}</p>
-                  ) : null}
-                  {entry.notes ? (
-                    <p className="text-xs text-white/65 line-clamp-3 sm:text-sm">{entry.notes}</p>
-                  ) : null}
-                  <div className="flex items-center justify-between text-xs text-white/50">
-                    <span>
-                      {typeof entry.rating === "number"
-                        ? `Rated ${entry.rating.toFixed(1)}`
-                        : "Not rated yet"}
-                    </span>
-                    <a
-                      href={entry.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-accent transition hover:text-white"
-                    >
-                      Open on MangaDex
-                    </a>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : isOwner ? (
-          <p className="rounded-lg border border-dashed border-white/15 px-4 py-6 text-sm text-white/60">
-            You have not logged any reading activity yet. Browse the latest titles and start tracking
-            your shelf.
-          </p>
-        ) : (
-          <p className="rounded-lg border border-dashed border-white/15 px-4 py-6 text-sm text-white/60">
-            {displayOwnerLabel ? `${displayOwnerLabel} has not logged any reading activity yet.` : "This reader has not logged any activity yet."}
-          </p>
-        )}
-      </section>
-
-      <section className="space-y-5 border-t border-white/10 pt-8 sm:space-y-6">
-        <header className="space-y-1">
-          <h2 className="text-sm font-semibold text-white sm:text-base">Library overview</h2>
-          <p className="text-xs text-white/60 sm:text-sm">A snapshot of how your series are organised.</p>
-        </header>
-
-        {hasStatusData ? (
-          <div className="space-y-5 sm:space-y-6">
-            {Object.entries(statusGroups)
-              .filter(([, items]) => items.length)
-              .map(([label, items]) => {
-                const visibleItems = items.slice(0, 5);
-                const remaining = items.length - visibleItems.length;
-
-                return (
-                  <div key={label} className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-white">{label}</span>
-                      <span className="text-white/50">
-                        {items.length} title{items.length === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                    <ul className="space-y-2">
-                      {visibleItems.map((item) => (
-                        <li
-                          key={item.id}
-                          className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-white/65 sm:gap-x-3 sm:text-sm"
-                        >
-                          <span className="flex-1 truncate font-medium text-white">{item.title}</span>
-                          {item.progress ? (
-                            <span className="text-white/45">{item.progress}</span>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                    {remaining > 0 ? (
-                      <p className="text-[0.7rem] text-white/40 sm:text-xs">+ {remaining} more in this list</p>
-                    ) : null}
-                  </div>
-                );
-              })}
-          </div>
-        ) : isOwner ? (
-          <p className="text-xs text-white/60 sm:text-sm">
-            Start tracking series to see them grouped here.
-          </p>
-        ) : (
-          <p className="text-xs text-white/60 sm:text-sm">
-            {displayOwnerLabel ? `${displayOwnerLabel} has not grouped any series yet.` : "No series grouped yet."}
-          </p>
-        )}
-
-        <div className="space-y-3">
-          <h3 className="text-sm font-medium text-white">Top tags</h3>
-          {topTags.length ? (
-            <div className="flex flex-wrap gap-2 text-xs text-white/70 sm:text-sm">
-              {topTags.map(([tag, count]) => (
-                <span key={tag} className="rounded-md border border-white/15 px-3 py-1">
-                  {tag}
-                  <span className="ml-2 text-white/40">{count}</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[0.65rem] text-white/55 sm:text-xs">
+              {statusSegments.map((seg) => (
+                <span key={seg.label} className="inline-flex items-center gap-1.5">
+                  <span className={`inline-block h-2 w-2 ${seg.color}`} />
+                  {seg.label} {seg.count}
                 </span>
               ))}
             </div>
+          </section>
+        ) : null}
+
+        {/* --- Favorites --- */}
+        {favorites.length > 0 || isOwner ? (
+          <section className="space-y-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-sm font-semibold text-white sm:text-base">Favorites</h2>
+              {isOwner && !editingFavorites ? (
+                <button
+                  type="button"
+                  onClick={() => setEditingFavorites(true)}
+                  className="group inline-flex items-baseline gap-1 text-[0.7rem] font-medium text-accent transition-colors hover:text-white sm:text-xs"
+                >
+                  <span className="underline-offset-4 group-hover:underline">edit</span>
+                  <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+                </button>
+              ) : null}
+            </div>
+            {editingFavorites && isOwner ? (
+              <FavoritesEditor
+                readingList={readingList}
+                currentIds={currentFavoriteIds}
+                onSave={saveFavorites}
+                onCancel={() => setEditingFavorites(false)}
+              />
+            ) : favorites.length > 0 ? (
+              <CoverGrid entries={favorites} />
+            ) : isOwner ? (
+              <p className="text-sm italic text-surface-subtle">
+                Click edit to pin your favorite series here.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {/* --- Rating distribution --- */}
+        {ratings.length > 0 ? (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-white sm:text-base">Rating distribution</h2>
+            <div className="max-w-md">
+              <RatingDistribution ratings={ratings} />
+            </div>
+          </section>
+        ) : null}
+
+        {/* --- Recent activity --- */}
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-white sm:text-base">Recent activity</h2>
+            <Link
+              href={readingListHref}
+              className="group inline-flex items-baseline gap-1 text-[0.7rem] font-medium text-accent transition-colors hover:text-white sm:text-xs"
+            >
+              <span className="underline-offset-4 group-hover:underline">see all</span>
+              <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+            </Link>
+          </div>
+
+          {recentActivity.length > 0 ? (
+            <ul className="divide-y divide-white/10">
+              {recentActivity.map((entry) => (
+                <li key={entry.id} className="flex gap-3 py-3 first:pt-0 last:pb-0 sm:gap-4">
+                  <Link href={`/manga/${entry.mangaId}`} className="shrink-0">
+                    <div className="relative h-16 w-11 overflow-hidden bg-white/5 sm:h-20 sm:w-14">
+                      {entry.coverImage ? (
+                        <Image
+                          src={entry.coverImage}
+                          alt={entry.title}
+                          fill
+                          sizes="56px"
+                          unoptimized
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/50">
+                          {entry.title.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+                    <Link
+                      href={`/manga/${entry.mangaId}`}
+                      className="truncate text-xs font-semibold text-white hover:text-accent transition sm:text-sm"
+                    >
+                      {entry.title}
+                    </Link>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.65rem] text-white/45 sm:text-xs">
+                      {entry.status ? <span>{entry.status}</span> : null}
+                      {entry.progress ? (
+                        <>
+                          <span className="text-white/20">·</span>
+                          <span>{entry.progress}</span>
+                        </>
+                      ) : null}
+                      {typeof entry.rating === "number" ? (
+                        <>
+                          <span className="text-white/20">·</span>
+                          <span className="text-accent">{entry.rating.toFixed(1)}</span>
+                        </>
+                      ) : null}
+                      <span className="text-white/20">·</span>
+                      <span>{formatShortDate(entry.updatedAt)}</span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
           ) : isOwner ? (
-            <p className="text-xs text-white/60 sm:text-sm">
-              Tags will appear once you add a few more series to your list.
+            <p className="text-sm italic text-surface-subtle">
+              Start tracking series to build your activity feed.
             </p>
           ) : (
-            <p className="text-xs text-white/60 sm:text-sm">
-              {displayOwnerLabel ? `${displayOwnerLabel} has not added tags yet.` : "No tags available yet."}
-            </p>
+            <p className="text-sm italic text-surface-subtle">No activity yet.</p>
           )}
-        </div>
-      </section>
+        </section>
 
-      <section className="space-y-5 border-t border-white/10 pt-8 sm:space-y-6">
-        <header className="space-y-1">
-          <h2 className="text-sm font-semibold text-white sm:text-base">Quick links and summary</h2>
-          <p className="text-xs text-white/60 sm:text-sm">Keep things tidy with a few shortcuts.</p>
-        </header>
-        <div className="grid gap-6 md:grid-cols-2 md:gap-8">
-          <ul className="space-y-2 text-sm text-white">
-            <li>
-              <Link href="/settings" className="text-accent transition hover:text-white">
-                Edit profile and preferences
-              </Link>
-            </li>
-            <li>
-              <Link href="/reading-list" className="text-accent transition hover:text-white">
-                Manage reading list
-              </Link>
-            </li>
-            <li>
-              <a
-                href="https://mangadex.org/"
-                target="_blank"
-                rel="noreferrer"
-                className="text-accent transition hover:text-white"
-              >
-                Discover new titles
-              </a>
-            </li>
-          </ul>
-          <dl className="space-y-2 text-xs text-white/70 sm:space-y-3 sm:text-sm">
-            <div className="flex justify-between gap-4">
-              <dt className="text-white/50">Last update</dt>
-              <dd className="text-white">{lastUpdatedDisplay}</dd>
+        {/* --- Top genres / tags --- */}
+        {topTags.length > 0 ? (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-white sm:text-base">Top genres</h2>
+            <div className="flex flex-wrap gap-2">
+              {topTags.map(([tag, count]) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1.5 border border-white/10 px-2.5 py-1 text-[0.7rem] text-white/65 sm:text-xs"
+                >
+                  {tag}
+                  <span className="text-white/30">{count}</span>
+                </span>
+              ))}
             </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-white/50">Most recent rating</dt>
-              <dd className="text-white">
-                {typeof mostRecentRating === "number" ? mostRecentRating.toFixed(1) : "-"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-white/50">Tracked languages</dt>
-              <dd className="text-white">{languagesLabel}</dd>
-            </div>
-          </dl>
-        </div>
-      </section>
+          </section>
+        ) : null}
+
+        {/* --- Recent reviews --- */}
+        {reviews.length > 0 ? (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-white sm:text-base">Recent reviews</h2>
+            <ul className="divide-y divide-white/10">
+              {reviews.slice(0, 3).map((review) => {
+                const matchingEntry = readingList.find(
+                  (e) => e.mangaId === review.mangaId,
+                );
+                const title = matchingEntry?.title ?? `Series ${review.mangaId}`;
+                return (
+                  <li key={review.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <Link
+                        href={`/manga/${review.mangaId}`}
+                        className="truncate text-xs font-semibold text-white hover:text-accent transition sm:text-sm"
+                      >
+                        {title}
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-2 text-[0.7rem] text-white/45 sm:text-xs">
+                        <span className="text-accent font-medium">{review.rating}/10</span>
+                        <span>{formatShortDate(review.createdAt)}</span>
+                      </div>
+                    </div>
+                    {review.body ? (
+                      <p className="mt-1 line-clamp-2 text-[0.75rem] leading-relaxed text-white/55 sm:text-sm">
+                        {review.body}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
+      </div>
     </main>
   );
 }

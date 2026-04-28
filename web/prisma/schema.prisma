@@ -16,6 +16,9 @@ model User {
   updatedAt              DateTime             @updatedAt
   avatarUrl              String?
   bio                    String?
+  bannerUrl              String?
+  profileColor           String?
+  favoriteMangaIds       String[]             @default([])
   timezone               String               @default("UTC")
   marketingEmails        Boolean              @default(true)
   productUpdates         Boolean              @default(true)
