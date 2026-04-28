@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { FollowButton } from "@/components/users/follow-button";
 import { normalizeStatus, statusLabel } from "@/lib/manga/status";
 
 /* ------------------------------------------------------------------ */
@@ -57,6 +58,10 @@ interface ProfilePageContentProps {
   readingList: ReadingListEntryDto[];
   reviews: ReviewDto[];
   isOwner: boolean;
+  isAuthenticated?: boolean;
+  followerCount?: number;
+  followingCount?: number;
+  viewerIsFollowing?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -554,7 +559,16 @@ function CoverGrid({ entries, emptyText }: { entries: ReadingListEntryDto[]; emp
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
 
-export function ProfilePageContent({ user, readingList, reviews, isOwner }: ProfilePageContentProps) {
+export function ProfilePageContent({
+  user,
+  readingList,
+  reviews,
+  isOwner,
+  isAuthenticated = false,
+  followerCount = 0,
+  followingCount = 0,
+  viewerIsFollowing = false,
+}: ProfilePageContentProps) {
   const router = useRouter();
   const [editingFavorites, setEditingFavorites] = useState(false);
   const [currentFavoriteIds, setCurrentFavoriteIds] = useState(user.favoriteMangaIds);
@@ -719,11 +733,21 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
             {usernameLabel && displayName !== `@${user.username}` ? (
               <p className="text-sm text-white/50">{usernameLabel}</p>
             ) : null}
-            <p className="text-[0.7rem] text-white/40 sm:text-xs">
-              Joined {memberSince}
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[0.7rem] text-white/40 sm:text-xs">
+              <span>Joined {memberSince}</span>
+              <span aria-hidden className="text-white/20">·</span>
+              <span>
+                <span className="tabular-nums text-white/65">{followerCount}</span>{" "}
+                <span>{followerCount === 1 ? "follower" : "followers"}</span>
+              </span>
+              <span aria-hidden className="text-white/20">·</span>
+              <span>
+                <span className="tabular-nums text-white/65">{followingCount}</span>{" "}
+                <span>following</span>
+              </span>
             </p>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2">
             {isOwner ? (
               <Link
                 href="/settings/profile"
@@ -731,6 +755,14 @@ export function ProfilePageContent({ user, readingList, reviews, isOwner }: Prof
               >
                 Edit profile
               </Link>
+            ) : user.username ? (
+              <FollowButton
+                targetUsername={user.username}
+                initiallyFollowing={viewerIsFollowing}
+                isAuthenticated={isAuthenticated}
+                isOwner={isOwner}
+                className="px-3 py-1.5"
+              />
             ) : null}
             <Link
               href={readingListHref}

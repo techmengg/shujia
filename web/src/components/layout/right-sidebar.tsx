@@ -1,11 +1,105 @@
 import Image from "next/image";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import type { ReactNode } from "react";
 
+import { FollowButton } from "@/components/users/follow-button";
 import { getCurrentUser } from "@/lib/auth/session";
 import { normalizeStatus } from "@/lib/manga/status";
 import { getComicsNews, type NewsHeadline } from "@/lib/news/animenewsnetwork";
 import { prisma } from "@/lib/prisma";
+
+interface SuggestedUser {
+  id: string;
+  username: string;
+  name: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+}
+
+const getSuggestedUsersForViewer = unstable_cache(
+  async (excludeIds: string[]): Promise<SuggestedUser[]> => {
+    const candidates = await prisma.user.findMany({
+      where: excludeIds.length ? { id: { notIn: excludeIds } } : undefined,
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        avatarUrl: true,
+        bio: true,
+      },
+      take: 60,
+    });
+    if (!candidates.length) return [];
+    // In-memory shuffle — adequate at small scale; swap to ORDER BY random()
+    // via $queryRaw if user count grows past low thousands.
+    return [...candidates]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 5);
+  },
+  ["sidebar-suggested-users"],
+  { revalidate: 60, tags: ["sidebar-suggested-users"] },
+);
+
+interface RecentReview {
+  id: string;
+  authorName: string | null;
+  authorUsername: string;
+  authorAvatar: string | null;
+  rating: number;
+  body: string | null;
+  hasSpoilers: boolean;
+  provider: string;
+  mangaId: string;
+  mangaTitle: string | null;
+  createdAt: string;
+}
+
+const getRecentReviewsForSidebar = unstable_cache(
+  async (): Promise<RecentReview[]> => {
+    const reviews = await prisma.review.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      include: {
+        author: {
+          select: { name: true, username: true, avatarUrl: true },
+        },
+      },
+    });
+
+    if (!reviews.length) return [];
+
+    const titleByKey = new Map<string, string>();
+    const keys = reviews.map((r) => ({
+      provider: r.provider,
+      mangaId: r.mangaId,
+    }));
+    const titleEntries = await prisma.readingListEntry.findMany({
+      where: { OR: keys },
+      select: { provider: true, mangaId: true, title: true },
+    });
+    for (const entry of titleEntries) {
+      const key = `${entry.provider}/${entry.mangaId}`;
+      if (!titleByKey.has(key)) titleByKey.set(key, entry.title);
+    }
+
+    return reviews.map((r) => ({
+      id: r.id,
+      authorName: r.author?.name ?? null,
+      authorUsername: r.author?.username ?? "",
+      authorAvatar: r.author?.avatarUrl ?? null,
+      rating: r.rating,
+      body: r.body,
+      hasSpoilers: r.hasSpoilers,
+      provider: r.provider,
+      mangaId: r.mangaId,
+      mangaTitle: titleByKey.get(`${r.provider}/${r.mangaId}`) ?? null,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  },
+  ["sidebar-recent-reviews"],
+  { revalidate: 60, tags: ["sidebar-recent-reviews"] },
+);
 
 interface ReadingEntry {
   id: string;
@@ -20,12 +114,27 @@ interface ReadingEntry {
 }
 
 export async function RightSidebar() {
-  const [viewer, news] = await Promise.all([getCurrentUser(), getComicsNews()]);
+  const [viewer, news, recentReviews] = await Promise.all([
+    getCurrentUser(),
+    getComicsNews(),
+    getRecentReviewsForSidebar(),
+  ]);
+
+  let excludeIds: string[] = [];
+  if (viewer) {
+    excludeIds = [viewer.id];
+    const alreadyFollowing = await prisma.follow.findMany({
+      where: { followerId: viewer.id },
+      select: { followingId: true },
+    });
+    excludeIds.push(...alreadyFollowing.map((f) => f.followingId));
+  }
+  const suggestedUsers = await getSuggestedUsersForViewer(excludeIds);
+  const isAuthenticated = Boolean(viewer);
 
   let userData: {
     username: string;
     continueReading: ReadingEntry | null;
-    recentRated: ReadingEntry[];
     topTags: [string, number][];
   } | null = null;
 
@@ -47,9 +156,6 @@ export async function RightSidebar() {
     })) as ReadingEntry[];
 
     const reading = entries.filter((e) => normalizeStatus(e.status) === "reading");
-    const rated = entries.filter(
-      (e): e is ReadingEntry & { rating: number } => typeof e.rating === "number",
-    );
 
     const tagCounts = new Map<string, number>();
     for (const e of entries) {
@@ -65,7 +171,6 @@ export async function RightSidebar() {
     userData = {
       username: viewer.username,
       continueReading: reading[0] ?? null,
-      recentRated: rated.slice(0, 3),
       topTags,
     };
   }
@@ -87,6 +192,14 @@ export async function RightSidebar() {
         </ul>
       </section>
 
+      {recentReviews.length > 0 ? (
+        <RecentReviewsWidget items={recentReviews} />
+      ) : null}
+
+      {suggestedUsers.length > 0 ? (
+        <SuggestedUsersWidget users={suggestedUsers} isAuthenticated={isAuthenticated} />
+      ) : null}
+
       {/* Your library — auth gated */}
       {userData ? (
         <>
@@ -104,10 +217,6 @@ export async function RightSidebar() {
 
           {userData.continueReading ? (
             <ContinueReadingWidget item={userData.continueReading} />
-          ) : null}
-
-          {userData.recentRated.length > 0 ? (
-            <RecentRatedWidget items={userData.recentRated} />
           ) : null}
 
           {userData.topTags.length > 0 ? (
@@ -204,29 +313,6 @@ function ContinueReadingWidget({ item }: { item: ReadingEntry }) {
   );
 }
 
-function RecentRatedWidget({ items }: { items: ReadingEntry[] }) {
-  return (
-    <section className="space-y-2">
-      <SectionHeading>Recently rated</SectionHeading>
-      <ul className="space-y-1">
-        {items.map((item) => (
-          <li key={item.id}>
-            <Link
-              href={`/manga/${item.mangaId}`}
-              className="group flex items-baseline justify-between gap-2 text-[0.8rem] transition-colors hover:text-accent"
-            >
-              <span className="line-clamp-1 min-w-0 flex-1 text-white">{item.title}</span>
-              <span className="shrink-0 text-xs font-medium tabular-nums text-accent">
-                {item.rating?.toFixed(1)}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 function TopTagsWidget({ tags }: { tags: [string, number][] }) {
   return (
     <section className="space-y-2">
@@ -243,6 +329,176 @@ function TopTagsWidget({ tags }: { tags: [string, number][] }) {
             </span>
           </li>
         ))}
+      </ul>
+    </section>
+  );
+}
+
+function SuggestedUsersWidget({
+  users,
+  isAuthenticated,
+}: {
+  users: SuggestedUser[];
+  isAuthenticated: boolean;
+}) {
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Who to follow</SectionHeading>
+      <ul className="space-y-3">
+        {users.map((user) => {
+          const displayName = user.name?.trim() || `@${user.username}`;
+          const initial = displayName.charAt(0).toUpperCase();
+          const profileHref = `/${encodeURIComponent(user.username.toLowerCase())}`;
+          const bio = user.bio?.trim();
+
+          return (
+            <li key={user.id} className="flex items-start gap-2">
+              <Link
+                href={profileHref}
+                aria-label={`${displayName}'s profile`}
+                className="relative h-8 w-8 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85"
+              >
+                {user.avatarUrl ? (
+                  <Image
+                    src={user.avatarUrl}
+                    alt=""
+                    fill
+                    sizes="32px"
+                    unoptimized
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[0.7rem] font-semibold text-white/70">
+                    {initial}
+                  </div>
+                )}
+              </Link>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Link
+                    href={profileHref}
+                    className="line-clamp-1 text-[0.8rem] font-medium text-white transition-colors hover:text-accent"
+                  >
+                    {displayName}
+                  </Link>
+                  <FollowButton
+                    targetUsername={user.username}
+                    initiallyFollowing={false}
+                    isAuthenticated={isAuthenticated}
+                    variant="compact"
+                  />
+                </div>
+                {bio ? (
+                  <p className="line-clamp-2 text-[0.65rem] text-surface-subtle">
+                    {bio}
+                  </p>
+                ) : (
+                  <p className="text-[0.65rem] italic text-surface-subtle">
+                    @{user.username}
+                  </p>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function RecentReviewsWidget({ items }: { items: RecentReview[] }) {
+  return (
+    <section className="space-y-3">
+      <SectionHeading>Recent reviews</SectionHeading>
+      <ul className="space-y-3">
+        {items.map((review) => {
+          const displayName =
+            review.authorName?.trim() ||
+            (review.authorUsername ? `@${review.authorUsername}` : "Anonymous");
+          const initial = displayName.charAt(0).toUpperCase();
+          const profileHref = review.authorUsername
+            ? `/${encodeURIComponent(review.authorUsername.toLowerCase())}`
+            : null;
+
+          return (
+            <li key={review.id}>
+              <article className="space-y-1">
+                <div className="flex items-start gap-2">
+                  {profileHref ? (
+                    <Link
+                      href={profileHref}
+                      aria-label={`${displayName}'s profile`}
+                      className="relative h-7 w-7 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85"
+                    >
+                      {review.authorAvatar ? (
+                        <Image
+                          src={review.authorAvatar}
+                          alt=""
+                          fill
+                          sizes="28px"
+                          unoptimized
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[0.65rem] font-semibold text-white/70">
+                          {initial}
+                        </div>
+                      )}
+                    </Link>
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      {profileHref ? (
+                        <Link
+                          href={profileHref}
+                          className="line-clamp-1 text-[0.8rem] font-medium text-white transition-colors hover:text-accent"
+                        >
+                          {displayName}
+                        </Link>
+                      ) : (
+                        <span className="line-clamp-1 text-[0.8rem] font-medium text-white">
+                          {displayName}
+                        </span>
+                      )}
+                      <span className="shrink-0 text-[0.7rem] font-medium tabular-nums text-accent">
+                        {review.rating}/10
+                      </span>
+                    </div>
+                    {review.mangaTitle ? (
+                      <p className="line-clamp-1 text-[0.65rem] text-surface-subtle">
+                        on{" "}
+                        <Link
+                          href={`/manga/${review.mangaId}`}
+                          className="text-surface-subtle transition-colors hover:text-accent"
+                        >
+                          &ldquo;{review.mangaTitle}&rdquo;
+                        </Link>
+                      </p>
+                    ) : (
+                      <Link
+                        href={`/manga/${review.mangaId}`}
+                        className="text-[0.65rem] italic text-surface-subtle transition-colors hover:text-accent"
+                      >
+                        view series
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                {review.body ? (
+                  review.hasSpoilers ? (
+                    <p className="pl-9 text-[0.65rem] italic text-surface-subtle/70">
+                      (may contain spoilers)
+                    </p>
+                  ) : (
+                    <p className="line-clamp-2 pl-9 text-[0.65rem] italic leading-snug text-white/55">
+                      &ldquo;{review.body}&rdquo;
+                    </p>
+                  )
+                ) : null}
+              </article>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

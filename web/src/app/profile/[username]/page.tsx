@@ -60,6 +60,25 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
 
   const isOwner = viewer?.id === dbUser.id;
 
+  const [followerCount, followingCount, viewerFollow] = await Promise.all([
+    prisma.follow.count({ where: { followingId: dbUser.id } }),
+    prisma.follow.count({ where: { followerId: dbUser.id } }),
+    viewer && !isOwner
+      ? prisma.follow
+          .findUnique({
+            where: {
+              followerId_followingId: {
+                followerId: viewer.id,
+                followingId: dbUser.id,
+              },
+            },
+            select: { id: true },
+          })
+          .catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  const viewerIsFollowing = Boolean(viewerFollow);
+
   function toProxyCoverUrl(_mangaId: string, url?: string | null): string | undefined {
     return url ?? undefined;
   }
@@ -67,6 +86,10 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
   return (
     <ProfilePageContent
       isOwner={isOwner}
+      isAuthenticated={Boolean(viewer)}
+      followerCount={followerCount}
+      followingCount={followingCount}
+      viewerIsFollowing={viewerIsFollowing}
       user={{
         name: dbUser.name,
         email: dbUser.email,
