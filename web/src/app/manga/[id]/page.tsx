@@ -16,6 +16,7 @@ import {
   getMangaSummaryById,
   inferProviderFromId,
 } from "@/lib/manga";
+import { getTitleOverride } from "@/lib/manga/title-override";
 import { recordMangaPageView } from "@/lib/manga/page-view";
 
 interface MangaPageProps {
@@ -215,7 +216,10 @@ export async function generateMetadata({ params }: MangaPageProps): Promise<Meta
   const { id } = await params;
   const mangaId = decodeURIComponent(id);
   const provider = inferProviderFromId(mangaId);
-  const summary = await getMangaSummaryById(mangaId, provider);
+  const [summary, titleOverride] = await Promise.all([
+    getMangaSummaryById(mangaId, provider),
+    getTitleOverride(provider, mangaId),
+  ]);
 
   if (!summary) {
     return {
@@ -224,6 +228,7 @@ export async function generateMetadata({ params }: MangaPageProps): Promise<Meta
     };
   }
 
+  if (titleOverride) summary.title = titleOverride;
   const description = buildSearchSnippet(summary);
   const canonicalPath = `/manga/${encodeURIComponent(mangaId)}`;
 
@@ -261,14 +266,17 @@ export default async function MangaPage({ params }: MangaPageProps) {
   const mangaId = decodeURIComponent(id);
   const provider = inferProviderFromId(mangaId);
 
-  const [user, manga] = await Promise.all([
+  const [user, manga, titleOverride] = await Promise.all([
     getCurrentUser(),
     getMangaDetails(mangaId, provider),
+    getTitleOverride(provider, mangaId),
   ]);
 
   if (!manga) {
     notFound();
   }
+
+  if (titleOverride) manga.title = titleOverride;
 
   // Fire-and-forget view tracking. Bot UAs are filtered inside
   // recordMangaPageView so SERPs don't inflate trending counts. The page

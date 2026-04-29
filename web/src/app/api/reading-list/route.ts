@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { getMangaSummaryById, type Provider } from "@/lib/manga";
 import { migrateEntriesInBackground } from "@/lib/manga/migrate";
+import { getTitleOverrides } from "@/lib/manga/title-override";
 
 const addToReadingListSchema = z
   .object({
@@ -36,6 +37,19 @@ function normalizeOptionalText(value: string | undefined) {
 
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+}
+
+async function applyTitleOverrides(entries: ReadingListEntry[]): Promise<ReadingListEntry[]> {
+  if (!entries.length) return entries;
+  const overrides = await getTitleOverrides(
+    entries.map((e) => ({ provider: e.provider as Provider, mangaId: e.mangaId })),
+  );
+  if (overrides.size === 0) return entries;
+  return entries.map((e) => {
+    const k = `${e.provider}:${e.mangaId}`;
+    const override = overrides.get(k);
+    return override ? { ...e, title: override } : e;
+  });
 }
 
 function serializeEntry(entry: ReadingListEntry): ReadingListItem {
@@ -95,8 +109,9 @@ export async function GET(request: Request) {
         ...(take ? { take } : {}),
       });
 
+      const overridden = await applyTitleOverrides(entries);
       return NextResponse.json({
-        data: entries.map(serializeEntry),
+        data: overridden.map(serializeEntry),
       });
     }
 
@@ -117,8 +132,9 @@ export async function GET(request: Request) {
 
     after(() => migrateEntriesInBackground(entries));
 
+    const overridden = await applyTitleOverrides(entries);
     return NextResponse.json({
-      data: entries.map(serializeEntry),
+      data: overridden.map(serializeEntry),
     });
   } catch (error) {
     console.error("Failed to load reading list", error);

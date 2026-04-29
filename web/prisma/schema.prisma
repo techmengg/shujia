@@ -146,6 +146,23 @@ model MangaPageView {
   @@index([viewedAt])
 }
 
+// Admin-set overrides for manga display titles. When MU/MD return a
+// shorter or less-recognizable canonical title, an override here replaces
+// it on detail pages and in serialized reading-list rows. Keyed by
+// (provider, mangaId) so the same series can be overridden once and
+// flow everywhere. Set via web/scripts/set-title-override.ts.
+model MangaTitleOverride {
+  id        String   @id @default(cuid())
+  provider  String
+  mangaId   String
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, mangaId])
+  @@index([provider, mangaId])
+}
+
 model Follow {
   id          String   @id @default(cuid())
   followerId  String
