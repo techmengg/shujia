@@ -10,6 +10,7 @@ interface FollowButtonProps {
   isOwner?: boolean;
   variant?: "compact" | "default";
   className?: string;
+  onFollowed?: () => void;
 }
 
 export function FollowButton({
@@ -19,6 +20,7 @@ export function FollowButton({
   isOwner = false,
   variant = "default",
   className = "",
+  onFollowed,
 }: FollowButtonProps) {
   const router = useRouter();
   const [following, setFollowing] = useState(initiallyFollowing);
@@ -43,7 +45,11 @@ export function FollowButton({
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
+        const wasFollowing = following;
         setFollowing((prev) => !prev);
+        if (!wasFollowing && onFollowed) {
+          onFollowed();
+        }
         router.refresh();
       }
     } finally {

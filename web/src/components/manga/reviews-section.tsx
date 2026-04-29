@@ -271,7 +271,7 @@ export function ReviewsSection({
   }
 
   return (
-    <section className="space-y-3 border-t border-white/10 pt-4 sm:space-y-4 sm:pt-5">
+    <section id="reviews" className="scroll-mt-6 space-y-3 border-t border-white/10 pt-4 sm:space-y-4 sm:pt-5">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-white sm:text-base">
           Reviews

@@ -3,22 +3,18 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import type { ReactNode } from "react";
 
-import { FollowButton } from "@/components/users/follow-button";
+import {
+  SuggestedUsersList,
+  type SuggestedUserItem,
+} from "@/components/users/suggested-users-list";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getMangaSummaryById, type Provider } from "@/lib/manga";
 import { normalizeStatus } from "@/lib/manga/status";
 import { getComicsNews, type NewsHeadline } from "@/lib/news/animenewsnetwork";
 import { prisma } from "@/lib/prisma";
 
-interface SuggestedUser {
-  id: string;
-  username: string;
-  name: string | null;
-  avatarUrl: string | null;
-  bio: string | null;
-}
-
 const getSuggestedUsersForViewer = unstable_cache(
-  async (excludeIds: string[]): Promise<SuggestedUser[]> => {
+  async (excludeIds: string[]): Promise<SuggestedUserItem[]> => {
     const candidates = await prisma.user.findMany({
       where: excludeIds.length ? { id: { notIn: excludeIds } } : undefined,
       select: {
@@ -35,7 +31,7 @@ const getSuggestedUsersForViewer = unstable_cache(
     // via $queryRaw if user count grows past low thousands.
     return [...candidates]
       .sort(() => Math.random() - 0.5)
-      .slice(0, 5);
+      .slice(0, 3);
   },
   ["sidebar-suggested-users"],
   { revalidate: 60, tags: ["sidebar-suggested-users"] },
@@ -58,6 +54,7 @@ interface RecentReview {
 const getRecentReviewsForSidebar = unstable_cache(
   async (): Promise<RecentReview[]> => {
     const reviews = await prisma.review.findMany({
+      where: { body: { not: null } },
       orderBy: { createdAt: "desc" },
       take: 3,
       include: {
@@ -81,6 +78,30 @@ const getRecentReviewsForSidebar = unstable_cache(
     for (const entry of titleEntries) {
       const key = `${entry.provider}/${entry.mangaId}`;
       if (!titleByKey.has(key)) titleByKey.set(key, entry.title);
+    }
+
+    // For reviews on series nobody has tracked yet, no ReadingListEntry exists
+    // → fall back to the provider summary API. getMangaSummaryById is
+    // unstable_cache'd for 1h, so this is cheap on repeat renders.
+    const orphanLookups = await Promise.all(
+      reviews
+        .filter((r) => !titleByKey.has(`${r.provider}/${r.mangaId}`))
+        .map(async (r) => {
+          try {
+            const summary = await getMangaSummaryById(
+              r.mangaId,
+              r.provider as Provider,
+            );
+            return summary
+              ? { key: `${r.provider}/${r.mangaId}`, title: summary.title }
+              : null;
+          } catch {
+            return null;
+          }
+        }),
+    );
+    for (const lookup of orphanLookups) {
+      if (lookup) titleByKey.set(lookup.key, lookup.title);
     }
 
     return reviews.map((r) => ({
@@ -338,70 +359,13 @@ function SuggestedUsersWidget({
   users,
   isAuthenticated,
 }: {
-  users: SuggestedUser[];
+  users: SuggestedUserItem[];
   isAuthenticated: boolean;
 }) {
   return (
     <section className="space-y-3">
       <SectionHeading>Who to follow</SectionHeading>
-      <ul className="space-y-3">
-        {users.map((user) => {
-          const displayName = user.name?.trim() || `@${user.username}`;
-          const initial = displayName.charAt(0).toUpperCase();
-          const profileHref = `/${encodeURIComponent(user.username.toLowerCase())}`;
-          const bio = user.bio?.trim();
-
-          return (
-            <li key={user.id} className="flex items-start gap-2">
-              <Link
-                href={profileHref}
-                aria-label={`${displayName}'s profile`}
-                className="relative h-8 w-8 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85"
-              >
-                {user.avatarUrl ? (
-                  <Image
-                    src={user.avatarUrl}
-                    alt=""
-                    fill
-                    sizes="32px"
-                    unoptimized
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-[0.7rem] font-semibold text-white/70">
-                    {initial}
-                  </div>
-                )}
-              </Link>
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <Link
-                    href={profileHref}
-                    className="line-clamp-1 text-[0.8rem] font-medium text-white transition-colors hover:text-accent"
-                  >
-                    {displayName}
-                  </Link>
-                  <FollowButton
-                    targetUsername={user.username}
-                    initiallyFollowing={false}
-                    isAuthenticated={isAuthenticated}
-                    variant="compact"
-                  />
-                </div>
-                {bio ? (
-                  <p className="line-clamp-2 text-[0.65rem] text-surface-subtle">
-                    {bio}
-                  </p>
-                ) : (
-                  <p className="text-[0.65rem] italic text-surface-subtle">
-                    @{user.username}
-                  </p>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <SuggestedUsersList users={users} isAuthenticated={isAuthenticated} />
     </section>
   );
 }
@@ -419,82 +383,93 @@ function RecentReviewsWidget({ items }: { items: RecentReview[] }) {
           const profileHref = review.authorUsername
             ? `/${encodeURIComponent(review.authorUsername.toLowerCase())}`
             : null;
+          const reviewHref = `/manga/${review.mangaId}#reviews`;
 
           return (
             <li key={review.id}>
-              <article className="space-y-1">
-                <div className="flex items-start gap-2">
-                  {profileHref ? (
-                    <Link
-                      href={profileHref}
-                      aria-label={`${displayName}'s profile`}
-                      className="relative h-7 w-7 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85"
-                    >
-                      {review.authorAvatar ? (
-                        <Image
-                          src={review.authorAvatar}
-                          alt=""
-                          fill
-                          sizes="28px"
-                          unoptimized
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[0.65rem] font-semibold text-white/70">
-                          {initial}
-                        </div>
-                      )}
-                    </Link>
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
+              <article className="flex items-start gap-2">
+                {profileHref ? (
+                  <Link
+                    href={profileHref}
+                    aria-label={`${displayName}'s profile`}
+                    className="relative h-7 w-7 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85"
+                  >
+                    {review.authorAvatar ? (
+                      <Image
+                        src={review.authorAvatar}
+                        alt=""
+                        fill
+                        sizes="28px"
+                        unoptimized
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[0.65rem] font-semibold text-white/70">
+                        {initial}
+                      </div>
+                    )}
+                  </Link>
+                ) : null}
+                <div className="flex min-h-8 min-w-0 flex-1 flex-col">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="line-clamp-1 min-w-0 text-[0.8rem] leading-tight">
                       {profileHref ? (
                         <Link
                           href={profileHref}
-                          className="line-clamp-1 text-[0.8rem] font-medium text-white transition-colors hover:text-accent"
+                          className="font-medium text-white transition-colors hover:text-accent"
                         >
                           {displayName}
                         </Link>
                       ) : (
-                        <span className="line-clamp-1 text-[0.8rem] font-medium text-white">
-                          {displayName}
-                        </span>
+                        <span className="font-medium text-white">{displayName}</span>
                       )}
-                      <span className="shrink-0 text-[0.7rem] font-medium tabular-nums text-accent">
-                        {review.rating}/10
-                      </span>
-                    </div>
-                    {review.mangaTitle ? (
-                      <p className="line-clamp-1 text-[0.65rem] text-surface-subtle">
-                        on{" "}
+                      <span className="text-[0.7rem] text-surface-subtle"> on </span>
+                      {review.mangaTitle ? (
                         <Link
-                          href={`/manga/${review.mangaId}`}
-                          className="text-surface-subtle transition-colors hover:text-accent"
+                          href={reviewHref}
+                          className="text-[0.7rem] text-surface-subtle transition-colors hover:text-accent"
                         >
                           &ldquo;{review.mangaTitle}&rdquo;
                         </Link>
-                      </p>
+                      ) : (
+                        <Link
+                          href={reviewHref}
+                          className="text-[0.7rem] italic text-surface-subtle transition-colors hover:text-accent"
+                        >
+                          series #{review.mangaId}
+                        </Link>
+                      )}
+                    </p>
+                    <span className="shrink-0 text-[0.7rem] font-medium tabular-nums text-accent">
+                      {review.rating}/10
+                    </span>
+                  </div>
+                  {review.body ? (
+                    review.hasSpoilers ? (
+                      <Link
+                        href={reviewHref}
+                        className="mt-auto block text-[0.65rem] italic leading-tight text-surface-subtle/70 transition-colors hover:text-accent"
+                      >
+                        (may contain spoilers)
+                      </Link>
                     ) : (
                       <Link
-                        href={`/manga/${review.mangaId}`}
-                        className="text-[0.65rem] italic text-surface-subtle transition-colors hover:text-accent"
+                        href={reviewHref}
+                        className="mt-auto flex min-w-0 items-baseline text-[0.65rem] italic leading-tight text-white/55 transition-colors hover:text-accent"
                       >
-                        view series
+                        <span aria-hidden className="shrink-0">
+                          &ldquo;
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">
+                          {review.body}
+                        </span>
+                        <span aria-hidden className="shrink-0">
+                          &rdquo;
+                        </span>
                       </Link>
-                    )}
-                  </div>
+                    )
+                  ) : null}
                 </div>
-                {review.body ? (
-                  review.hasSpoilers ? (
-                    <p className="pl-9 text-[0.65rem] italic text-surface-subtle/70">
-                      (may contain spoilers)
-                    </p>
-                  ) : (
-                    <p className="line-clamp-2 pl-9 text-[0.65rem] italic leading-snug text-white/55">
-                      &ldquo;{review.body}&rdquo;
-                    </p>
-                  )
-                ) : null}
               </article>
             </li>
           );

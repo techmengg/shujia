@@ -735,16 +735,26 @@ export function ProfilePageContent({
             ) : null}
             <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[0.7rem] text-white/40 sm:text-xs">
               <span>Joined {memberSince}</span>
-              <span aria-hidden className="text-white/20">·</span>
-              <span>
-                <span className="tabular-nums text-white/65">{followerCount}</span>{" "}
-                <span>{followerCount === 1 ? "follower" : "followers"}</span>
-              </span>
-              <span aria-hidden className="text-white/20">·</span>
-              <span>
-                <span className="tabular-nums text-white/65">{followingCount}</span>{" "}
-                <span>following</span>
-              </span>
+              {user.username ? (
+                <>
+                  <span aria-hidden className="text-white/20">·</span>
+                  <Link
+                    href={`/${encodeURIComponent(user.username.toLowerCase())}/followers`}
+                    className="transition-colors hover:text-accent"
+                  >
+                    <span className="tabular-nums text-white/65">{followerCount}</span>{" "}
+                    <span>{followerCount === 1 ? "follower" : "followers"}</span>
+                  </Link>
+                  <span aria-hidden className="text-white/20">·</span>
+                  <Link
+                    href={`/${encodeURIComponent(user.username.toLowerCase())}/following`}
+                    className="transition-colors hover:text-accent"
+                  >
+                    <span className="tabular-nums text-white/65">{followingCount}</span>{" "}
+                    <span>following</span>
+                  </Link>
+                </>
+              ) : null}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
