@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import { getMangaSummaryById, type Provider } from "@/lib/manga";
+import { getTitleOverrides } from "@/lib/manga/title-override";
 import { prisma } from "@/lib/prisma";
 
 export interface MostTrackedItem {
@@ -14,9 +15,14 @@ export interface MostTrackedItem {
 const MOST_TRACKED_LIMIT = 12;
 
 async function fetchMostTracked(): Promise<MostTrackedItem[]> {
-  // Group reading-list entries by series and rank by reader count.
+  // MU-only: legacy MangaDex rows still exist in ReadingListEntry until the
+  // background relinker reaches them, and their UUID `mangaId`s render as
+  // broken `/manga/<uuid>` links on shujia (post-migration the detail page
+  // is keyed on MU integer IDs). Filtering at the query level is cleaner
+  // than dropping items downstream.
   const groups = await prisma.readingListEntry.groupBy({
     by: ["provider", "mangaId"],
+    where: { provider: "mangaupdates" },
     _count: { _all: true },
     orderBy: { _count: { provider: "desc" } },
     take: MOST_TRACKED_LIMIT,
@@ -26,7 +32,8 @@ async function fetchMostTracked(): Promise<MostTrackedItem[]> {
   // One representative entry per group gives us the cached title + cover.
   const entries = await prisma.readingListEntry.findMany({
     where: {
-      OR: groups.map((g) => ({ provider: g.provider, mangaId: g.mangaId })),
+      provider: "mangaupdates",
+      OR: groups.map((g) => ({ mangaId: g.mangaId })),
     },
     distinct: ["provider", "mangaId"],
     orderBy: { updatedAt: "desc" },
@@ -78,10 +85,26 @@ async function fetchMostTracked(): Promise<MostTrackedItem[]> {
       }),
   );
 
+  // Apply admin-set title overrides so e.g. MU's "Omniscient Reader" renders
+  // here as "Omniscient Reader's Viewpoint", matching the manga detail page.
+  const overrides = await getTitleOverrides(
+    items.map((i) => ({ provider: i.provider as Provider, mangaId: i.mangaId })),
+  );
+  if (overrides.size) {
+    for (const item of items) {
+      const override = overrides.get(`${item.provider}:${item.mangaId}`);
+      if (override) item.title = override;
+    }
+  }
+
   return items;
 }
 
-export const getMostTracked = unstable_cache(fetchMostTracked, ["home-most-tracked"], {
-  revalidate: 600,
-  tags: ["home-most-tracked"],
-});
+export const getMostTracked = unstable_cache(
+  fetchMostTracked,
+  // v3 — bumped to bust the stale cache holding broken /manga/<MD-UUID>
+  // links. v2 added the provider="mangaupdates" filter; v3 also applies
+  // MangaTitleOverride so e.g. "Omniscient Reader's Viewpoint" shows here.
+  ["home-most-tracked-v3"],
+  { revalidate: 600, tags: ["home-most-tracked"] },
+);
