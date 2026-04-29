@@ -186,6 +186,154 @@ export default function RoadmapPage() {
         })}
       </div>
 
+      <section className="mt-12 border border-accent/40 px-4 py-5 sm:mt-14 sm:px-6 sm:py-6">
+        <div className="space-y-1.5">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-accent sm:text-[0.7rem]">
+            end-state architecture
+          </p>
+          <h2 className="text-base font-semibold text-white sm:text-lg">
+            Shujia-canonical catalog with external-source mappings
+          </h2>
+          <p className="text-[0.8rem] leading-relaxed text-surface-subtle sm:text-sm">
+            today every series in shujia is keyed on
+            {" "}
+            <code className="font-mono text-[0.75em] text-white/80">(provider, externalId)</code>
+            {" "}— effectively &ldquo;wherever MangaUpdates sent us.&rdquo; that&apos;s
+            fine for the current scale, but it means a single upstream
+            outage breaks every reading list, and there&apos;s no way to
+            merge metadata from MangaBaka, AniList, MangaDex, or MAL
+            without messy conflicts. the long-term commitment is to make
+            <em> shujia&apos;s db</em> the canonical record for every
+            series, with each external source treated as a backfill /
+            cross-reference rather than the source of truth.
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-5">
+          <div>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="inline-flex items-baseline gap-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-accent sm:text-[0.7rem]">
+                <span className="inline-block h-1 w-1 translate-y-[-1px] bg-accent" aria-hidden />
+                phase 1
+              </span>
+              <span className="text-[0.7rem] italic text-surface-subtle sm:text-xs">
+                lazy-populated MangaSeries table
+              </span>
+            </div>
+            <p className="mt-1.5 text-[0.8rem] leading-relaxed text-surface-subtle sm:text-sm">
+              add a{" "}
+              <code className="font-mono text-[0.75em] text-white/80">MangaSeries</code>
+              {" "}table keyed by a shujia
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">cuid</code>
+              {" "}with nullable external-id columns (
+              <code className="font-mono text-[0.75em] text-white/80">muId</code>,
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">mbId</code>,
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">anilistId</code>,
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">mdId</code>,
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">malId</code>
+              ) and snapshot fields (title, cover, year, type, status,
+              tags). populate lazily — when someone visits
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">/manga/&lt;mu-id&gt;</code>
+              {" "}we upsert the row, store the MU id + snapshot, return
+              the shujia cuid. user-facing tables (ReadingListEntry,
+              Review, ReviewReaction, MangaPageView) stay keyed on
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">(provider, mangaId)</code>
+              {" "}— zero migration risk on live data.
+            </p>
+            <p className="mt-1.5 text-[0.75rem] italic text-surface-subtle/80 sm:text-[0.8rem]">
+              unlocks: faster repeat lookups (no external API hop for
+              hot series), foundation for cross-source merging, the data
+              model the resolver in phase 2 needs.
+            </p>
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="inline-flex items-baseline gap-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-accent sm:text-[0.7rem]">
+                <span className="inline-block h-1 w-1 translate-y-[-1px] bg-accent" aria-hidden />
+                phase 2
+              </span>
+              <span className="text-[0.7rem] italic text-surface-subtle sm:text-xs">
+                resolver + new-feature usage
+              </span>
+            </div>
+            <p className="mt-1.5 text-[0.8rem] leading-relaxed text-surface-subtle sm:text-sm">
+              add a resolver{" "}
+              <code className="font-mono text-[0.75em] text-white/80">
+                (provider, externalId) → shujiaId
+              </code>
+              {" "}backed by the MangaSeries lookup. new features start
+              consuming shujia ids natively: AniList import maps via
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">anilistId</code>,
+              recommendations join through MangaSeries, the sitemap
+              canonicalizes one URL per series regardless of how many
+              external ids point at it. user-facing tables get a
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">shujiaSeriesId</code>
+              {" "}foreign-key column, but the existing
+              {" "}
+              <code className="font-mono text-[0.75em] text-white/80">(provider, mangaId)</code>
+              {" "}stays — backfilled in the background, no
+              cutover.
+            </p>
+            <p className="mt-1.5 text-[0.75rem] italic text-surface-subtle/80 sm:text-[0.8rem]">
+              unlocks: AniList / MAL imports, cross-source
+              recommendations, deduplication when MU and MB index the
+              same series under different titles.
+            </p>
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="inline-flex items-baseline gap-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-accent sm:text-[0.7rem]">
+                <span className="inline-block h-1 w-1 translate-y-[-1px] bg-accent" aria-hidden />
+                phase 3
+              </span>
+              <span className="text-[0.7rem] italic text-surface-subtle sm:text-xs">
+                user-facing migration to shujia ids
+              </span>
+            </div>
+            <p className="mt-1.5 text-[0.8rem] leading-relaxed text-surface-subtle sm:text-sm">
+              once mappings are dense and stable, flip the user-facing
+              schema. ReadingListEntry / Review / ReviewReaction /
+              MangaPageView use{" "}
+              <code className="font-mono text-[0.75em] text-white/80">shujiaSeriesId</code>
+              {" "}as primary;{" "}
+              <code className="font-mono text-[0.75em] text-white/80">(provider, mangaId)</code>
+              {" "}gets demoted to a legacy column kept for backwards
+              compatibility. external sources become pure backfill —
+              MU, MB, AniList, MD, MAL all feed the same canonical
+              record. community submissions and metadata corrections
+              write directly to MangaSeries.
+            </p>
+            <p className="mt-1.5 text-[0.75rem] italic text-surface-subtle/80 sm:text-[0.8rem]">
+              unlocks: shujia survives any single upstream going down,
+              full self-hosted catalog, community-maintained metadata
+              with version history.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-white/10 pt-4">
+          <p className="text-[0.7rem] italic text-surface-subtle/80 sm:text-[0.75rem]">
+            why staged: a single-cutover migration on a live db is a
+            1-2 week risk window with no rollback. phase 1 alone
+            unblocks ~80% of the value (AniList import, recs, faster
+            lookups) and ships in days. phase 2 + 3 only happen once
+            phase 1 has populated enough mappings to make them
+            worthwhile.
+          </p>
+        </div>
+      </section>
+
       <footer className="mt-12 border-t border-white/10 pt-5 text-[0.7rem] text-surface-subtle sm:text-xs">
         <p>
           feedback or title request?{" "}
