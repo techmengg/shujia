@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-type Status = "shipped" | "building" | "next" | "later";
+type Status = "building" | "next" | "later";
 
 interface RoadmapItem {
   title: string;
@@ -16,88 +16,56 @@ interface RoadmapSection {
 
 const sections: RoadmapSection[] = [
   {
-    status: "shipped",
-    heading: "Shipped",
-    blurb: "live today",
-    items: [
-      {
-        title: "Accounts that stay consistent",
-        detail:
-          "cookie sessions, google sign-in, email verification, 2fa with recovery codes.",
-      },
-      {
-        title: "Reading list with progress, rating, notes",
-        detail:
-          "track any series you find. your list syncs across devices and is searchable.",
-      },
-      {
-        title: "Discovery rails on the home page",
-        detail:
-          "trending (by origin country), popular new titles, recent releases, demographic tabs. sfw-filtered by default.",
-      },
-      {
-        title: "Manga detail pages",
-        detail:
-          "covers, synopsis, authors, artists, tags, key facts, and one-click tracking.",
-      },
-      {
-        title: "Metadata pipeline",
-        detail:
-          "unified provider layer pulling series data. legacy entries auto-migrate when a confident title match is found.",
-      },
-    ],
-  },
-  {
     status: "building",
     heading: "Building",
     blurb: "in progress right now",
     items: [
       {
-        title: "Reading list statuses",
+        title: "Recommendations (\"readers of X also liked\")",
         detail:
-          "reading / completed / on-hold / dropped / plan-to-read, the way mal and novelupdates do it.",
+          "find similar series based on overlap in public reading lists. no ads, no black-box ranking.",
       },
       {
-        title: "Public user profiles with stats",
+        title: "Re-enable the home \"Followed\" rail",
         detail:
-          "titles tracked, average rating, rating distribution, currently reading — a page you can share.",
-      },
-      {
-        title: "Explore page filters",
-        detail:
-          "browse by genre, tag, year, publication status. sortable, paginated, shareable.",
+          "the section is parked while the design is being reworked — bringing it back so the people you follow surface the series they're tracking front-and-center.",
       },
     ],
   },
   {
     status: "next",
     heading: "Up next",
-    blurb: "the social + discovery layer",
+    blurb: "queued, scoped, not yet started",
     items: [
       {
-        title: "Community reviews",
+        title: "Series ranking & leaderboards",
         detail:
-          "write a review, rate individual categories (story, art, characters), surface the most recent and most helpful ones per series.",
+          "global top-100 by community rating, by genre, by year. a way to find canonical greats without trusting a single algorithm.",
       },
       {
-        title: "Follow people, activity feed",
+        title: "Recommendation lists",
         detail:
-          "see what the users you follow are reading, rating, and reviewing. lightweight, no noise.",
+          "user-curated lists with writeups (\"my top 10 seinen of the decade\", \"best one-shots\"). different from algorithmic recs in that the focus is on the human take.",
       },
       {
-        title: "Recommendations",
+        title: "Per-series discussion threads",
         detail:
-          "\"readers of X also liked…\" based on overlap in public reading lists. no ads, no black-box ranking.",
+          "comments per series with replies, spoiler tags, and light moderation tools.",
       },
       {
-        title: "Add a manga (community submissions)",
+        title: "Richer review UX",
+        detail:
+          "per-category ratings (story, art, characters), helpful-sorting, longer-form review templates.",
+      },
+      {
+        title: "Community series submissions",
         detail:
           "submit a title that isn't indexed yet. moderated so spam doesn't leak in.",
       },
       {
-        title: "Import from MAL, AniList, and more",
+        title: "Import from AniList",
         detail:
-          "bring your existing list over in one go. no re-tagging from scratch.",
+          "MAL XML import already works; AniList is next.",
       },
     ],
   },
@@ -109,22 +77,7 @@ const sections: RoadmapSection[] = [
       {
         title: "Community forum",
         detail:
-          "general-purpose discussion threads — recommendations, news, off-topic. distinct from per-series discussion below.",
-      },
-      {
-        title: "Series ranking & leaderboards",
-        detail:
-          "global top-100 by community rating, by genre, by year. a way to find canonical greats.",
-      },
-      {
-        title: "Recommendation lists",
-        detail:
-          "user-curated lists with writeups (\"my top 10 seinen of the decade\", \"best one-shots\"). different from algorithmic recs in that the focus is on the human take.",
-      },
-      {
-        title: "Series discussion threads",
-        detail:
-          "per-series comments with replies, spoiler tags, and light moderation tools.",
+          "general-purpose discussion threads — recommendations, news, off-topic. distinct from the per-series threads above.",
       },
       {
         title: "Character, creator, group pages",
@@ -134,7 +87,7 @@ const sections: RoadmapSection[] = [
       {
         title: "Anime expansion",
         detail:
-          "jikan / anilist / consumet integration once the manga directory is stable.",
+          "jikan / anilist / consumet integration once the manga directory is stable. eventually tv + dramas.",
       },
       {
         title: "Public API + developer docs",
@@ -145,6 +98,11 @@ const sections: RoadmapSection[] = [
         title: "Mobile app / PWA",
         detail:
           "offline reading-list access and push for new chapters of tracked series.",
+      },
+      {
+        title: "Self-hosted catalog",
+        detail:
+          "once enough users have submitted titles, written reviews, and corrected metadata, shujia can stand on its own data instead of leaning on the MangaUpdates api as the primary source. MU stays as a backfill / cross-reference, but the canonical record lives in shujia's db.",
       },
     ],
   },
@@ -158,9 +116,10 @@ export default function RoadmapPage() {
           Roadmap
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-surface-subtle sm:text-base">
-          shujia is building a community-driven directory for manga, manhwa,
-          and manhua — think imdb / mal / novelupdates, but focused on comics
-          first.
+          shujia is a community-driven directory and tracker for manga, manhwa,
+          and manhua — think imdb / mal / letterboxd, but focused on comics
+          first. this page tracks what&apos;s coming, not what&apos;s already
+          done — the app itself is the proof of what&apos;s shipped.
         </p>
         <p className="text-[0.7rem] italic text-surface-subtle/70 sm:text-xs">
           built by one person, so timelines are fuzzy by design.
@@ -192,7 +151,6 @@ export default function RoadmapPage() {
       <div className="mt-8 space-y-8 sm:mt-10 sm:space-y-10">
         {sections.map((section) => {
           const isBuilding = section.status === "building";
-          const isShipped = section.status === "shipped";
           return (
             <section key={section.status}>
               <div
@@ -212,12 +170,7 @@ export default function RoadmapPage() {
               <ul className="divide-y divide-white/10">
                 {section.items.map((item) => (
                   <li key={item.title} className="py-3">
-                    <p
-                      className={[
-                        "text-sm font-semibold sm:text-[0.95rem]",
-                        isShipped ? "text-white/80" : "text-white",
-                      ].join(" ")}
-                    >
+                    <p className="text-sm font-semibold text-white sm:text-[0.95rem]">
                       {item.title}
                     </p>
                     {item.detail ? (
