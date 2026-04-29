@@ -39,7 +39,49 @@ const SKIP_MARKERS = [
   /\bdj\.\s/i,
   /\(omakes?\)/i,
   /\(novel\)/i,
+  /\bgaiden\b/i,
 ];
+
+// Cosmetic re-coloring / re-edition markers. Stripped from the search
+// query so MU returns the canonical series instead of falling back to a
+// random popular hit when given a nonsense query.
+const STRIP_PATTERNS = [
+  /\s*\(official\s+colored\)\s*/gi,
+  /\s*\(fan\s+colored\)\s*/gi,
+  /\s*\(recolored\)\s*/gi,
+  /\s*\(colored\)\s*/gi,
+  /\s*\(minimalist\s+color\)\s*/gi,
+  /\s*\(shinsoban\s+release\)\s*/gi,
+  /\s*\(volume\s+release\)\s*/gi,
+  /\s*\(anniversary\s+edition\)\s*/gi,
+];
+
+function stripCosmeticMarkers(title: string): string {
+  let cleaned = title;
+  for (const re of STRIP_PATTERNS) cleaned = cleaned.replace(re, " ");
+  return cleaned.replace(/\s+/g, " ").trim();
+}
+
+function tokenize(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 4);
+}
+
+function shareDistinctiveToken(query: string, candidate: { title: string; altTitles: string[] }): boolean {
+  const qTokens = new Set(tokenize(query));
+  if (qTokens.size === 0) return false;
+  const cTokens = new Set([
+    ...tokenize(candidate.title),
+    ...candidate.altTitles.flatMap(tokenize),
+  ]);
+  for (const t of qTokens) {
+    if (cTokens.has(t)) return true;
+  }
+  return false;
+}
 
 const prisma = new PrismaClient();
 
@@ -53,6 +95,17 @@ function sleep(ms: number): Promise<void> {
 
 async function main() {
   const apply = process.argv.includes("--apply");
+  const excludeArg = process.argv.find((a) => a.startsWith("--exclude="));
+  const excludeTitles = excludeArg
+    ? excludeArg
+        .slice("--exclude=".length)
+        .split("|")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    : [];
+  if (excludeTitles.length) {
+    console.log(`Excluding ${excludeTitles.length} titles by substring match.`);
+  }
   console.log(apply ? "APPLY MODE — will execute swaps." : "DRY-RUN — no writes.");
 
   // Group MD stragglers by mangaId so we propose once per UUID even if
@@ -94,9 +147,17 @@ async function main() {
       continue;
     }
 
+    const titleLower = sample.title.toLowerCase();
+    if (excludeTitles.some((ex) => titleLower.includes(ex))) {
+      skips.push({ mdTitle: sample.title, reason: "user-excluded" });
+      continue;
+    }
+
+    const cleanedQuery = stripCosmeticMarkers(sample.title);
+
     let results: MangaSummary[] = [];
     try {
-      results = await mangaupdates.searchSeries(sample.title, { limit: 5 });
+      results = await mangaupdates.searchSeries(cleanedQuery, { limit: 5 });
     } catch {
       // ignore
     }
@@ -127,6 +188,19 @@ async function main() {
       skips.push({
         mdTitle: sample.title,
         reason: `not dominant (top=${topVotes}, next=${nextVotes})`,
+      });
+      continue;
+    }
+    // Defense-in-depth: refuse to swap when the proposed candidate shares
+    // ZERO 4+-char tokens with the query. Catches "Tokyo Revengers" ->
+    // "Vagabond"-style fallbacks where MU defaults to a popular series.
+    // Note: some legitimate cross-romanization migrations (e.g. "20th
+    // Century Boys" -> "20 Seiki Shounen") have no token overlap and will
+    // be skipped here; user can relink those via the UI.
+    if (!shareDistinctiveToken(cleanedQuery, top)) {
+      skips.push({
+        mdTitle: sample.title,
+        reason: `no shared 4+char token with "${top.title}"`,
       });
       continue;
     }
