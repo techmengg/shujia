@@ -8,6 +8,7 @@ import { AddToReadingListButton } from "@/components/manga/add-to-reading-list-b
 import { MangaActionBar } from "@/components/manga/manga-action-bar";
 import { RatingsWidget } from "@/components/manga/ratings-widget";
 import { ReviewsSection } from "@/components/manga/reviews-section";
+import { ScrollToTopOnMount } from "@/components/manga/scroll-to-top-on-mount";
 import { TagList } from "@/components/manga/tag-list";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
@@ -476,6 +477,7 @@ export default async function MangaPage({ params }: MangaPageProps) {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 pb-12 pt-5 sm:px-6 sm:pb-16 sm:pt-8 lg:px-10">
+      <ScrollToTopOnMount trigger={manga.id} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(cleanedStructuredData) }}

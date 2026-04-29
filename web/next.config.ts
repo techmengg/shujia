@@ -26,6 +26,46 @@ const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
     hostname: "placehold.co",
     pathname: "/**",
   },
+  // Anime News Network — covers og:image thumbnails on the home news rail.
+  // Wildcard handles subdomains (cdn-images, www, etc.).
+  {
+    protocol: "https",
+    hostname: "**.animenewsnetwork.com",
+    pathname: "/**",
+  },
+  // Reddit preview/thumbnail hosts — used by the manhwa news rail.
+  {
+    protocol: "https",
+    hostname: "i.redd.it",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "external-preview.redd.it",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "preview.redd.it",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "b.thumbs.redditmedia.com",
+    pathname: "/**",
+  },
+  // MangaBaka — covers for the home "New releases" rail. Wildcard covers
+  // both api.* and any cdn.* subdomains they may use.
+  {
+    protocol: "https",
+    hostname: "**.mangabaka.dev",
+    pathname: "/**",
+  },
+  {
+    protocol: "https",
+    hostname: "mangabaka.dev",
+    pathname: "/**",
+  },
 ];
 
 const blobBaseUrl = process.env.NEXT_PUBLIC_BLOB_BASE_URL;

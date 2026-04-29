@@ -5,13 +5,13 @@ import { MangaCarousel } from "@/components/manga/manga-carousel";
 // import { FollowedSection } from "@/components/home/followed-section";
 import { FollowingActivitySection } from "@/components/home/following-activity-section";
 import { MostTrackedSection } from "@/components/home/most-tracked-section";
-import {
-  getPopularNewTitles,
-  getRecentReleases,
-} from "@/lib/mangaupdates/service-cached";
+import { NewsSection } from "@/components/home/news-section";
+import { getRecentReleases } from "@/lib/mangaupdates/service-cached";
 import { getFollowingActivity } from "@/lib/home/following-activity";
 import { getMostTracked } from "@/lib/home/most-tracked";
+import { getNewReleases } from "@/lib/home/new-releases";
 import { getReaderTrending } from "@/lib/home/reader-trending";
+import { getHomeNews } from "@/lib/home/news";
 import { migrateEntriesInBackground } from "@/lib/manga/migrate";
 // import type { MangaSummary, Provider } from "@/lib/manga/types";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -34,9 +34,9 @@ function RailHeader({
   seeAllLabel = "see all",
 }: RailHeaderProps) {
   return (
-    <div className="mb-2 flex items-baseline justify-between gap-2 sm:mb-4 sm:gap-3">
+    <div className="mb-3 flex items-baseline justify-between gap-2 sm:mb-4 sm:gap-3">
       <div className="flex min-w-0 items-baseline gap-1.5 sm:gap-3">
-        <h2 className="truncate text-sm font-semibold text-white sm:text-base">
+        <h2 className="truncate text-base font-semibold text-white sm:text-lg">
           {label}
         </h2>
         {note ? (
@@ -87,11 +87,12 @@ export default async function Home() {
 
   const trendsPromise = Promise.all([
     safe(getReaderTrending(), []),
-    safe(getPopularNewTitles(50), []),
     safe(getRecentReleases(50), []),
   ]);
 
   const mostTrackedPromise = safe(getMostTracked(), []);
+  const newReleasesPromise = safe(getNewReleases(), []);
+  const newsPromise = safe(getHomeNews(), []);
 
   // Resolve the viewer FIRST so we know whether to fetch follow-activity.
   const user = await userPromise;
@@ -101,12 +102,16 @@ export default async function Home() {
     : Promise.resolve([]);
 
   const [
-    [trending, popularNewTitles, recentReleases],
+    [trending, recentReleases],
     mostTracked,
+    newReleases,
+    news,
     followingActivity,
   ] = await Promise.all([
     trendsPromise,
     mostTrackedPromise,
+    newReleasesPromise,
+    newsPromise,
     followingActivityPromise,
   ]);
 
@@ -202,6 +207,11 @@ export default async function Home() {
       <FollowedSection followedItems={followedItems} />
       */}
 
+      <section>
+        <RailHeader label="News" note="from r/manhwa + Anime News Network" />
+        <NewsSection items={news} />
+      </section>
+
       {trending.length ? (
         <section className="mt-6 sm:mt-8">
           <RailHeader
@@ -215,6 +225,22 @@ export default async function Home() {
               <EmptyLine>
                 Could not load trending right now — try again in a moment.
               </EmptyLine>
+            }
+          />
+        </section>
+      ) : null}
+
+      {newReleases.length ? (
+        <section className="mt-6 sm:mt-8">
+          <RailHeader
+            label="New releases"
+            note="started publishing in the last year"
+            seeAllHref="/explore"
+          />
+          <MangaCarousel
+            items={newReleases}
+            emptyState={
+              <EmptyLine>No new releases right now — try again shortly.</EmptyLine>
             }
           />
         </section>
@@ -234,20 +260,6 @@ export default async function Home() {
         <section className="mt-6 sm:mt-8">
           <RailHeader label="Most tracked on ShjDB" seeAllHref="/explore" />
           <MostTrackedSection items={mostTracked} />
-        </section>
-      ) : null}
-
-      {popularNewTitles.length ? (
-        <section className="mt-6 sm:mt-8">
-          <RailHeader label="Popular new titles" seeAllHref="/explore" />
-          <MangaCarousel
-            items={popularNewTitles}
-            emptyState={
-              <EmptyLine>
-                Could not load new titles right now — try again in a moment.
-              </EmptyLine>
-            }
-          />
         </section>
       ) : null}
 
