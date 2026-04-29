@@ -75,6 +75,11 @@ function buildSummary(record: MangaUpdatesSeriesRecord): MangaSummary {
 
   const tags = buildTags(record);
 
+  const ratingVotes =
+    typeof record.rating_votes === "number" && Number.isFinite(record.rating_votes)
+      ? record.rating_votes
+      : undefined;
+
   return {
     id: String(record.series_id),
     provider: "mangaupdates",
@@ -94,6 +99,7 @@ function buildSummary(record: MangaUpdatesSeriesRecord): MangaSummary {
     tags,
     coverImage: record.image?.url?.original ?? undefined,
     url: record.url,
+    ratingVotes,
   };
 }
 
@@ -216,6 +222,25 @@ export async function getTrendingByLanguage(
 ): Promise<MangaSummary[]> {
   const results = await fetchSeriesSearch({
     type: [TRENDING_TYPE_BY_LANGUAGE[language]],
+    orderby: "week_pos",
+    exclude_genre: ADULT_EXCLUDE_GENRES,
+    perpage: limit,
+  });
+  return results.filter((summary) => !isAdultSummary(summary));
+}
+
+/**
+ * Combined trending across all comic types, ordered by MU's `week_pos`
+ * — their internal weekly-readership ranking computed from page views and
+ * active reading-list activity on mangaupdates.com. This is "what people
+ * are actually reading this week" from an external data source, not from
+ * shujia's own tracking signal.
+ */
+export async function getTrending(
+  limit = DEFAULT_LIMIT,
+): Promise<MangaSummary[]> {
+  const results = await fetchSeriesSearch({
+    type: COMIC_TYPES,
     orderby: "week_pos",
     exclude_genre: ADULT_EXCLUDE_GENRES,
     perpage: limit,

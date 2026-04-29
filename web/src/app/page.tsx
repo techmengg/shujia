@@ -2,15 +2,18 @@ import Link from "next/link";
 import { after } from "next/server";
 
 import { MangaCarousel } from "@/components/manga/manga-carousel";
-import { TabbedCarousel } from "@/components/manga/tabbed-carousel";
-import { FollowedSection } from "@/components/home/followed-section";
+// import { FollowedSection } from "@/components/home/followed-section";
+import { FollowingActivitySection } from "@/components/home/following-activity-section";
+import { MostTrackedSection } from "@/components/home/most-tracked-section";
 import {
   getPopularNewTitles,
   getRecentReleases,
-  getTrendingByLanguage,
 } from "@/lib/mangaupdates/service-cached";
+import { getFollowingActivity } from "@/lib/home/following-activity";
+import { getMostTracked } from "@/lib/home/most-tracked";
+import { getReaderTrending } from "@/lib/home/reader-trending";
 import { migrateEntriesInBackground } from "@/lib/manga/migrate";
-import type { MangaSummary, Provider } from "@/lib/manga/types";
+// import type { MangaSummary, Provider } from "@/lib/manga/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
@@ -67,9 +70,10 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
 }
 
 export default async function Home() {
-  function coverUrl(url?: string | null): string | undefined {
-    return url ?? undefined;
-  }
+  // Helper kept here for re-enabling the FollowedSection block below.
+  // function coverUrl(url?: string | null): string | undefined {
+  //   return url ?? undefined;
+  // }
 
   async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
     try {
@@ -82,85 +86,29 @@ export default async function Home() {
   const userPromise = getCurrentUser();
 
   const trendsPromise = Promise.all([
-    safe(getTrendingByLanguage("ja", 50), []),
-    safe(getTrendingByLanguage("ko", 50), []),
-    safe(getTrendingByLanguage("zh", 50), []),
+    safe(getReaderTrending(), []),
     safe(getPopularNewTitles(50), []),
     safe(getRecentReleases(50), []),
   ]);
 
-  // Recent community reviews — distinct manga, most recent first
-  const recentReviewsPromise = safe(
-    prisma.review
-      .findMany({
-        where: { body: { not: null } },
-        orderBy: { createdAt: "desc" },
-        take: 60,
-        select: { provider: true, mangaId: true },
-      })
-      .then((rows) => {
-        const seen = new Set<string>();
-        const unique: { provider: string; mangaId: string }[] = [];
-        for (const r of rows) {
-          const key = `${r.provider}:${r.mangaId}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          unique.push(r);
-          if (unique.length >= 20) break;
-        }
-        return unique;
-      })
-      .then(async (unique) => {
-        if (!unique.length) return [] as MangaSummary[];
-        // Look up metadata from reading list entries (any user's — just need the cached fields)
-        const entries = await prisma.readingListEntry.findMany({
-          where: {
-            OR: unique.map((u) => ({ provider: u.provider, mangaId: u.mangaId })),
-          },
-          distinct: ["provider", "mangaId"],
-          orderBy: { updatedAt: "desc" },
-        });
-        const entryMap = new Map(
-          entries.map((e) => [`${e.provider}:${e.mangaId}`, e]),
-        );
-        const summaries: MangaSummary[] = [];
-        for (const u of unique) {
-          const entry = entryMap.get(`${u.provider}:${u.mangaId}`);
-          if (!entry) continue;
-          summaries.push({
-            id: entry.mangaId,
-            provider: entry.provider as Provider,
-            title: entry.title,
-            altTitles: entry.altTitles,
-            description: entry.description ?? undefined,
-            status: entry.status ?? undefined,
-            year: entry.year ?? undefined,
-            contentRating: entry.contentRating ?? undefined,
-            demographic: entry.demographic ?? undefined,
-            latestChapter: entry.latestChapter ?? undefined,
-            languages: entry.languages,
-            tags: entry.tags,
-            coverImage: coverUrl(entry.coverImage),
-            url: entry.url,
-          });
-        }
-        return summaries;
-      }),
-    [],
-  );
+  const mostTrackedPromise = safe(getMostTracked(), []);
+
+  // Resolve the viewer FIRST so we know whether to fetch follow-activity.
+  const user = await userPromise;
+
+  const followingActivityPromise = user
+    ? safe(getFollowingActivity(user.id), [])
+    : Promise.resolve([]);
 
   const [
-    [
-      trendingManga,
-      trendingManhwa,
-      trendingManhua,
-      popularNewTitles,
-      recentReleases,
-    ],
-    recentlyReviewed,
-  ] = await Promise.all([trendsPromise, recentReviewsPromise]);
-
-  const user = await userPromise;
+    [trending, popularNewTitles, recentReleases],
+    mostTracked,
+    followingActivity,
+  ] = await Promise.all([
+    trendsPromise,
+    mostTrackedPromise,
+    followingActivityPromise,
+  ]);
 
   const readingListEntries = user
     ? await prisma.readingListEntry
@@ -176,6 +124,11 @@ export default async function Home() {
     after(() => migrateEntriesInBackground(readingListEntries));
   }
 
+  // FollowedSection on home is temporarily disabled — the data
+  // derivation is parked here for the moment so re-enabling is a
+  // single-block uncomment. Restore the import + the JSX render
+  // alongside this block to bring the section back.
+  /*
   const followedSummaries: MangaSummary[] = readingListEntries.map((entry) => ({
     id: entry.mangaId,
     provider: entry.provider as Provider,
@@ -214,24 +167,7 @@ export default async function Home() {
   );
 
   const followedItems = user ? followedSummaries : placeholderFollowedSummaries;
-
-  const languageTabs = [
-    {
-      id: "kr",
-      label: "Manhwa (KR)",
-      items: trendingManhwa,
-    },
-    {
-      id: "jp",
-      label: "Manga (JP)",
-      items: trendingManga,
-    },
-    {
-      id: "cn",
-      label: "Manhua (CN)",
-      items: trendingManhua,
-    },
-  ].filter((tab) => tab.items.length > 0);
+  */
 
   const homeStructuredData = {
     "@context": "https://schema.org",
@@ -262,17 +198,48 @@ export default async function Home() {
         shujia — manga, manhwa, and manhua tracker
       </h1>
 
+      {/* Temporarily hidden — re-enable when ready.
       <FollowedSection followedItems={followedItems} />
+      */}
 
-      {languageTabs.length ? (
+      {trending.length ? (
         <section className="mt-6 sm:mt-8">
-          <TabbedCarousel heading="Trending" tabs={languageTabs} />
+          <RailHeader
+            label="Trending"
+            note="most-discussed this week on r/manga + r/manhwa"
+            seeAllHref="/explore"
+          />
+          <MangaCarousel
+            items={trending}
+            emptyState={
+              <EmptyLine>
+                Could not load trending right now — try again in a moment.
+              </EmptyLine>
+            }
+          />
+        </section>
+      ) : null}
+
+      {user ? (
+        <section className="mt-6 sm:mt-8">
+          <RailHeader label="From people you follow" />
+          <FollowingActivitySection
+            items={followingActivity}
+            isAuthenticated={true}
+          />
+        </section>
+      ) : null}
+
+      {mostTracked.length ? (
+        <section className="mt-6 sm:mt-8">
+          <RailHeader label="Most tracked on ShjDB" seeAllHref="/explore" />
+          <MostTrackedSection items={mostTracked} />
         </section>
       ) : null}
 
       {popularNewTitles.length ? (
         <section className="mt-6 sm:mt-8">
-          <RailHeader label="Popular New Titles" seeAllHref="/explore" />
+          <RailHeader label="Popular new titles" seeAllHref="/explore" />
           <MangaCarousel
             items={popularNewTitles}
             emptyState={
@@ -284,25 +251,13 @@ export default async function Home() {
         </section>
       ) : null}
 
-      {recentlyReviewed.length ? (
-        <section className="mt-6 sm:mt-8">
-          <RailHeader label="Recently Reviewed" />
-          <MangaCarousel
-            items={recentlyReviewed}
-            emptyState={
-              <EmptyLine>No recently reviewed titles right now.</EmptyLine>
-            }
-          />
-        </section>
-      ) : null}
-
       {recentReleases.length ? (
         <section className="mt-6 sm:mt-8">
-          <RailHeader label="Recent Releases" seeAllHref="/explore" />
+          <RailHeader label="Latest chapters" seeAllHref="/explore" />
           <MangaCarousel
             items={recentReleases}
             emptyState={
-              <EmptyLine>No recent releases available right now.</EmptyLine>
+              <EmptyLine>No new chapters in the last few days.</EmptyLine>
             }
           />
         </section>

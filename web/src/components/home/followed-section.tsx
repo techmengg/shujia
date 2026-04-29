@@ -17,7 +17,7 @@ export function FollowedSection({ followedItems }: FollowedSectionProps) {
       <section>
         <div className="mb-2 flex items-baseline justify-between gap-2 sm:mb-4 sm:gap-3">
           <h2 className="text-sm font-semibold text-surface-subtle sm:text-base">
-            Your Followed List
+            Your followed list
           </h2>
           <Link
             href="/login?redirect=/"
@@ -45,7 +45,7 @@ export function FollowedSection({ followedItems }: FollowedSectionProps) {
     <section>
       <div className="mb-3 flex items-baseline justify-between gap-3 sm:mb-4">
         <h2 className="text-sm font-semibold text-white sm:text-base">
-          Your Followed List
+          Your followed list
         </h2>
         <Link
           href="/reading-list"

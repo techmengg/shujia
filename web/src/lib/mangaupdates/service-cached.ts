@@ -32,6 +32,12 @@ export const getTrendingByLanguage = unstable_cache(
   { revalidate: 1800, tags: ["mangaupdates-trending"] },
 );
 
+export const getTrending = unstable_cache(
+  async (limit?: number): Promise<MangaSummary[]> => service.getTrending(limit),
+  ["mangaupdates-trending-combined-sfw-v1"],
+  { revalidate: 1800, tags: ["mangaupdates-trending"] },
+);
+
 export const getPopularNewTitles = unstable_cache(
   async (limit?: number): Promise<MangaSummary[]> =>
     service.getPopularNewTitles(limit),

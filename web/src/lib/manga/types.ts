@@ -16,6 +16,9 @@ export interface MangaSummary {
   tags: string[];
   coverImage?: string;
   url: string;
+  // Total MU rating votes — useful for filtering out obscure series with
+  // no community signal. Populated by the MU search adapter when present.
+  ratingVotes?: number;
 }
 
 export interface MangaContributor {
