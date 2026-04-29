@@ -1,18 +1,18 @@
 # shujia
 
-## **🟥🟥 currently undergoing a massive revamp! 🟥🟥**
+a community-driven directory and tracker for manga, manhwa, and manhua. think mal/imdb/letterboxd, but focused on comics. live at **[shujia.dev](https://shujia.dev)**.
 
-a full-stack tracker for manga, manhwa, and manhua built and maintained by me. powered by public apis for now, with more integrations and media expansion on the way.
+> built solo by [@s4lvaholic](https://x.com/s4lvaholic). open-source under AGPL-3.0 — see [LICENSE](./LICENSE).
 
 ---
 
 ## overview
 
-shujia is a full-stack web app for tracking serialized comics across different regions and languages. you can sign in, follow titles, see new chapters, and keep a reading list that syncs with live updates.
+shujia is a full-stack web app for tracking serialized comics across regions and languages. you can sign in, build a reading list with progress + ratings + notes, write reviews, follow other readers, and discover new series via curated rails and filters.
 
-i’m building this solo — everything from ui design to api integration and backend logic. right now it mainly runs off **mangadex**, with a staged approach to adding **comick**, **jikan**, **anilist**, and **consumet**. if those apis end up under-documented or incomplete, i’ll fall back to lightly scraping google or filtered html to fill in the gaps.
+the catalog data comes from the **mangaupdates** rest api. the user-facing layer (accounts, reading lists, reviews, follows, profiles) is shujia's own.
 
-eventually, i want to expand shujia beyond manga into **anime, tv shows, and dramas**, while keeping the experience minimal and consistent.
+eventually i want to expand beyond comics into **anime, tv, and dramas**, while keeping the editorial-minimalist aesthetic consistent.
 
 ---
 
@@ -20,62 +20,66 @@ eventually, i want to expand shujia beyond manga into **anime, tv shows, and dra
 
 ### reader experience
 
-* home dashboard with latest updates, trending series, staff picks, and regional highlights
-* personal reading list for logged-in users (progress, notes, ratings, quick actions)
-* detailed manga pages with creators, tags, statistics, and shareable deep links
-* quick manga search backed by mangadex
-* dedicated roadmap page that mirrors the public roadmap in-app
+* home with discovery rails — trending by language (manga/manhwa/manhua), popular new titles, recent releases
+* `/explore` page with filters (sort, type, genre, year), filterable browse, infinite scroll
+* manga detail pages with synopsis, contributors, tags, content rating, scanlation groups, community rating, reviews
+* random comics — `/manga/random` redirects to a randomly-picked popular series
+* universal right sidebar (lg+ viewports): news headlines (anime news network rss), discover links, recent reviews from the community, "who to follow" suggestions, your library shortcuts, your continue-reading card, your top genres
+* search bar in the nav with debounced results and quick "add to list" actions
 
-### account, auth, and security
+### accounts, auth, and security
 
-* email-based authentication with encrypted session cookies
-* google oauth sign-in/sign-up (stateful redirect support for both login and register flows)
-* verified sign-ups with email confirmation before account creation
-* optional two-factor authentication (totp) with recovery codes
+* email-based authentication with bcrypt-hashed passwords and signed session cookies
+* google oauth sign-in/sign-up with stateful redirect support
+* email verification before account creation (resend or smtp)
+* optional totp two-factor auth with recovery codes
 * password reset flow with signed, expiring tokens
-* per-route rate limiting for login, register, reset, and verification endpoints
-* session management, device sign-out, and marketing/notification preferences
-* profile editing (username, avatar via vercel blob, bio, timezone) and vanity urls at `/profile/:username`
+* per-route rate limiting backed by prisma attempt logs (ip + identifier scope)
+* session management, device sign-out, marketing/notification preferences
+* 2fa enable/disable flows with re-auth requirements
 
-### content and data pipeline
+### profile + social
 
-* mangadex rest integration for trending sections, search results, and manga metadata
-* prisma orm powering users, sessions, reading lists, verification queues, and rate-limit logs
-* avatar storage through vercel blob with a local filesystem fallback in development
-* type-safe server actions and route handlers (all in typescript/zod)
+* customizable profile page at `/<username>`: avatar, banner, accent color, bio with light markdown, favorite-series picker (8 slots), member-since, status distribution, rating distribution + stats, recent activity, top genres, recent reviews
+* follow / follower system with dedicated `/<username>/followers` and `/<username>/following` list pages
+* community ratings + reviews with reactions (thumbs up/down, heart, funny, confusing, angry); review upserts sync to your reading-list entry
+* `/<username>/reading-list` is the canonical reading-list URL — public, sortable, status-filterable, searchable
+* csv / json export for your reading list, csv / json import, mal xml import (legacy)
+
+### content + data pipeline
+
+* mangaupdates rest integration with edge-cached `unstable_cache` calls (5min for trending/recent, 1h for series details, 1h for popular)
+* prisma orm: users, sessions, reading lists, reviews, reactions, follows, verification queues, rate-limit logs
+* avatar / banner uploads via vercel blob with a local `public/uploads/` fallback in dev
+* type-safe server actions and route handlers (typescript + zod everywhere)
+* dynamic sitemap.xml + robots.txt + json-ld structured data on every manga page (comicseries schema with title, alt titles, synopsis, image, language, year, genres, authors, illustrators, aggregate rating)
 
 ---
 
 ## architecture
 
-| layer    | stack                                                                                         |
-| :------- | :-------------------------------------------------------------------------------------------- |
-| frontend | next.js 15 (app router), react server components, tailwind css, custom shadcn-inspired ui kit |
-| backend  | next.js route handlers, server actions, prisma client, custom auth and rate limiting          |
-| database | postgresql                                                                                    |
-| auth     | cookie sessions (bcrypt), google oauth, email verification, totp two-factor                   |
-| storage  | vercel blob (avatars) + local dev fallback                                                    |
-| tooling  | typescript, turbopack, eslint, zod, otp auth, prisma                                          |
+| layer       | stack                                                                                          |
+| :---------- | :--------------------------------------------------------------------------------------------- |
+| frontend    | next.js 15 (app router, turbopack), react 19 server components, tailwind v4, shadcn-inspired ui |
+| backend     | next.js route handlers + server actions, prisma 6                                              |
+| database    | postgresql                                                                                     |
+| auth        | cookie sessions (bcrypt), google oauth, email verification, totp 2fa                           |
+| storage     | vercel blob (avatars/banners) + local dev fallback                                             |
+| email       | resend (default) or smtp fallback                                                              |
+| data source | mangaupdates rest api                                                                          |
+| news widget | anime news network rss (1h cached)                                                             |
+| tooling     | typescript, zod, eslint, prisma                                                                |
 
 ---
 
 ## project structure
 
-* `web/src/app/**` – next.js app router pages, layouts, and api routes (auth, settings, reading list, uploads)
-* `web/src/components/**` – reusable ui pieces (auth forms, manga cards, layout components, settings)
-* `web/src/lib/**` – auth helpers, email transport, external api clients, prisma wrapper, security utilities
-* `web/prisma/**` – prisma schema and timestamped migrations
-* `public/**` – static assets (logos, default avatars, fallback images)
-
----
-
-## auth flow
-
-1. registration runs validation + profanity filters, enqueues a verification token, and emails the user.
-2. verification token consumption creates the account, provisions a session, and sets the auth cookie.
-3. login supports password + optional totp (or recovery codes) and issues new sessions after revoking the old one.
-4. google oauth handles both login and register contexts, validating state/redirect params before creating/updating users.
-5. rate limiting is enforced on every auth touchpoint (ip + identifier scope) using prisma-backed attempt logs.
+* `web/src/app/**` — app router pages + api routes (`(auth)`, `api`, `explore`, `manga`, `profile`, `reading-list`, `roadmap`, `settings`, `users`, `[username]`)
+* `web/src/components/**` — reusable ui (auth forms, manga cards, sidebar, profile, reading-list client, etc.)
+* `web/src/lib/{auth,email,mangaupdates,manga,security,theme,news}` — helpers + clients
+* `web/prisma/{schema.prisma,migrations/}` — schema + timestamped sql migrations
+* `web/src/middleware.ts` — edge middleware (currently lightweight perf logging)
+* `public/**` — static assets (logos, default avatars, hero images)
 
 ---
 
@@ -86,59 +90,65 @@ eventually, i want to expand shujia beyond manga into **anime, tv shows, and dra
 * **node.js** ≥ 18
 * **pnpm** ≥ 10 (pinned via `packageManager` field — enable with `corepack enable`)
 * **postgresql** (local or hosted)
-* mangadex api access (public) – optional comick base urls for experiments
 
 ### setup
 
 ```bash
-git clone https://github.com/<your-username>/shujia.git
+git clone https://github.com/techmengg/shujia.git
 cd shujia/web
 corepack enable
 pnpm install
 cp .env.example .env
 ```
 
-fill out the `.env` file with database credentials, base urls, and auth/email settings.
+then fill out `.env`. for the fastest local-dev path, run the bundled
+docker postgres helper (skips manual postgres setup):
+
+```bash
+# from web/
+./setup-local-db.sh        # macOS / linux
+./setup-local-db.ps1       # windows powershell
+```
+
+it spins up a postgres 16 container at `localhost:5433` and applies all
+prisma migrations. the default `DATABASE_URL` in `.env.example` already
+matches.
 
 ---
 
 ## environment variables
 
-| variable                        | description                                                                 | required |
-| :------------------------------ | :-------------------------------------------------------------------------- | :------- |
-| `DATABASE_URL`                  | postgres connection string                                                  | yes      |
-| `APP_BASE_URL`                  | canonical url (used in emails, oauth, share links)                          | yes      |
-| `NEXT_PUBLIC_APP_URL`           | optional public url override for client-side sharing                        | optional |
-| `NEXT_PUBLIC_MANGADEX_API_BASE` | base url for mangadex api                                                   | yes      |
-| `NEXT_PUBLIC_COMICK_API_BASE`   | base url for comick api (future-ready)                                      | optional |
-| `NEXT_PUBLIC_BLOB_BASE_URL`     | public vercel blob base url for avatars                                     | yes      |
-| `BLOB_READ_WRITE_TOKEN`         | vercel blob token for write access (falls back to local storage if missing) | optional |
-| `EMAIL_FROM`                    | from header, e.g. `Shujia <noreply@shujia.dev>`                             | email only |
-| `RESEND_API_KEY`                | resend api key for transactional email                                      | optional |
-| `SMTP_HOST`                     | smtp host (alternative to resend)                                           | optional |
-| `SMTP_PORT`                     | smtp port                                                                   | optional |
-| `SMTP_USER`                     | smtp username                                                               | optional |
-| `SMTP_PASS`                     | smtp password                                                               | optional |
-| `SMTP_SECURE`                   | `"true"` to force tls                                                       | optional |
-| `GOOGLE_CLIENT_ID`              | google oauth client id                                                      | social auth |
-| `GOOGLE_CLIENT_SECRET`          | google oauth client secret                                                  | social auth |
+see [`web/.env.example`](./web/.env.example) for the canonical list with
+inline comments. summary:
 
-email delivery defaults to [resend](https://resend.com). set `EMAIL_FROM` + `RESEND_API_KEY`, then add the spf record `v=spf1 include:amazonses.com ~all` so your sender stays verified. if you prefer your own smtp relay, leave `RESEND_API_KEY` empty and supply the smtp variables above.
+| variable                          | description                                                  | required for         |
+| :-------------------------------- | :----------------------------------------------------------- | :------------------- |
+| `DATABASE_URL`                    | postgres connection string                                   | always               |
+| `APP_BASE_URL`                    | canonical site url (emails, oauth, share links)              | always               |
+| `NEXT_PUBLIC_APP_URL`             | public-facing site url (sitemap, og tags)                    | always               |
+| `MANGAUPDATES_API_BASE`           | mangaupdates api base                                        | always               |
+| `NEXT_PUBLIC_MANGAUPDATES_API_BASE` | client-side mu api base                                    | always               |
+| `GOOGLE_CLIENT_ID` / `..._SECRET` | google oauth credentials                                     | google sign-in       |
+| `RESEND_API_KEY` + `EMAIL_FROM`   | transactional email via resend (preferred)                   | email flows          |
+| `SMTP_HOST` / `_PORT` / `_USER` / `_PASS` / `_SECURE` | smtp fallback if not using resend         | email fallback       |
+| `BLOB_READ_WRITE_TOKEN`           | vercel blob token; falls back to local fs if missing         | cloud uploads        |
+| `NEXT_PUBLIC_BLOB_BASE_URL`       | public blob url prefix for avatars/banners                   | cloud uploads        |
 
-for google sign-in, create an oauth client in google cloud console. add `${APP_BASE_URL}/api/auth/google/callback` as an authorized redirect and drop the client id/secret into the env values.
+for google sign-in, create an oauth client in google cloud console and add `${APP_BASE_URL}/api/auth/google/callback` as an authorized redirect.
+
+email delivery prefers [resend](https://resend.com) — set `RESEND_API_KEY` + `EMAIL_FROM`, then add an spf record like `v=spf1 include:amazonses.com ~all` for sender verification. without resend, supply the smtp vars and the system falls back automatically.
 
 ---
 
-## database & migrations
-
-prisma handles schema evolution.
+## database + migrations
 
 ```bash
-pnpm dlx prisma migrate dev --name <migration_name>
-pnpm dlx prisma generate
+pnpm dlx prisma migrate dev --name <migration_name>   # create + apply locally
+pnpm dlx prisma generate                              # regen client after schema changes
+pnpm dlx prisma studio                                # browse/edit data locally
 ```
 
-commit the generated sql migrations, then run `pnpm dlx prisma migrate deploy` in production.
+migrations are append-only once shipped — never rewrite a merged migration. on vercel, `prisma migrate deploy` runs automatically as part of the build command.
 
 ---
 
@@ -146,19 +156,19 @@ commit the generated sql migrations, then run `pnpm dlx prisma migrate deploy` i
 
 ```bash
 pnpm dev        # start dev server (turbopack)
-pnpm build      # build for production
+pnpm build      # production build
 pnpm start      # run production build
-pnpm lint       # eslint (project-wide)
-pnpm typecheck  # typescript validation
+pnpm lint       # eslint
+pnpm typecheck  # tsc --noEmit
 ```
 
-use `pnpm dlx prisma studio` to browse/update data locally. avatar uploads fall back to `public/uploads/avatars` when the blob token is missing, so you can test profile updates without cloud config.
+avatar / banner uploads fall back to `public/uploads/{avatars,banners}` when no blob token is set, so the profile flows work fully offline.
 
 ---
 
-## testing & quality
+## testing + quality
 
-no automated tests yet — i manually run through registration, login (password + otp), reading lists, uploads, and settings flows before shipping changes. type checking + linting keep things sane in between.
+no automated test suite yet — manual pass through registration, login (password + totp), reading list, reviews, profile customization, and follows before shipping. typecheck + lint catch the rest.
 
 ---
 
@@ -167,32 +177,66 @@ no automated tests yet — i manually run through registration, login (password 
 ### vercel (recommended)
 
 1. connect the repo to vercel
-2. set env vars (database, blob, auth, email)
-3. configure the build command:
+2. set env vars (database, blob, auth, email, mangaupdates)
+3. build command:
 
    ```bash
    pnpm exec prisma generate && pnpm exec prisma migrate deploy && pnpm exec next build
    ```
-4. make sure vercel blob + database connections are available
-5. deploy, then add the oauth redirect in google cloud pointing at the deployed domain
+4. install command:
+
+   ```bash
+   pnpm install --frozen-lockfile
+   ```
+5. add `${APP_BASE_URL}/api/auth/google/callback` to your google oauth client's authorized redirects
+6. deploy
 
 ### custom hosting
 
-docker, fly.io, or your own node box work too. run `pnpm dlx prisma migrate deploy` before `pnpm start`, keep `APP_BASE_URL` accurate, and ensure the blob token or local uploads directory is writable.
+docker, fly.io, or any node host works too. run `pnpm dlx prisma migrate deploy` before `pnpm start`, keep `APP_BASE_URL` accurate, and make sure either `BLOB_READ_WRITE_TOKEN` is set or `public/uploads/` is writable.
+
+---
+
+## seo
+
+shujia ships with a dynamic `/sitemap.xml`, an explicit `/robots.txt`, and json-ld structured data (`comicseries` + `aggregaterating` + `website` + `searchaction`) on every relevant page. once deployed, submit the sitemap via [google search console](https://search.google.com/search-console) and [bing webmaster tools](https://www.bing.com/webmasters) — that's the single highest-leverage step for indexing.
 
 ---
 
 ## roadmap
 
-the `/roadmap` page in-app stays up to date, but the current themes are:
+the `/roadmap` page in-app stays canonical. high-level themes:
 
-* stabilize core systems (sessions, password resets, notifications) – in progress
-* ship explore/browse tooling with rich filters across all stored titles
-* expand metadata coverage via jikan, anilist, consumet, and custom caching/translation layers
-* introduce lightweight social features: shared lists, reactions, minimal threads
-* add smart utilities (summaries, pattern detection, ai tagging, multilingual support)
-* harden the platform layer (cdn assets, indexing, background jobs, image optimization)
+**shipped**
+- accounts + sessions + 2fa, reading list with progress/rating/notes, public profiles with stats, follow system, reviews + reactions, mangaupdates pipeline + caching, explore page filters, sidebar widgets, sitemap + structured data
+
+**building / next**
+- recommendations ("readers of x also liked")
+- algorithmic series ranking + leaderboards
+- recommendation lists (curated user-written collections)
+- per-series discussion threads
+- general-purpose forum
+- richer review UX (per-category ratings, helpful sorting)
+- import improvements (anilist, mal, etc.)
+
+**later**
+- character / creator / scanlation-group pages
+- anime expansion (jikan / anilist / consumet)
+- public api + dev docs
+- mobile / pwa with offline reading-list access
 
 ---
 
-— techmeng :)
+## contributing
+
+bug reports, feature ideas, and PRs welcome.
+
+* **bug or feature**: [open an issue](https://github.com/techmengg/shujia/issues)
+* **security**: see [SECURITY.md](./SECURITY.md) — please don't open public issues for vulnerabilities
+* **code**: small fixes and tightenings can go straight to a PR. for larger changes, open an issue first so we can scope it.
+
+shujia is licensed under **AGPL-3.0**. that means you're free to fork, modify, and self-host, but any modifications you run as a public service must also be made available under the same license. see [LICENSE](./LICENSE) for the full text.
+
+---
+
+— techmeng
