@@ -494,6 +494,58 @@ function StatCell({ label, value, sub }: { label: string; value: string | number
   );
 }
 
+function RatingStats({ ratings }: { ratings: number[] }) {
+  if (!ratings.length) return null;
+
+  const sortedRounded = [...ratings].map((r) => Math.round(r)).sort((a, b) => a - b);
+  const total = ratings.length;
+  const mean = ratings.reduce((sum, r) => sum + r, 0) / total;
+  const median =
+    total % 2
+      ? sortedRounded[Math.floor(total / 2)]
+      : (sortedRounded[total / 2 - 1] + sortedRounded[total / 2]) / 2;
+
+  const counts = new Map<number, number>();
+  for (const r of sortedRounded) counts.set(r, (counts.get(r) ?? 0) + 1);
+  let mode = sortedRounded[0];
+  let modeCount = 0;
+  for (const [score, count] of counts) {
+    if (count > modeCount) {
+      mode = score;
+      modeCount = count;
+    }
+  }
+
+  return (
+    <dl className="grid grid-cols-4 gap-x-4 gap-y-2 text-left sm:grid-cols-1 sm:gap-x-0 sm:gap-y-3 sm:text-right">
+      <div>
+        <dd className="text-base font-semibold tabular-nums text-white sm:text-lg">
+          {total}
+        </dd>
+        <dt className="text-[0.65rem] text-surface-subtle sm:text-xs">rated</dt>
+      </div>
+      <div>
+        <dd className="text-base font-semibold tabular-nums text-accent sm:text-lg">
+          {mean.toFixed(1)}
+        </dd>
+        <dt className="text-[0.65rem] text-surface-subtle sm:text-xs">mean</dt>
+      </div>
+      <div>
+        <dd className="text-base font-semibold tabular-nums text-white sm:text-lg">
+          {median % 1 === 0 ? median : median.toFixed(1)}
+        </dd>
+        <dt className="text-[0.65rem] text-surface-subtle sm:text-xs">median</dt>
+      </div>
+      <div>
+        <dd className="text-base font-semibold tabular-nums text-white sm:text-lg">
+          {mode}
+        </dd>
+        <dt className="text-[0.65rem] text-surface-subtle sm:text-xs">most given</dt>
+      </div>
+    </dl>
+  );
+}
+
 function RatingDistribution({ ratings }: { ratings: number[] }) {
   const buckets = Array.from({ length: 10 }, (_, i) => {
     const score = 10 - i;
@@ -662,6 +714,13 @@ export function ProfilePageContent({
   // --- Recent activity (last 5 updates) ---
   const recentActivity = readingList.slice(0, 5);
 
+  // --- Review lookup so activity rows can surface a "you wrote..." excerpt ---
+  const reviewByMangaId = useMemo(() => {
+    const map = new Map<string, ReviewDto>();
+    for (const r of reviews) map.set(r.mangaId, r);
+    return map;
+  }, [reviews]);
+
   // --- CSS variable override for profile accent ---
   const profileStyle = profileColor
     ? ({ "--profile-accent": profileColor } as React.CSSProperties)
@@ -726,7 +785,7 @@ export function ProfilePageContent({
       {/* ============================================================ */}
       {/*  Identity block                                              */}
       {/* ============================================================ */}
-      <div className="mx-auto w-full max-w-4xl px-4 pt-3 sm:px-6 sm:pt-4">
+      <div className="mx-auto w-full max-w-4xl px-4 pt-2 sm:px-6 sm:pt-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0 space-y-1">
             <h1 className="text-xl font-semibold text-white sm:text-2xl">{displayName}</h1>
@@ -792,11 +851,11 @@ export function ProfilePageContent({
         {/* Bio */}
         {bio ? (
           <div
-            className="mt-3 max-w-2xl text-sm leading-relaxed text-white/65"
+            className="mt-2 max-w-2xl text-sm leading-relaxed text-white/65"
             dangerouslySetInnerHTML={{ __html: markdownBioToHtml(bio) ?? "" }}
           />
         ) : isOwner ? (
-          <p className="mt-3 max-w-2xl text-sm italic text-surface-subtle">
+          <p className="mt-2 max-w-2xl text-sm italic text-surface-subtle">
             Add a bio in{" "}
             <Link href="/settings/profile" className="text-accent hover:text-white transition">
               settings
@@ -809,7 +868,7 @@ export function ProfilePageContent({
       {/* ============================================================ */}
       {/*  Stats strip                                                 */}
       {/* ============================================================ */}
-      <div className="mx-auto mt-6 w-full max-w-4xl border-y border-white/10 px-4 py-4 sm:mt-8 sm:px-6 sm:py-5">
+      <div className="mx-auto mt-3 w-full max-w-4xl border-y border-white/10 px-4 py-3 sm:mt-4 sm:px-6 sm:py-4">
         <div className="flex flex-wrap gap-x-8 gap-y-3 sm:gap-x-12">
           <StatCell label="Series tracked" value={totalSeries} />
           <StatCell label="Completed" value={statusCounts.completed} />
@@ -888,8 +947,9 @@ export function ProfilePageContent({
         {ratings.length > 0 ? (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-white sm:text-base">Rating distribution</h2>
-            <div className="max-w-md">
+            <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8">
               <RatingDistribution ratings={ratings} />
+              <RatingStats ratings={ratings} />
             </div>
           </section>
         ) : null}
@@ -909,55 +969,81 @@ export function ProfilePageContent({
 
           {recentActivity.length > 0 ? (
             <ul className="divide-y divide-white/10">
-              {recentActivity.map((entry) => (
-                <li key={entry.id} className="flex gap-3 py-3 first:pt-0 last:pb-0 sm:gap-4">
-                  <Link href={`/manga/${entry.mangaId}`} className="shrink-0">
-                    <div className="relative h-16 w-11 overflow-hidden bg-white/5 sm:h-20 sm:w-14">
-                      {entry.coverImage ? (
-                        <Image
-                          src={entry.coverImage}
-                          alt={entry.title}
-                          fill
-                          sizes="56px"
-                          unoptimized
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/50">
-                          {entry.title.charAt(0)}
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-                    <Link
-                      href={`/manga/${entry.mangaId}`}
-                      className="truncate text-xs font-semibold text-white hover:text-accent transition sm:text-sm"
-                    >
-                      {entry.title}
+              {recentActivity.map((entry) => {
+                const review = reviewByMangaId.get(entry.mangaId);
+                const reviewBody = review?.body?.trim();
+                const tagsPreview = entry.tags.slice(0, 3);
+                const cleanStatus = statusLabel(entry.status);
+                const metaBits: string[] = [];
+                if (cleanStatus) metaBits.push(cleanStatus);
+                if (entry.demographic) metaBits.push(entry.demographic);
+                if (entry.progress) metaBits.push(entry.progress);
+
+                return (
+                  <li
+                    key={entry.id}
+                    className="flex gap-3 py-3 first:pt-0 last:pb-0 sm:gap-4"
+                  >
+                    <Link href={`/manga/${entry.mangaId}`} className="shrink-0">
+                      <div className="relative h-16 w-11 overflow-hidden bg-white/5 sm:h-20 sm:w-14">
+                        {entry.coverImage ? (
+                          <Image
+                            src={entry.coverImage}
+                            alt={entry.title}
+                            fill
+                            sizes="56px"
+                            unoptimized
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/50">
+                            {entry.title.charAt(0)}
+                          </div>
+                        )}
+                      </div>
                     </Link>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.65rem] text-white/45 sm:text-xs">
-                      {statusLabel(entry.status) ? (
-                        <span>{statusLabel(entry.status)}</span>
+                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <Link
+                          href={`/manga/${entry.mangaId}`}
+                          className="truncate text-xs font-semibold text-white transition hover:text-accent sm:text-sm"
+                        >
+                          {entry.title}
+                        </Link>
+                        {typeof entry.rating === "number" ? (
+                          <span className="shrink-0 text-xs font-medium tabular-nums text-accent sm:text-sm">
+                            {entry.rating.toFixed(1)}
+                          </span>
+                        ) : null}
+                      </div>
+                      {metaBits.length > 0 || tagsPreview.length > 0 ? (
+                        <p className="line-clamp-1 text-[0.6rem] text-white/45 sm:text-[0.7rem]">
+                          {[...metaBits, ...tagsPreview].join(" · ")}
+                        </p>
                       ) : null}
-                      {entry.progress ? (
-                        <>
-                          <span className="text-white/20">·</span>
-                          <span>{entry.progress}</span>
-                        </>
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[0.6rem] text-white/35 sm:text-[0.7rem]">
+                        <span>{formatShortDate(entry.updatedAt)}</span>
+                        {review ? (
+                          <>
+                            <span className="text-white/20">·</span>
+                            <span className="text-accent/70">reviewed</span>
+                          </>
+                        ) : typeof entry.rating === "number" ? (
+                          <>
+                            <span className="text-white/20">·</span>
+                            <span>rated</span>
+                          </>
+                        ) : null}
+                      </div>
+                      {reviewBody ? (
+                        <p className="line-clamp-1 break-all text-[0.65rem] italic leading-snug text-white/55 sm:text-xs">
+                          &ldquo;{reviewBody}&rdquo;
+                        </p>
                       ) : null}
-                      {typeof entry.rating === "number" ? (
-                        <>
-                          <span className="text-white/20">·</span>
-                          <span className="text-accent">{entry.rating.toFixed(1)}</span>
-                        </>
-                      ) : null}
-                      <span className="text-white/20">·</span>
-                      <span>{formatShortDate(entry.updatedAt)}</span>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           ) : isOwner ? (
             <p className="text-sm italic text-surface-subtle">
