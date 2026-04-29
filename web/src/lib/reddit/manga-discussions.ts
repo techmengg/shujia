@@ -158,9 +158,8 @@ async function fetchTopDiscussions(): Promise<DiscussionItem[]> {
 
 export const getRedditMangaDiscussions = unstable_cache(
   fetchTopDiscussions,
-  // v5 — bumped after routing through Reddit OAuth (Vercel cloud-IP
-  // egress was getting 403'd from www.reddit.com, silently emptying the
-  // trending rail and forcing the MU week_pos fallback).
-  ["reddit-trending-disc-week-v5"],
+  // v6 — bumped to bust the stale cache entry that captured the empty
+  // result from before the proxy was wired up.
+  ["reddit-trending-disc-week-v6"],
   { revalidate: 3600, tags: ["reddit-trending"] },
 );

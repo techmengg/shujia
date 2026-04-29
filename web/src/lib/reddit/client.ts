@@ -19,8 +19,11 @@ const FETCH_UA =
   "shujia/1.0 (+https://github.com/techmengg/shujia) reddit-fetcher";
 
 export async function fetchRedditJson<T>(path: string): Promise<T | null> {
-  const proxyUrl = process.env.REDDIT_PROXY_URL;
-  const proxySecret = process.env.REDDIT_PROXY_SECRET;
+  // Defensive trim — Vercel's env-var UI silently keeps stray whitespace
+  // pasted around values, and a trailing space turns the proxy URL into a
+  // host that doesn't resolve.
+  const proxyUrl = process.env.REDDIT_PROXY_URL?.trim();
+  const proxySecret = process.env.REDDIT_PROXY_SECRET?.trim();
 
   let target: string;
   const headers: Record<string, string> = {

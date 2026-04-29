@@ -174,9 +174,9 @@ async function fetchManhwaNews(): Promise<ManhwaNewsItem[]> {
 
 export const getManhwaNews = unstable_cache(
   fetchManhwaNews,
-  // v3 — bumped after switching to OAuth (Vercel cloud-IP egress was
-  // getting 403'd from www.reddit.com) and widening the candidate pool to
-  // top-of-week + top-of-month so the rail stays r/manhwa-primary.
-  ["reddit-r-manhwa-news-v3"],
+  // v4 — bumped to bust the stale cache entry that captured the empty
+  // result from before the proxy was wired up. v3 added OAuth (later
+  // replaced by the CF-Worker proxy) + week/month windows.
+  ["reddit-r-manhwa-news-v4"],
   { revalidate: 3600, tags: ["reddit-manhwa-news"] },
 );
