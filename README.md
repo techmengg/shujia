@@ -8,51 +8,11 @@ a community-driven directory and tracker for manga, manhwa, and manhua. think ma
 
 ## overview
 
-shujia is a full-stack web app for tracking serialized comics across regions and languages. you can sign in, build a reading list with progress + ratings + notes, write reviews, follow other readers, and discover new series via curated rails and filters.
+shujia is a full-stack web app for tracking serialized comics across regions and languages. accounts, reading lists with progress + rating + notes, reviews with reactions, follow system, public profiles, discovery rails (trending, new releases, news, most-tracked). catalog data is sourced from the **mangaupdates** rest api; everything user-facing is shujia's own.
 
-the catalog data comes from the **mangaupdates** rest api. the user-facing layer (accounts, reading lists, reviews, follows, profiles) is shujia's own.
+eventually i want to expand beyond comics into anime, tv, and dramas, while keeping the editorial-minimalist aesthetic consistent.
 
-eventually i want to expand beyond comics into **anime, tv, and dramas**, while keeping the editorial-minimalist aesthetic consistent.
-
----
-
-## features
-
-### reader experience
-
-* home with discovery rails — trending by language (manga/manhwa/manhua), popular new titles, recent releases
-* `/explore` page with filters (sort, type, genre, year), filterable browse, infinite scroll
-* manga detail pages with synopsis, contributors, tags, content rating, scanlation groups, community rating, reviews
-* random comics — `/manga/random` redirects to a randomly-picked popular series
-* universal right sidebar (lg+ viewports): news headlines (anime news network rss), discover links, recent reviews from the community, "who to follow" suggestions, your library shortcuts, your continue-reading card, your top genres
-* search bar in the nav with debounced results and quick "add to list" actions
-
-### accounts, auth, and security
-
-* email-based authentication with bcrypt-hashed passwords and signed session cookies
-* google oauth sign-in/sign-up with stateful redirect support
-* email verification before account creation (resend or smtp)
-* optional totp two-factor auth with recovery codes
-* password reset flow with signed, expiring tokens
-* per-route rate limiting backed by prisma attempt logs (ip + identifier scope)
-* session management, device sign-out, marketing/notification preferences
-* 2fa enable/disable flows with re-auth requirements
-
-### profile + social
-
-* customizable profile page at `/<username>`: avatar, banner, accent color, bio with light markdown, favorite-series picker (8 slots), member-since, status distribution, rating distribution + stats, recent activity, top genres, recent reviews
-* follow / follower system with dedicated `/<username>/followers` and `/<username>/following` list pages
-* community ratings + reviews with reactions (thumbs up/down, heart, funny, confusing, angry); review upserts sync to your reading-list entry
-* `/<username>/reading-list` is the canonical reading-list URL — public, sortable, status-filterable, searchable
-* csv / json export for your reading list, csv / json import, mal xml import (legacy)
-
-### content + data pipeline
-
-* mangaupdates rest integration with edge-cached `unstable_cache` calls (5min for trending/recent, 1h for series details, 1h for popular)
-* prisma orm: users, sessions, reading lists, reviews, reactions, follows, verification queues, rate-limit logs
-* avatar / banner uploads via vercel blob with a local `public/uploads/` fallback in dev
-* type-safe server actions and route handlers (typescript + zod everywhere)
-* dynamic sitemap.xml + robots.txt + json-ld structured data on every manga page (comicseries schema with title, alt titles, synopsis, image, language, year, genres, authors, illustrators, aggregate rating)
+a full feature tour lives on the site itself — the README here exists to get a contributor from `git clone` to a running dev server.
 
 ---
 
@@ -67,7 +27,7 @@ eventually i want to expand beyond comics into **anime, tv, and dramas**, while 
 | storage     | vercel blob (avatars/banners) + local dev fallback                                             |
 | email       | resend (default) or smtp fallback                                                              |
 | data source | mangaupdates rest api                                                                          |
-| news widget | anime news network rss (1h cached)                                                             |
+| extras      | mangabaka (new releases), reddit json via cf worker proxy (news + trending), ann rss            |
 | tooling     | typescript, zod, eslint, prisma                                                                |
 
 ---
@@ -76,9 +36,10 @@ eventually i want to expand beyond comics into **anime, tv, and dramas**, while 
 
 * `web/src/app/**` — app router pages + api routes (`(auth)`, `api`, `explore`, `manga`, `profile`, `reading-list`, `roadmap`, `settings`, `users`, `[username]`)
 * `web/src/components/**` — reusable ui (auth forms, manga cards, sidebar, profile, reading-list client, etc.)
-* `web/src/lib/{auth,email,mangaupdates,manga,security,theme,news}` — helpers + clients
+* `web/src/lib/{auth,email,mangaupdates,manga,reddit,mangabaka,news,security,theme,utils}` — helpers + clients
 * `web/prisma/{schema.prisma,migrations/}` — schema + timestamped sql migrations
-* `web/src/middleware.ts` — edge middleware (currently lightweight perf logging)
+* `web/src/middleware.ts` — edge middleware
+* `tools/reddit-proxy/` — cloudflare worker that proxies reddit.com listings (used in production because reddit blocks vercel cloud-ip egress)
 * `public/**` — static assets (logos, default avatars, hero images)
 
 ---
@@ -101,8 +62,7 @@ pnpm install
 cp .env.example .env
 ```
 
-then fill out `.env`. for the fastest local-dev path, run the bundled
-docker postgres helper (skips manual postgres setup):
+then fill out `.env`. for the fastest local-dev path, run the bundled docker postgres helper (skips manual postgres setup):
 
 ```bash
 # from web/
@@ -110,16 +70,13 @@ docker postgres helper (skips manual postgres setup):
 ./setup-local-db.ps1       # windows powershell
 ```
 
-it spins up a postgres 16 container at `localhost:5433` and applies all
-prisma migrations. the default `DATABASE_URL` in `.env.example` already
-matches.
+it spins up a postgres 16 container at `localhost:5433` and applies all prisma migrations. the default `DATABASE_URL` in `.env.example` already matches.
 
 ---
 
 ## environment variables
 
-see [`web/.env.example`](./web/.env.example) for the canonical list with
-inline comments. summary:
+see [`web/.env.example`](./web/.env.example) for the canonical list with inline comments. summary:
 
 | variable                          | description                                                  | required for         |
 | :-------------------------------- | :----------------------------------------------------------- | :------------------- |
@@ -130,22 +87,25 @@ inline comments. summary:
 | `NEXT_PUBLIC_MANGAUPDATES_API_BASE` | client-side mu api base                                    | always               |
 | `GOOGLE_CLIENT_ID` / `..._SECRET` | google oauth credentials                                     | google sign-in       |
 | `RESEND_API_KEY` + `EMAIL_FROM`   | transactional email via resend (preferred)                   | email flows          |
-| `SMTP_HOST` / `_PORT` / `_USER` / `_PASS` / `_SECURE` | smtp fallback if not using resend         | email fallback       |
+| `SMTP_*` (HOST/PORT/USER/PASS/SECURE) | smtp fallback if not using resend                        | email fallback       |
 | `BLOB_READ_WRITE_TOKEN`           | vercel blob token; falls back to local fs if missing         | cloud uploads        |
 | `NEXT_PUBLIC_BLOB_BASE_URL`       | public blob url prefix for avatars/banners                   | cloud uploads        |
+| `REDDIT_PROXY_URL` / `_SECRET`    | cloudflare worker proxy for reddit listings                  | production only      |
 
 for google sign-in, create an oauth client in google cloud console and add `${APP_BASE_URL}/api/auth/google/callback` as an authorized redirect.
 
 email delivery prefers [resend](https://resend.com) — set `RESEND_API_KEY` + `EMAIL_FROM`, then add an spf record like `v=spf1 include:amazonses.com ~all` for sender verification. without resend, supply the smtp vars and the system falls back automatically.
+
+the reddit proxy is only needed in production — locally `www.reddit.com` is reachable directly. setup steps live in [`tools/reddit-proxy/README.md`](./tools/reddit-proxy/README.md).
 
 ---
 
 ## database + migrations
 
 ```bash
-pnpm dlx prisma migrate dev --name <migration_name>   # create + apply locally
-pnpm dlx prisma generate                              # regen client after schema changes
-pnpm dlx prisma studio                                # browse/edit data locally
+pnpm exec prisma migrate dev --name <migration_name>   # create + apply locally
+pnpm exec prisma generate                              # regen client after schema changes
+pnpm exec prisma studio                                # browse/edit data locally
 ```
 
 migrations are append-only once shipped — never rewrite a merged migration. on vercel, `prisma migrate deploy` runs automatically as part of the build command.
@@ -166,18 +126,10 @@ avatar / banner uploads fall back to `public/uploads/{avatars,banners}` when no 
 
 ---
 
-## testing + quality
-
-no automated test suite yet — manual pass through registration, login (password + totp), reading list, reviews, profile customization, and follows before shipping. typecheck + lint catch the rest.
-
----
-
-## deployment
-
-### vercel (recommended)
+## deployment (vercel)
 
 1. connect the repo to vercel
-2. set env vars (database, blob, auth, email, mangaupdates)
+2. set env vars (database, blob, auth, email, mangaupdates, reddit proxy)
 3. build command:
 
    ```bash
@@ -189,41 +141,7 @@ no automated test suite yet — manual pass through registration, login (passwor
    pnpm install --frozen-lockfile
    ```
 5. add `${APP_BASE_URL}/api/auth/google/callback` to your google oauth client's authorized redirects
-6. deploy
-
-### custom hosting
-
-docker, fly.io, or any node host works too. run `pnpm dlx prisma migrate deploy` before `pnpm start`, keep `APP_BASE_URL` accurate, and make sure either `BLOB_READ_WRITE_TOKEN` is set or `public/uploads/` is writable.
-
----
-
-## seo
-
-shujia ships with a dynamic `/sitemap.xml`, an explicit `/robots.txt`, and json-ld structured data (`comicseries` + `aggregaterating` + `website` + `searchaction`) on every relevant page. once deployed, submit the sitemap via [google search console](https://search.google.com/search-console) and [bing webmaster tools](https://www.bing.com/webmasters) — that's the single highest-leverage step for indexing.
-
----
-
-## roadmap
-
-the `/roadmap` page in-app stays canonical. high-level themes:
-
-**shipped**
-- accounts + sessions + 2fa, reading list with progress/rating/notes, public profiles with stats, follow system, reviews + reactions, mangaupdates pipeline + caching, explore page filters, sidebar widgets, sitemap + structured data
-
-**building / next**
-- recommendations ("readers of x also liked")
-- algorithmic series ranking + leaderboards
-- recommendation lists (curated user-written collections)
-- per-series discussion threads
-- general-purpose forum
-- richer review UX (per-category ratings, helpful sorting)
-- import improvements (anilist, mal, etc.)
-
-**later**
-- character / creator / scanlation-group pages
-- anime expansion (jikan / anilist / consumet)
-- public api + dev docs
-- mobile / pwa with offline reading-list access
+6. deploy the `tools/reddit-proxy/` worker per its readme, paste the URL + secret into vercel env vars
 
 ---
 
@@ -234,6 +152,9 @@ bug reports, feature ideas, and PRs welcome.
 * **bug or feature**: [open an issue](https://github.com/techmengg/shujia/issues)
 * **security**: see [SECURITY.md](./SECURITY.md) — please don't open public issues for vulnerabilities
 * **code**: small fixes and tightenings can go straight to a PR. for larger changes, open an issue first so we can scope it.
+* **roadmap**: lives at [`/roadmap`](https://shujia.dev/roadmap) on the site — that's the canonical source for what's shipped, in-progress, and planned.
+
+before opening a PR: run `pnpm lint` and `pnpm typecheck` from `web/` and make sure both pass. there's no automated test suite (yet), so manual smoke-test the flows your change touches.
 
 shujia is licensed under **AGPL-3.0**. that means you're free to fork, modify, and self-host, but any modifications you run as a public service must also be made available under the same license. see [LICENSE](./LICENSE) for the full text.
 
