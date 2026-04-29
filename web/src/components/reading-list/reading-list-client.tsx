@@ -6,6 +6,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ReadingListItem, ReadingListResponse } from "@/data/reading-list";
 import { normalizeStatus, statusLabel, type NormalizedStatus } from "@/lib/manga/status";
+import { RelinkDialog } from "@/components/reading-list/relink-dialog";
 
 type ReadingListClientProps = {
   username?: string;
@@ -136,6 +137,7 @@ export function ReadingListClient({
   const [editForm, setEditForm] = useState({ progress: "", rating: "", notes: "" });
   const [actionsOpen, setActionsOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
+  const [relinkEntry, setRelinkEntry] = useState<ReadingListItem | null>(null);
 
   const isOwner = Boolean(viewerIsOwner);
   const normalizedUsername = username?.trim().replace(/^@/, "") || null;
@@ -1423,6 +1425,24 @@ export function ReadingListClient({
               Boolean,
             ) as string[];
             const progressLabel = item.progress?.trim() || null;
+            const isLegacy = item.provider === "mangadex";
+
+            const coverInner = item.cover ? (
+              <Image
+                src={item.cover}
+                alt={item.title}
+                fill
+                sizes="56px"
+                quality={90}
+                unoptimized
+                referrerPolicy="no-referrer"
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/60">
+                {titleInitial}
+              </div>
+            );
 
             return (
               <li
@@ -1434,42 +1454,63 @@ export function ReadingListClient({
                 }`}
               >
                 <div className="flex items-start gap-3 px-1 py-2.5 sm:gap-4 sm:px-2 sm:py-3">
-                  <Link
-                    href={`/manga/${item.mangaId}`}
-                    className="relative h-16 w-11 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85 sm:h-20 sm:w-14"
-                  >
-                    {item.cover ? (
-                      <Image
-                        src={item.cover}
-                        alt={item.title}
-                        fill
-                        sizes="56px"
-                        quality={90}
-                        unoptimized
-                        referrerPolicy="no-referrer"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/60">
-                        {titleInitial}
-                      </div>
-                    )}
-                  </Link>
+                  {isLegacy && isOwner ? (
+                    <button
+                      type="button"
+                      onClick={() => setRelinkEntry(item)}
+                      className="relative h-16 w-11 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85 sm:h-20 sm:w-14"
+                      aria-label={`Relink ${item.title}`}
+                    >
+                      {coverInner}
+                    </button>
+                  ) : isLegacy ? (
+                    <div className="relative h-16 w-11 shrink-0 overflow-hidden bg-white/5 sm:h-20 sm:w-14">
+                      {coverInner}
+                    </div>
+                  ) : (
+                    <Link
+                      href={`/manga/${item.mangaId}`}
+                      className="relative h-16 w-11 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85 sm:h-20 sm:w-14"
+                    >
+                      {coverInner}
+                    </Link>
+                  )}
 
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:gap-1">
                     <div className="flex items-baseline justify-between gap-3">
-                      <Link
-                        href={`/manga/${item.mangaId}`}
-                        className="line-clamp-1 min-w-0 text-sm font-medium text-white transition hover:text-accent sm:text-[0.95rem]"
-                      >
-                        {item.title}
-                      </Link>
+                      {isLegacy ? (
+                        <span className="line-clamp-1 min-w-0 text-sm font-medium text-white sm:text-[0.95rem]">
+                          {item.title}
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/manga/${item.mangaId}`}
+                          className="line-clamp-1 min-w-0 text-sm font-medium text-white transition hover:text-accent sm:text-[0.95rem]"
+                        >
+                          {item.title}
+                        </Link>
+                      )}
                       {ratingDisplay ? (
                         <span className="shrink-0 text-xs font-medium tabular-nums text-accent sm:text-sm">
                           {ratingDisplay}
                         </span>
                       ) : null}
                     </div>
+                    {isLegacy ? (
+                      <div className="flex flex-wrap items-baseline gap-x-2 text-[0.65rem] text-white/45 sm:text-[0.7rem]">
+                        <span className="italic text-surface-subtle">(legacy entry)</span>
+                        {isOwner ? (
+                          <button
+                            type="button"
+                            onClick={() => setRelinkEntry(item)}
+                            className="group inline-flex items-baseline gap-1 font-medium text-accent transition-colors hover:text-white"
+                          >
+                            <span className="underline-offset-4 group-hover:underline">relink</span>
+                            <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {metaTopBits.length > 0 ? (
                       <p className="line-clamp-1 text-[0.65rem] text-white/45 sm:text-[0.7rem]">
@@ -1567,6 +1608,18 @@ export function ReadingListClient({
           e.currentTarget.value = "";
         }}
       />
+      {relinkEntry ? (
+        <RelinkDialog
+          entry={relinkEntry}
+          onClose={() => setRelinkEntry(null)}
+          onSuccess={(newItem) => {
+            setItems((prev) =>
+              prev.map((i) => (i.id === relinkEntry.id ? newItem : i)),
+            );
+            setRelinkEntry(null);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
