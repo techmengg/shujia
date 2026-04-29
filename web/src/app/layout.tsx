@@ -30,26 +30,26 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "shujia.dev",
-    template: "%s | shujia.dev",
+    default: "shujia | Comics Directory",
+    template: "%s | shujia",
   },
   description:
-    "Track manga, manhwa, and manhua releases powered by the MangaDex API.",
+    "Track manga, manhwa, and manhua. Discover series, rate them, build your reading list, and follow other readers.",
   metadataBase: new URL("https://shujia.dev"),
   openGraph: {
-    title: "shujia.dev",
+    title: "shujia | Comics Directory",
     description:
-      "Discover, follow, and organize series in one place.",
+      "Track manga, manhwa, and manhua. Discover series, rate them, and follow other readers.",
     url: "https://shujia.dev",
-    siteName: "shujia.dev",
+    siteName: "shujia",
     locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "shujia.dev",
+    title: "shujia | Comics Directory",
     description:
-      "Discover, follow, and organize series in one place.",
+      "Track manga, manhwa, and manhua. Discover series, rate them, and follow other readers.",
   },
 };
 

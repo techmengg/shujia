@@ -32,7 +32,7 @@ export function LayoutWithSidebar({
       <main className="min-w-0 flex-1">{children}</main>
       <aside
         aria-label="Site navigation sidebar"
-        className="border-t border-white/10 px-4 py-6 sm:px-6 lg:sticky lg:top-0 lg:max-h-screen lg:w-[320px] lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-t-0 lg:px-6 lg:py-6"
+        className="scrollbar-none border-t border-white/10 px-4 py-6 sm:px-6 lg:sticky lg:top-0 lg:max-h-screen lg:w-[320px] lg:shrink-0 lg:overflow-y-auto lg:border-l lg:border-t-0 lg:px-6 lg:py-6"
       >
         {sidebar}
       </aside>
