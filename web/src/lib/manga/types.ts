@@ -19,6 +19,9 @@ export interface MangaSummary {
   // Total MU rating votes — useful for filtering out obscure series with
   // no community signal. Populated by the MU search adapter when present.
   ratingVotes?: number;
+  // MU's bayesian rating (0-10). Used to rank search results by quality
+  // alongside vote count. Populated by the MU adapter when available.
+  bayesianRating?: number;
 }
 
 export interface MangaContributor {

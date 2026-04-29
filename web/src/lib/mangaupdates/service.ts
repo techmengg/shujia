@@ -79,6 +79,11 @@ function buildSummary(record: MangaUpdatesSeriesRecord): MangaSummary {
     typeof record.rating_votes === "number" && Number.isFinite(record.rating_votes)
       ? record.rating_votes
       : undefined;
+  const bayesianRating =
+    typeof record.bayesian_rating === "number" &&
+    Number.isFinite(record.bayesian_rating)
+      ? record.bayesian_rating
+      : undefined;
 
   return {
     id: String(record.series_id),
@@ -100,6 +105,7 @@ function buildSummary(record: MangaUpdatesSeriesRecord): MangaSummary {
     coverImage: record.image?.url?.original ?? undefined,
     url: record.url,
     ratingVotes,
+    bayesianRating,
   };
 }
 
