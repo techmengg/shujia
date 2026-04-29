@@ -48,13 +48,14 @@ export default async function FollowingPage({ params }: PageProps) {
 
   const owner = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, username: true, name: true },
+    select: { id: true, username: true },
   });
   if (!owner) notFound();
 
   const viewer = await getCurrentUser();
+  const ownerHref = `/${encodeURIComponent(owner.username.toLowerCase())}`;
 
-  const [followsRaw, viewerFollows] = await Promise.all([
+  const [followsRaw, viewerFollows, followerCount] = await Promise.all([
     prisma.follow.findMany({
       where: { followerId: owner.id },
       orderBy: { createdAt: "desc" },
@@ -76,6 +77,7 @@ export default async function FollowingPage({ params }: PageProps) {
           select: { followingId: true },
         })
       : Promise.resolve([]),
+    prisma.follow.count({ where: { followingId: owner.id } }),
   ]);
 
   const viewerFollowingIds = new Set(viewerFollows.map((f) => f.followingId));
@@ -91,33 +93,42 @@ export default async function FollowingPage({ params }: PageProps) {
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
-      <header className="mb-4 sm:mb-6">
-        <p className="text-[0.7rem] text-white/40 sm:text-xs">
+      <header className="mb-4 border-b border-white/10 pb-3 sm:mb-5 sm:pb-4">
+        <h1 className="sr-only">Who @{owner.username} follows</h1>
+        <Link
+          href={ownerHref}
+          className="text-xs font-medium text-accent transition-colors hover:text-white sm:text-sm"
+        >
+          @{owner.username}
+        </Link>
+        <nav
+          aria-label="Followers and following"
+          className="mt-2 flex items-baseline gap-4 sm:gap-5"
+        >
           <Link
-            href={`/${encodeURIComponent(owner.username.toLowerCase())}`}
-            className="text-accent transition-colors hover:text-white"
+            href={`${ownerHref}/followers`}
+            className="text-sm font-semibold text-surface-subtle transition-colors hover:text-white sm:text-base"
           >
-            @{owner.username}
+            Followers
+            <span className="ml-1.5 text-[0.7rem] font-normal tabular-nums sm:text-xs">
+              {followerCount}
+            </span>
           </Link>
-          <span className="mx-1.5 text-white/15">·</span>
           <Link
-            href={`/${encodeURIComponent(owner.username.toLowerCase())}/followers`}
-            className="text-surface-subtle transition-colors hover:text-accent"
+            href={`${ownerHref}/following`}
+            aria-current="page"
+            className="text-sm font-semibold text-white underline underline-offset-[6px] decoration-accent decoration-2 sm:text-base"
           >
-            followers
+            Following
+            <span className="ml-1.5 text-[0.7rem] font-normal tabular-nums text-surface-subtle sm:text-xs">
+              {users.length}
+            </span>
           </Link>
-        </p>
-        <h1 className="mt-1 text-xl font-semibold text-white sm:text-2xl">
-          Following
-        </h1>
-        <p className="mt-1 text-[0.7rem] text-white/40 sm:text-xs">
-          <span className="tabular-nums text-white/60">{users.length}</span>{" "}
-          {users.length === 1 ? "person" : "people"} that @{owner.username} follows
-        </p>
+        </nav>
       </header>
 
       {users.length > 0 ? (
-        <ul className="divide-y divide-white/10 border-y border-white/10">
+        <ul className="divide-y divide-white/10">
           {users.map((u) => (
             <UserRow
               key={u.id}

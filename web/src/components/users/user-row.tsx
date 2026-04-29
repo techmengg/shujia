@@ -28,18 +28,18 @@ export function UserRow({ user, viewerId, isAuthenticated }: UserRowProps) {
   const isOwner = viewerId === user.id;
 
   return (
-    <li className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+    <li className="flex items-center gap-3 py-3 sm:gap-4">
       <Link
         href={profileHref}
         aria-label={`${displayName}'s profile`}
-        className="relative h-10 w-10 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85"
+        className="relative h-10 w-10 shrink-0 overflow-hidden bg-white/5 transition-opacity hover:opacity-85 sm:h-12 sm:w-12"
       >
         {user.avatarUrl ? (
           <Image
             src={user.avatarUrl}
             alt=""
             fill
-            sizes="40px"
+            sizes="48px"
             unoptimized
             className="object-cover"
           />
@@ -50,35 +50,33 @@ export function UserRow({ user, viewerId, isAuthenticated }: UserRowProps) {
         )}
       </Link>
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <Link
-            href={profileHref}
-            className="line-clamp-1 min-w-0 text-sm font-medium leading-tight text-white transition-colors hover:text-accent"
-          >
-            {hasName ? trimmedName : `@${user.username}`}
-          </Link>
-          <FollowButton
-            targetUsername={user.username}
-            initiallyFollowing={user.viewerIsFollowing}
-            isAuthenticated={isAuthenticated}
-            isOwner={isOwner}
-            variant="compact"
-          />
-        </div>
+        <Link
+          href={profileHref}
+          className="line-clamp-1 block text-sm font-medium leading-tight text-white transition-colors hover:text-accent"
+        >
+          {hasName ? trimmedName : `@${user.username}`}
+        </Link>
         {hasName ? (
           <Link
             href={profileHref}
-            className="block text-xs leading-tight text-surface-subtle transition-colors hover:text-accent"
+            className="line-clamp-1 mt-0.5 block text-xs leading-tight text-surface-subtle transition-colors hover:text-accent"
           >
             @{user.username}
           </Link>
         ) : null}
         {bio ? (
-          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-surface-subtle">
+          <p className="mt-1 line-clamp-2 text-xs leading-snug text-surface-subtle">
             {bio}
           </p>
         ) : null}
       </div>
+      <FollowButton
+        targetUsername={user.username}
+        initiallyFollowing={user.viewerIsFollowing}
+        isAuthenticated={isAuthenticated}
+        isOwner={isOwner}
+        className="shrink-0"
+      />
     </li>
   );
 }
