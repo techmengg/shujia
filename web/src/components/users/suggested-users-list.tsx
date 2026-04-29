@@ -36,7 +36,6 @@ export function SuggestedUsersList({
         const displayName = trimmedName || `@${user.username}`;
         const initial = displayName.charAt(0).toUpperCase();
         const profileHref = `/${encodeURIComponent(user.username.toLowerCase())}`;
-        const bio = user.bio?.trim();
 
         return (
           <li key={user.id} className="flex items-start gap-2">
@@ -89,11 +88,6 @@ export function SuggestedUsersList({
                 >
                   @{user.username}
                 </Link>
-              ) : null}
-              {bio ? (
-                <p className="mt-0.5 line-clamp-2 text-[0.65rem] leading-snug text-surface-subtle">
-                  {bio}
-                </p>
               ) : null}
             </div>
           </li>
