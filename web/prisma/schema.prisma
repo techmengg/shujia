@@ -131,6 +131,21 @@ model ReviewReaction {
   @@index([userId])
 }
 
+// View counter for /manga/<id> pages. Powers a future "Hot on shujia"
+// internal trending rail once the dataset is large enough to be useful
+// (rule of thumb: ~1k+ active users). Until then, no UI reads from this
+// — it's just data collection. Anonymous views get userId=null.
+model MangaPageView {
+  id        String   @id @default(cuid())
+  provider  String
+  mangaId   String
+  userId    String?
+  viewedAt  DateTime @default(now())
+
+  @@index([mangaId, provider, viewedAt])
+  @@index([viewedAt])
+}
+
 model Follow {
   id          String   @id @default(cuid())
   followerId  String

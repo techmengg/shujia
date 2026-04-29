@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { Fragment } from "react";
 
 import { AddToReadingListButton } from "@/components/manga/add-to-reading-list-button";
@@ -15,6 +16,7 @@ import {
   getMangaSummaryById,
   inferProviderFromId,
 } from "@/lib/manga";
+import { recordMangaPageView } from "@/lib/manga/page-view";
 
 interface MangaPageProps {
   params: Promise<{
@@ -267,6 +269,11 @@ export default async function MangaPage({ params }: MangaPageProps) {
   if (!manga) {
     notFound();
   }
+
+  // Fire-and-forget view tracking. Bot UAs are filtered inside
+  // recordMangaPageView so SERPs don't inflate trending counts. The page
+  // render never waits on this — Next's `after()` runs it post-response.
+  after(() => recordMangaPageView({ provider, mangaId, userId: user?.id ?? null }));
 
   const authors = manga.contributors.filter((c) => c.role === "author");
   const artists = manga.contributors.filter((c) => c.role === "artist");
