@@ -1,0 +1,6 @@
+name = "shujia-reddit-proxy"
+main = "worker.js"
+compatibility_date = "2026-04-29"
+
+# Workers free plan: 100k requests/day, 10ms CPU/request. Our usage is
+# ~3 endpoints × cached 1h = 72 requests/day. Free tier covers it ~1000x.

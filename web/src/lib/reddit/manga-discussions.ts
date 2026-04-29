@@ -11,6 +11,8 @@
  */
 import { unstable_cache } from "next/cache";
 
+import { fetchRedditJson } from "./client";
+
 export interface DiscussionItem {
   title: string;
   score: number;
@@ -89,30 +91,13 @@ const SUBREDDIT_WEIGHT: Record<"manga" | "manhwa", number> = {
 async function fetchSubredditDiscussions(
   subreddit: "manga" | "manhwa",
 ): Promise<DiscussionItem[]> {
-  const endpoint = `https://www.reddit.com/r/${subreddit}/top.json?t=week&limit=100`;
   const weight = SUBREDDIT_WEIGHT[subreddit];
-  let response: Response;
-  try {
-    response = await fetch(endpoint, {
-      headers: {
-        // Reddit asks for a descriptive UA; generic ones get 429'd.
-        "User-Agent": "shujia/1.0 (+https://github.com/techmengg/shujia) trending-fetcher",
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(5000),
-    });
-  } catch {
-    return [];
-  }
-  if (!response.ok) return [];
-
-  let payload: RedditListing;
-  try {
-    payload = (await response.json()) as RedditListing;
-  } catch {
-    return [];
-  }
-
+  // Routed through the OAuth fetcher so Vercel's cloud-IP egress doesn't
+  // get gated to a 403 from www.reddit.com. Falls back to the public host
+  // automatically when REDDIT_CLIENT_* env vars aren't set (local dev).
+  const payload = await fetchRedditJson<RedditListing>(
+    `/r/${subreddit}/top.json?t=week&limit=100`,
+  );
   const posts = payload?.data?.children ?? [];
   if (!posts.length) return [];
 
@@ -173,8 +158,9 @@ async function fetchTopDiscussions(): Promise<DiscussionItem[]> {
 
 export const getRedditMangaDiscussions = unstable_cache(
   fetchTopDiscussions,
-  // v4 — widened candidate pool from 30 → 80 so the home rail can land
-  // its full target of 20 items after vote-gate + resolution attrition.
-  ["reddit-trending-disc-week-v4"],
+  // v5 — bumped after routing through Reddit OAuth (Vercel cloud-IP
+  // egress was getting 403'd from www.reddit.com, silently emptying the
+  // trending rail and forcing the MU week_pos fallback).
+  ["reddit-trending-disc-week-v5"],
   { revalidate: 3600, tags: ["reddit-trending"] },
 );

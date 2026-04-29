@@ -10,6 +10,8 @@
  */
 import { unstable_cache } from "next/cache";
 
+import { fetchRedditJson } from "./client";
+
 export interface ManhwaNewsItem {
   title: string;
   url: string; // External link target (or Reddit permalink for self posts)
@@ -51,9 +53,14 @@ interface RedditListing {
   data?: { children?: RedditPost[] };
 }
 
-const ENDPOINT = "https://www.reddit.com/r/manhwa/top.json?t=week&limit=100";
-const FETCH_UA =
-  "shujia/1.0 (+https://github.com/techmengg/shujia) news-fetcher";
+// r/manhwa is small (~200K subs) so weekly [NEWS] flair posts are sparse —
+// often only 1-2 per week. Pulling top-of-week AND top-of-month and
+// deduping gives the rail enough material to stay r/manhwa-primary instead
+// of falling through to ANN topup.
+const ENDPOINTS = [
+  "/r/manhwa/top.json?t=week&limit=100",
+  "/r/manhwa/top.json?t=month&limit=100",
+];
 const NEWS_PREFIX = /^\s*\[(news|announcement|ann)\]\s*/i;
 
 function decodeHtmlEntities(text: string): string {
@@ -100,28 +107,20 @@ function pickThumbnail(post: RedditPostData): string | null {
 }
 
 async function fetchManhwaNews(): Promise<ManhwaNewsItem[]> {
-  let response: Response;
-  try {
-    response = await fetch(ENDPOINT, {
-      headers: { "User-Agent": FETCH_UA, Accept: "application/json" },
-      signal: AbortSignal.timeout(5000),
-    });
-  } catch {
-    return [];
+  // Pull both windows in parallel via the OAuth fetcher, dedupe by URL,
+  // then sort newest-first downstream by `publishedAt`.
+  const listings = await Promise.all(
+    ENDPOINTS.map((path) => fetchRedditJson<RedditListing>(path)),
+  );
+  const posts: RedditPost[] = [];
+  for (const listing of listings) {
+    if (!listing?.data?.children) continue;
+    posts.push(...listing.data.children);
   }
-  if (!response.ok) return [];
-
-  let payload: RedditListing;
-  try {
-    payload = (await response.json()) as RedditListing;
-  } catch {
-    return [];
-  }
-
-  const posts = payload?.data?.children ?? [];
   if (!posts.length) return [];
 
   const items: ManhwaNewsItem[] = [];
+  const seenUrls = new Set<string>();
   for (const post of posts) {
     const data = post?.data;
     if (!data?.title) continue;
@@ -141,6 +140,8 @@ async function fetchManhwaNews(): Promise<ManhwaNewsItem[]> {
       ? `https://www.reddit.com${data.permalink ?? ""}`
       : data.url ?? null;
     if (!url) continue;
+    if (seenUrls.has(url)) continue;
+    seenUrls.add(url);
 
     const selftext = data.selftext?.trim() ?? "";
     const description = selftext
@@ -165,13 +166,17 @@ async function fetchManhwaNews(): Promise<ManhwaNewsItem[]> {
       score: Math.max(0, data.score ?? 0),
     });
   }
+  // Newest first — the rail reads as a recency feed when both week +
+  // month windows contribute.
+  items.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
   return items;
 }
 
 export const getManhwaNews = unstable_cache(
   fetchManhwaNews,
-  // v2 — bumped after extending the captured fields (selftext +
-  // score) and the thumbnail picker (gallery + crosspost fallbacks).
-  ["reddit-r-manhwa-news-week-v2"],
+  // v3 — bumped after switching to OAuth (Vercel cloud-IP egress was
+  // getting 403'd from www.reddit.com) and widening the candidate pool to
+  // top-of-week + top-of-month so the rail stays r/manhwa-primary.
+  ["reddit-r-manhwa-news-v3"],
   { revalidate: 3600, tags: ["reddit-manhwa-news"] },
 );

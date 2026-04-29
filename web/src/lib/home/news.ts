@@ -1,7 +1,9 @@
 /**
- * Home-page news source. Combines r/manhwa [NEWS] posts (community-curated
- * manhwa announcements — usually adaptation news, license updates, season
- * confirmations) with ANN headlines as a fallback when Reddit is empty.
+ * Home-page news source. r/manhwa is the primary feed — its [NEWS]-flaired
+ * weekly + monthly top posts are real announcements (anime adaptations,
+ * license updates, season confirmations) curated by the community. ANN is
+ * a hard fallback only used when Reddit returns nothing at all (network
+ * outage, OAuth misconfig, etc.).
  *
  * Returns the unified shape the home `<NewsSection />` expects.
  */
@@ -22,19 +24,13 @@ export async function getHomeNews(): Promise<NewsHeadline[]> {
     score: r.score,
   }));
 
-  if (fromReddit.length >= TARGET_COUNT) {
+  // Reddit-primary: as long as Reddit returns anything at all, fill the
+  // entire rail from r/manhwa. We only reach for ANN when Reddit is
+  // completely empty (typically a network/auth outage on Vercel).
+  if (fromReddit.length > 0) {
     return fromReddit.slice(0, TARGET_COUNT);
   }
 
-  // Top up with ANN — even if Reddit gives 0 or 1 manhwa news items this
-  // week, the rail still has 3 entries.
   const ann = await getComicsNews().catch(() => []);
-  const seen = new Set(fromReddit.map((r) => r.url));
-  const merged: NewsHeadline[] = [...fromReddit];
-  for (const item of ann) {
-    if (seen.has(item.url)) continue;
-    merged.push(item);
-    if (merged.length >= TARGET_COUNT) break;
-  }
-  return merged.slice(0, TARGET_COUNT);
+  return ann.slice(0, TARGET_COUNT);
 }
