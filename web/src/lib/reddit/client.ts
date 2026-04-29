@@ -43,7 +43,10 @@ export async function fetchRedditJson<T>(path: string): Promise<T | null> {
   try {
     response = await fetch(target, {
       headers,
-      signal: AbortSignal.timeout(7000),
+      // Tight timeout so a stalled upstream doesn't pace the home-page
+      // cold render. SWR keeps the cache warm in the background; if a
+      // single refresh fails we just keep serving the previous value.
+      signal: AbortSignal.timeout(3000),
     });
   } catch {
     return null;

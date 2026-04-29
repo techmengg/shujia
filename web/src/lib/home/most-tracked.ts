@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { getMangaSummaryById, type Provider } from "@/lib/manga";
 import { getTitleOverrides } from "@/lib/manga/title-override";
 import { prisma } from "@/lib/prisma";
+import { withStaleWhileRevalidate } from "@/lib/utils/swr-cache";
 
 export interface MostTrackedItem {
   provider: string;
@@ -100,11 +101,18 @@ async function fetchMostTracked(): Promise<MostTrackedItem[]> {
   return items;
 }
 
-export const getMostTracked = unstable_cache(
+const cachedMostTracked = unstable_cache(
   fetchMostTracked,
   // v3 — bumped to bust the stale cache holding broken /manga/<MD-UUID>
   // links. v2 added the provider="mangaupdates" filter; v3 also applies
   // MangaTitleOverride so e.g. "Omniscient Reader's Viewpoint" shows here.
   ["home-most-tracked-v3"],
-  { revalidate: 600, tags: ["home-most-tracked"] },
+  { revalidate: 86400 * 7, tags: ["home-most-tracked"] },
 );
+
+export const getMostTracked = withStaleWhileRevalidate({
+  cached: cachedMostTracked,
+  tag: "home-most-tracked",
+  // Reader counts shift more often than Reddit/MB rails, refresh more eagerly.
+  refreshIntervalMs: 5 * 60 * 1000,
+});

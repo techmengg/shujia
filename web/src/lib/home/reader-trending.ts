@@ -4,6 +4,7 @@ import { resolveTitleToMu } from "@/lib/manga/title-resolver";
 import { getRedditMangaDiscussions } from "@/lib/reddit/manga-discussions";
 import type { MangaSummary } from "@/lib/manga/types";
 import { getTrending } from "@/lib/mangaupdates/service-cached";
+import { withStaleWhileRevalidate } from "@/lib/utils/swr-cache";
 
 /**
  * Home-page Trending source. Pulls the top weekly chapter-discussion
@@ -79,11 +80,17 @@ async function fetchDiscussionTrending(): Promise<MangaSummary[]> {
   return out;
 }
 
-export const getReaderTrending = unstable_cache(
+const cachedReaderTrending = unstable_cache(
   fetchDiscussionTrending,
   // v6 — bumped after widening the upstream candidate pool (Reddit 80
   // posts × MU resolution 4×limit) so the home rail consistently lands
   // its 20-item target after filter attrition.
   ["home-discussion-trending-v6"],
-  { revalidate: 3600, tags: ["home-discussion-trending"] },
+  { revalidate: 86400 * 7, tags: ["home-discussion-trending"] },
 );
+
+export const getReaderTrending = withStaleWhileRevalidate({
+  cached: cachedReaderTrending,
+  tag: "home-discussion-trending",
+  refreshIntervalMs: 30 * 60 * 1000,
+});

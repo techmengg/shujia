@@ -10,6 +10,7 @@
  */
 import { unstable_cache } from "next/cache";
 
+import { withStaleWhileRevalidate } from "@/lib/utils/swr-cache";
 import { fetchRedditJson } from "./client";
 
 export interface ManhwaNewsItem {
@@ -172,11 +173,17 @@ async function fetchManhwaNews(): Promise<ManhwaNewsItem[]> {
   return items;
 }
 
-export const getManhwaNews = unstable_cache(
+const cachedManhwaNews = unstable_cache(
   fetchManhwaNews,
   // v4 — bumped to bust the stale cache entry that captured the empty
   // result from before the proxy was wired up. v3 added OAuth (later
   // replaced by the CF-Worker proxy) + week/month windows.
   ["reddit-r-manhwa-news-v4"],
-  { revalidate: 3600, tags: ["reddit-manhwa-news"] },
+  { revalidate: 86400 * 7, tags: ["reddit-manhwa-news"] },
 );
+
+export const getManhwaNews = withStaleWhileRevalidate({
+  cached: cachedManhwaNews,
+  tag: "reddit-manhwa-news",
+  refreshIntervalMs: 30 * 60 * 1000,
+});

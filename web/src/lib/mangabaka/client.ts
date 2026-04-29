@@ -9,6 +9,8 @@
  */
 import { unstable_cache } from "next/cache";
 
+import { withStaleWhileRevalidate } from "@/lib/utils/swr-cache";
+
 const API_BASE = "https://api.mangabaka.dev";
 
 export interface MangaBakaSeries {
@@ -254,7 +256,9 @@ async function fetchNewReleases({
         "User-Agent":
           "shujia/1.0 (+https://github.com/techmengg/shujia) new-releases-fetcher",
       },
-      signal: AbortSignal.timeout(5000),
+      // Tight timeout — SWR keeps the cache warm in the background, so
+      // a stalled MB call shouldn't block the home-page render.
+      signal: AbortSignal.timeout(3000),
     });
   } catch {
     return [];
@@ -314,7 +318,7 @@ async function fetchNewReleases({
     .filter((s): s is MangaBakaSeries => s !== null);
 }
 
-export const getMangaBakaNewReleases = unstable_cache(
+const cachedMangaBakaNewReleases = unstable_cache(
   // Pull a wider candidate pool — the English-title filter + downstream MU
   // resolution both drop a meaningful fraction of MB's response. 60 in
   // gives us a healthy margin to land 12 cards.
@@ -324,5 +328,13 @@ export const getMangaBakaNewReleases = unstable_cache(
   // have no English title at all so the rail no longer surfaces "Yamenaide,
   // Chayama-kun" / "Saseba naru" / "Gyakusatsu Kigen" placeholders.
   ["mangabaka-new-releases-12m-v6"],
-  { revalidate: 21600, tags: ["mangabaka-new-releases"] },
+  // Long persistence — the SWR wrapper handles freshness via background
+  // regeneration; the underlying cache just needs to survive idle gaps.
+  { revalidate: 86400 * 7, tags: ["mangabaka-new-releases"] },
 );
+
+export const getMangaBakaNewReleases = withStaleWhileRevalidate({
+  cached: cachedMangaBakaNewReleases,
+  tag: "mangabaka-new-releases",
+  refreshIntervalMs: 30 * 60 * 1000,
+});
