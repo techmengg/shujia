@@ -36,6 +36,34 @@ export const metadata: Metadata = {
   description:
     "Track manga, manhwa, and manhua. Discover series, rate them, build your reading list, and follow other readers.",
   metadataBase: new URL("https://shujia.dev"),
+  alternates: { canonical: "/" },
+  applicationName: "shujia",
+  keywords: [
+    "manga",
+    "manhwa",
+    "manhua",
+    "comics directory",
+    "manga tracker",
+    "manhwa tracker",
+    "reading list",
+    "manga reviews",
+    "manga ratings",
+    "shujia",
+  ],
+  authors: [{ name: "techmeng" }],
+  creator: "techmeng",
+  publisher: "shujia",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
     title: "shujia | Comics Directory",
     description:

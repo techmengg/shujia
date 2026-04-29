@@ -175,6 +175,40 @@ function StatRow({
   );
 }
 
+function buildSearchSnippet(summary: {
+  title: string;
+  description?: string | null;
+  demographic?: string | null;
+  originalLanguage?: string | null;
+  year?: number | null;
+  tags?: string[];
+}): string {
+  // Description that's actually crafted for search snippets — leads with
+  // identifiers (title, type, demographic, year) so Google has clean facts to
+  // cite, then trails with the official synopsis if there's space. Capped at
+  // ~160 chars which is the practical SERP truncation point.
+  const typeFromLanguage =
+    summary.originalLanguage === "ja"
+      ? "manga"
+      : summary.originalLanguage === "ko"
+        ? "manhwa"
+        : summary.originalLanguage === "zh"
+          ? "manhua"
+          : "comic";
+
+  const descriptors: string[] = [];
+  if (summary.demographic) descriptors.push(summary.demographic.toLowerCase());
+  descriptors.push(typeFromLanguage);
+  if (summary.year) descriptors.push(String(summary.year));
+
+  const lead = `Read about ${summary.title} — a ${descriptors.join(" ")} on shujia. Track your progress, rate it, and read community reviews.`;
+
+  if (lead.length <= 158) return lead;
+
+  // If lead alone is too long (very long title), trim it cleanly.
+  return lead.slice(0, 157).trimEnd() + "…";
+}
+
 export async function generateMetadata({ params }: MangaPageProps): Promise<Metadata> {
   const { id } = await params;
   const mangaId = decodeURIComponent(id);
@@ -182,17 +216,41 @@ export async function generateMetadata({ params }: MangaPageProps): Promise<Meta
   const summary = await getMangaSummaryById(mangaId, provider);
 
   if (!summary) {
-    return { title: "Manga Not Found" };
+    return {
+      title: "Manga not found",
+      robots: { index: false },
+    };
   }
+
+  const description = buildSearchSnippet(summary);
+  const canonicalPath = `/manga/${encodeURIComponent(mangaId)}`;
 
   return {
     title: summary.title,
-    description: summary.description,
+    description,
+    alternates: { canonical: canonicalPath },
     openGraph: {
+      type: "book",
       title: summary.title,
-      description: summary.description,
+      description,
+      url: canonicalPath,
       images: summary.coverImage ? [{ url: summary.coverImage }] : undefined,
     },
+    twitter: {
+      card: summary.coverImage ? "summary_large_image" : "summary",
+      title: summary.title,
+      description,
+      images: summary.coverImage ? [summary.coverImage] : undefined,
+    },
+    keywords: [
+      summary.title,
+      ...(summary.altTitles ?? []),
+      ...(summary.tags ?? []).slice(0, 8),
+      "manga",
+      "manhwa",
+      "manhua",
+      "comics",
+    ].filter(Boolean) as string[],
   };
 }
 
@@ -346,8 +404,67 @@ export default async function MangaPage({ params }: MangaPageProps) {
   const synopsisText = stripLinksFromDescription(manga.descriptionFull);
   const synopsisHtml = markdownSynopsisToHtml(synopsisText);
 
+  // JSON-LD structured data for rich SERP results. Using ComicSeries
+  // (a sub-type of CreativeWorkSeries) when the data fits a serial format,
+  // falling back to Book otherwise. aggregateRating uses the shujia community
+  // rating since it's our distinctive contribution; if not enough votes yet,
+  // we omit it (Google won't display ratings for thin samples anyway).
+  const ldImage = manga.coverImage
+    ? manga.coverImage.replace("size=256", "size=512")
+    : undefined;
+  const ldGenres = (manga.tagsDetailed.length ? manga.tagsDetailed : manga.tags).slice(0, 8);
+  const ldAuthors = authors
+    .map((a) => a.name?.trim())
+    .filter((n): n is string => Boolean(n && n.length))
+    .slice(0, 5);
+  const ldArtists = artists
+    .map((a) => a.name?.trim())
+    .filter((n): n is string => Boolean(n && n.length))
+    .slice(0, 5);
+
+  const structuredData: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "ComicSeries",
+    "@id": shareUrl,
+    url: shareUrl,
+    name: manga.title,
+    alternateName: altTitles.length ? altTitles.slice(0, 5) : undefined,
+    description: synopsisText ? synopsisText.slice(0, 500) : manga.description,
+    image: ldImage,
+    inLanguage: manga.originalLanguage ?? undefined,
+    datePublished: manga.year ? String(manga.year) : undefined,
+    genre: ldGenres.length ? ldGenres : undefined,
+    author: ldAuthors.length
+      ? ldAuthors.map((name) => ({ "@type": "Person", name }))
+      : undefined,
+    illustrator: ldArtists.length
+      ? ldArtists.map((name) => ({ "@type": "Person", name }))
+      : undefined,
+  };
+
+  if (shujiaCount >= 3 && shujiaAverageOnFive !== null) {
+    // Google requires at least a small sample to show rich rating UI.
+    structuredData.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: shujiaAverageOnFive.toFixed(2),
+      bestRating: 5,
+      worstRating: 0.5,
+      ratingCount: shujiaCount,
+    };
+  }
+
+  // Strip undefined keys for a clean JSON-LD payload (Google tolerates extras
+  // but it reads cleaner in source-view + smaller payload).
+  const cleanedStructuredData = Object.fromEntries(
+    Object.entries(structuredData).filter(([, v]) => v !== undefined),
+  );
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 pb-12 pt-5 sm:px-6 sm:pb-16 sm:pt-8 lg:px-10">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(cleanedStructuredData) }}
+      />
       <div className="grid gap-5 md:grid-cols-[200px_1fr] md:gap-8 lg:grid-cols-[240px_1fr] lg:gap-12">
         {/* Sidebar */}
         <aside className="space-y-5">

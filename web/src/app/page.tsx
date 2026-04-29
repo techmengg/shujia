@@ -233,9 +233,34 @@ export default async function Home() {
     },
   ].filter((tab) => tab.items.length > 0);
 
+  const homeStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://shujia.dev/#website",
+    url: "https://shujia.dev/",
+    name: "shujia",
+    alternateName: "shujia.dev",
+    description:
+      "Track manga, manhwa, and manhua. Discover series, rate them, build your reading list, and follow other readers.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: "https://shujia.dev/explore?q={search_term_string}",
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <main className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 sm:pb-16 sm:pt-6 lg:px-10">
-      <h1 className="sr-only">Shujia</h1>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeStructuredData) }}
+      />
+      <h1 className="sr-only">
+        shujia — manga, manhwa, and manhua tracker
+      </h1>
 
       <FollowedSection followedItems={followedItems} />
 
