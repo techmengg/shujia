@@ -139,26 +139,47 @@ just deployed). Both scripts are read-mostly; the warmup is the only one
 that mutates rows, and it only does the same conservative MD→MU swap the
 lazy migrator would do.
 
-- [ ] **Warm up the MD→MU migration:**
+- [x] **Warm up the MD→MU migration (three passes):**
+      The straggler tail is real, so we shipped three progressively looser
+      matchers in `src/lib/manga/migrate.ts`. Run them in order against
+      prod after deploy; each one only operates on whatever's still on
+      `provider="mangadex"`.
       ```
-      pnpm dlx tsx scripts/warmup-md-migration.ts
+      pnpm dlx tsx scripts/warmup-md-migration.ts             # strict
+      pnpm dlx tsx scripts/warmup-md-migration-loose.ts       # multi-candidate + lev<=3
+      pnpm dlx tsx scripts/warmup-md-migration-alt-titles.ts  # search by alt-title
       ```
-      Sequential, 350ms between calls. Logs progress every 25 entries and
-      prints final migrated/skipped counts.
-- [ ] **Check stats:**
-      ```
-      pnpm dlx tsx scripts/migration-stats.ts
-      ```
-      Provider breakdown + top 10 users still holding MD entries. If
-      MangaDex is >20% of total entries, the matcher in
-      `src/lib/manga/migrate.ts` is too strict — loosen it (e.g., allow
-      multi-candidate match by picking the MU result with the highest
-      rating) and re-run the warmup.
-- [ ] **Smoke test** as a real user:
-  - Reading list renders with both MD and MU entries.
-  - Adding a manga via search writes `provider="mangaupdates"`.
-  - A review on an MU page persists and shows reactions.
-  - Profile banner / accent color / favorites round-trip via Settings.
+      Sequential, 350ms between MU API calls.
+
+      **2026-04-28 execution (3389 starting MD entries):**
+      | Pass | Promoted | Cumulative coverage |
+      |---|---|---|
+      | strict (exact normalized match + year agreement) | 2293 | 67.7% |
+      | loose (multi-candidate + Levenshtein ≤ 3) | 530 | 83.3% |
+      | alt-titles (per-alt-title search, dedup'd) | 57 | 85.0% |
+      | **residual** (no safe match) | **509** | — |
+
+      Going below ~15% residual without false positives is not feasible —
+      the remainder are genuinely missing from MU's catalog (defunct
+      doujin, hentai-filtered, romanization extremes with no alt-title
+      overlap, multi-volume editions split per volume). Don't try
+      Levenshtein ≥ 5 or suffix-stripping — false-positive rate spikes.
+- [x] **Check stats:** `pnpm dlx tsx scripts/migration-stats.ts` for the
+      per-user breakdown. Already confirmed the post-deploy split.
+- [x] **Smoke test** as a real user:
+  - Reading list renders with both MD and MU entries. ✓
+  - Adding a manga via search writes `provider="mangaupdates"`. ✓
+  - A review on an MU page persists and shows reactions. ✓
+  - Profile banner / accent color / favorites round-trip via Settings. ✓
+- [x] **Relink UX for the residual tail.** Owner sees an italic
+      `(legacy entry) relink →` on each MD row in their list. The dialog
+      (`web/src/components/reading-list/relink-dialog.tsx`) is seeded
+      with the entry's title, hits `/api/manga/search`, and on pick calls
+      `POST /api/reading-list/relink` which does the upsert+delete in
+      one transaction (preserves progress / rating / notes / createdAt).
+      Cover and title for legacy rows no longer link to `/manga/<id>`
+      since those 404 — they open the relink dialog for owners and stay
+      non-interactive for visitors.
 
 ## Rollback
 
