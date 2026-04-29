@@ -7,13 +7,16 @@ user data, allow account takeover, bypass authentication / 2FA / rate
 limiting, or otherwise compromise the running site — **please do not
 open a public issue.**
 
-Instead, email **aingtechmeng@gmail.com** with:
+Instead, email **techmeng2606@gmail.com** with:
 
 - A short description of the issue
 - Steps to reproduce (a proof-of-concept is appreciated but not required)
 - Any logs, screenshots, or HTTP traces that help confirm the bug
 - Whether the issue is currently exploitable in production at
   [shujia.dev](https://shujia.dev)
+
+GitHub's "Private vulnerability reporting" on this repo is a fine
+fallback if you'd prefer a structured form intake.
 
 You'll get an acknowledgement within **72 hours** during normal weeks.
 A public disclosure timeline will be agreed with you before any details
