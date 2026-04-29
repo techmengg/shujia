@@ -28,8 +28,9 @@ import { PrismaClient } from "@prisma/client";
 import * as mangaupdates from "../src/lib/mangaupdates/service";
 import type { MangaSummary } from "../src/lib/manga/types";
 
-const SUSPECT_VOTES_MAX = 10;
+const SUSPECT_VOTES_MAX = 50;
 const RESCUE_VOTES_MIN = 50;
+const RESCUE_RATIO_MIN = 5; // target must have >= 5x current votes
 const DELAY_MS = 350;
 
 const prisma = new PrismaClient();
@@ -42,6 +43,22 @@ function normalizeTitle(value: string): string {
     .trim();
 }
 
+/**
+ * MU disambiguates same-titled series by appending " (AUTHOR Name)" or a
+ * similar parenthetical. e.g. "Look Back (FUJIMOTO Tatsuki)" vs the
+ * doujinshi "Look Back". Strip the trailing parenthetical before
+ * normalized-title comparison so the canonical surfaces as a match.
+ */
+function stripTrailingParenthetical(value: string): string {
+  return value.replace(/\s*\([^)]*\)\s*$/u, "").trim();
+}
+
+function titleVariants(s: string): string[] {
+  const a = normalizeTitle(s);
+  const b = normalizeTitle(stripTrailingParenthetical(s));
+  return a === b ? [a] : [a, b];
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -50,19 +67,31 @@ function findExactMatch(
   entry: { title: string; altTitles: string[] },
   candidates: MangaSummary[],
   excludeId: string,
+  currentVotes: number,
 ): MangaSummary | null {
-  const norms = new Set(
-    [entry.title, ...entry.altTitles].map(normalizeTitle).filter(Boolean),
-  );
+  const norms = new Set<string>();
+  for (const s of [entry.title, ...entry.altTitles]) {
+    for (const v of titleVariants(s)) {
+      if (v) norms.add(v);
+    }
+  }
   const exact = candidates.filter((c) => {
     if (c.id === excludeId) return false;
-    if (norms.has(normalizeTitle(c.title))) return true;
-    return c.altTitles.some((a) => norms.has(normalizeTitle(a)));
+    for (const v of titleVariants(c.title)) {
+      if (norms.has(v)) return true;
+    }
+    return c.altTitles.some((a) =>
+      titleVariants(a).some((v) => norms.has(v)),
+    );
   });
   if (!exact.length) return null;
   exact.sort((a, b) => (b.ratingVotes ?? 0) - (a.ratingVotes ?? 0));
   const top = exact[0];
-  if ((top.ratingVotes ?? 0) < RESCUE_VOTES_MIN) return null;
+  const topVotes = top.ratingVotes ?? 0;
+  if (topVotes < RESCUE_VOTES_MIN) return null;
+  // Require a clear popularity gap — prevents pulling a niche entry to a
+  // barely-more-popular but unrelated series.
+  if (topVotes < currentVotes * RESCUE_RATIO_MIN) return null;
   return top;
 }
 
@@ -126,7 +155,7 @@ async function main() {
       continue;
     }
 
-    const target = findExactMatch(sample, results, group.mangaId);
+    const target = findExactMatch(sample, results, group.mangaId, currentVotes);
     if (!target) continue;
 
     plans.push({
