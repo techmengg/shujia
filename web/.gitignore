@@ -38,6 +38,8 @@ yarn-error.log*
 .env.development
 .env.preview
 .env*
+# but DO commit the template — it's how new contributors know what to fill in
+!.env.example
 
 # vercel
 .vercel

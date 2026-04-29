@@ -3,3 +3,7 @@
 .env.*
 /backups/
 .claude/
+
+# Operational runbooks, deploy notes, and other internal-only docs.
+# Drop anything not meant for the public OSS audience in here.
+/docs/internal/
