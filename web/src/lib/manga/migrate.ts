@@ -189,10 +189,15 @@ export async function tryMigrateEntryLoose(
       if (compatible.length) candidates = compatible;
     }
 
-    // Pick the closest by best title distance (handles multi-candidate case).
-    candidates.sort(
-      (a, b) => bestTitleDistance(entry, a) - bestTitleDistance(entry, b),
-    );
+    // Sort by closest title distance, then break ties by ratingVotes desc.
+    // The rating-votes tiebreaker prefers the canonical/popular series when
+    // multiple MU rows share the same normalized title — avoids landing on
+    // obscure unrated namespaces.
+    candidates.sort((a, b) => {
+      const dDelta = bestTitleDistance(entry, a) - bestTitleDistance(entry, b);
+      if (dDelta !== 0) return dDelta;
+      return (b.ratingVotes ?? 0) - (a.ratingVotes ?? 0);
+    });
     const match = candidates[0];
 
     await prisma.$transaction(async (tx) => {
@@ -296,9 +301,11 @@ export async function tryMigrateEntryByAltTitles(
       if (compatible.length) candidates = compatible;
     }
 
-    candidates.sort(
-      (a, b) => bestTitleDistance(entry, a) - bestTitleDistance(entry, b),
-    );
+    candidates.sort((a, b) => {
+      const dDelta = bestTitleDistance(entry, a) - bestTitleDistance(entry, b);
+      if (dDelta !== 0) return dDelta;
+      return (b.ratingVotes ?? 0) - (a.ratingVotes ?? 0);
+    });
     const match = candidates[0];
 
     await prisma.$transaction(async (tx) => {
