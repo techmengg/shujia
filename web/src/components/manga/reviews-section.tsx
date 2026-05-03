@@ -206,6 +206,11 @@ export function ReviewsSection({
     try {
       const res = await fetch(
         `/api/reviews?provider=${encodeURIComponent(provider)}&mangaId=${encodeURIComponent(mangaId)}&limit=20`,
+        // Bypass browser HTTP cache so post-write refetches reflect the
+        // new state immediately. The route handler also returns
+        // Cache-Control: no-store, but `cache: "no-store"` here is
+        // belt-and-suspenders against heuristic browser caching.
+        { cache: "no-store" },
       );
       if (!res.ok) throw new Error("Failed to load reviews.");
       const payload = (await res.json()) as ReviewsResponse;
