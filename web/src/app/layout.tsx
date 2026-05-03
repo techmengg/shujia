@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
+import { MaintenanceBar } from "@/components/layout/maintenance-bar";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { LayoutWithSidebar } from "@/components/layout/layout-with-sidebar";
@@ -98,6 +99,7 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider serverAuth={Boolean(user)}>
+          <MaintenanceBar />
           <AnnouncementBar />
           <SiteHeader />
 
