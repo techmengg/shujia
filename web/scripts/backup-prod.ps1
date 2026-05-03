@@ -32,7 +32,7 @@ if (-not $env:BACKUP_DATABASE_URL) {
 }
 
 if ($env:BACKUP_DATABASE_URL -like "prisma://*") {
-    Write-Error "BACKUP_DATABASE_URL looks like a Prisma Accelerate URL (prisma://). pg_dump needs the raw postgres:// direct connection URL — find it in the Prisma console under the connection / setup section."
+    Write-Error "BACKUP_DATABASE_URL looks like a Prisma Accelerate URL (prisma://). pg_dump needs the raw postgres:// direct connection URL - find it in the Prisma console under the connection / setup section."
     exit 1
 }
 
