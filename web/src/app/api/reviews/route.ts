@@ -1,9 +1,16 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { Review } from "@prisma/client";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+
+// GET serves the reviews feed for a single series and must reflect writes
+// from POST/DELETE immediately - no static optimization, no CDN cache.
+export const dynamic = "force-dynamic";
+
+const NO_STORE_HEADERS = { "Cache-Control": "no-store" } as const;
 
 const upsertSchema = z
   .object({
@@ -153,17 +160,20 @@ export async function GET(request: Request) {
       prisma.review.count({ where: { provider, mangaId } }),
     ]);
 
-    return NextResponse.json({
-      data: reviews.map((r) => serialize(r)),
-      total,
-      limit: take,
-      offset: skip,
-    });
+    return NextResponse.json(
+      {
+        data: reviews.map((r) => serialize(r)),
+        total,
+        limit: take,
+        offset: skip,
+      },
+      { headers: NO_STORE_HEADERS },
+    );
   } catch (error) {
     console.error("Failed to load reviews", error);
     return NextResponse.json(
       { message: "Unable to load reviews right now." },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }
@@ -234,12 +244,20 @@ export async function POST(request: Request) {
       }),
     ]);
 
-    return NextResponse.json({ data: serialize(review, user.id) }, { status: 200 });
+    // Bust the right-sidebar's recent-reviews unstable_cache so the new/
+    // edited review surfaces sitewide on the next render instead of
+    // waiting up to 60s for natural revalidation.
+    revalidateTag("sidebar-recent-reviews");
+
+    return NextResponse.json(
+      { data: serialize(review, user.id) },
+      { status: 200, headers: NO_STORE_HEADERS },
+    );
   } catch (error) {
     console.error("Failed to upsert review", error);
     return NextResponse.json(
       { message: "Unable to save your rating right now." },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }
@@ -284,12 +302,17 @@ export async function DELETE(request: Request) {
       }),
     ]);
 
-    return NextResponse.json({ data: { removed: result.count } });
+    revalidateTag("sidebar-recent-reviews");
+
+    return NextResponse.json(
+      { data: { removed: result.count } },
+      { headers: NO_STORE_HEADERS },
+    );
   } catch (error) {
     console.error("Failed to delete review", error);
     return NextResponse.json(
       { message: "Unable to remove your rating right now." },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }
