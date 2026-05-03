@@ -22,7 +22,7 @@ a full feature tour lives on the site itself — the README here exists to get a
 | :---------- | :--------------------------------------------------------------------------------------------- |
 | frontend    | next.js 15 (app router, turbopack), react 19 server components, tailwind v4, shadcn-inspired ui |
 | backend     | next.js route handlers + server actions, prisma 6                                              |
-| database    | postgresql                                                                                     |
+| database    | postgresql (neon in production; pooled `DATABASE_URL` for runtime, direct `DIRECT_DATABASE_URL` for migrations) |
 | auth        | cookie sessions (bcrypt), google oauth, email verification, totp 2fa                           |
 | storage     | vercel blob (avatars/banners) + local dev fallback                                             |
 | email       | resend (default) or smtp fallback                                                              |
@@ -80,7 +80,8 @@ see [`web/.env.example`](./web/.env.example) for the canonical list with inline 
 
 | variable                          | description                                                  | required for         |
 | :-------------------------------- | :----------------------------------------------------------- | :------------------- |
-| `DATABASE_URL`                    | postgres connection string                                   | always               |
+| `DATABASE_URL`                    | postgres connection string (pooled url in prod — neon `-pooler` subdomain) | always |
+| `DIRECT_DATABASE_URL`             | non-pooled postgres url for prisma migrations + introspection (in local dev set to the same value as `DATABASE_URL`) | always |
 | `APP_BASE_URL`                    | canonical site url (emails, oauth, share links)              | always               |
 | `NEXT_PUBLIC_APP_URL`             | public-facing site url (sitemap, og tags)                    | always               |
 | `MANGAUPDATES_API_BASE`           | mangaupdates api base                                        | always               |

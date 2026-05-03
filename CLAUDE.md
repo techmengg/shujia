@@ -10,7 +10,7 @@
 
 - **frontend**: Next.js 15 (app router, turbopack), React 19 RSC, Tailwind v4, custom shadcn-inspired UI
 - **backend**: Next.js route handlers + server actions, Prisma 6
-- **db**: PostgreSQL via Prisma
+- **db**: PostgreSQL on Neon (cutover from Prisma Postgres on 2026-05-03). `DATABASE_URL` is the pooled URL (Neon `-pooler`) used at runtime; `DIRECT_DATABASE_URL` is the direct URL used by Prisma migrations + introspection. Both must be set in every env.
 - **auth**: cookie sessions (bcrypt), Google OAuth, email verification, TOTP 2FA, recovery codes
 - **storage**: Vercel Blob (avatars) + local `public/uploads/avatars` fallback
 - **email**: Resend (default) or SMTP fallback
@@ -36,8 +36,8 @@ pnpm dev                                # turbopack dev server
 pnpm build                              # production build
 pnpm lint                               # eslint
 pnpm typecheck                          # tsc --noEmit
-pnpm dlx prisma studio                  # browse/edit db
-pnpm dlx prisma migrate dev --name <n>  # new migration
+pnpm exec prisma studio                  # browse/edit db
+pnpm exec prisma migrate dev --name <n>  # new migration
 ```
 
 ## conventions
@@ -77,3 +77,9 @@ When touching MangaUpdates integration, **consult `MangaUpdateOpenAPI.json` at t
 - Don't commit `.env` or secrets
 - Prisma migrations are append-only once merged — don't rewrite shipped migrations
 - Treat auth/session/rate-limit code as high-risk; flag side effects before changing
+
+## prod-touching ops (Neon, Vercel, deploys)
+
+**Read `docs/internal/AUTOMATION_POLICY.md` first.** Three-tier classification (auto-OK / one-line confirm / explicit written approval) for any operation that touches Neon, Vercel env vars, or production deploys. Hard rule: connection strings never go into chat — always clipboard → fresh shell → env var. Every Tier 2/3 operation gets a one-line entry in the relevant runbook's execution log.
+
+For multi-step migrations (canonical catalog, future provider integrations), use Neon's branching to rehearse on a copy of prod rather than the older `pg_dump → restore → scratch DB` flow. Branching is one click; PITR is the rollback.
