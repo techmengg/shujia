@@ -117,11 +117,13 @@ function FavoritesEditor({
   currentIds,
   onSave,
   onCancel,
+  isSaving = false,
 }: {
   readingList: ReadingListEntryDto[];
   currentIds: string[];
   onSave: (ids: string[]) => void;
   onCancel: () => void;
+  isSaving?: boolean;
 }) {
   const [draft, setDraft] = useState<string[]>(currentIds);
   const [query, setQuery] = useState("");
@@ -219,11 +221,11 @@ function FavoritesEditor({
           <button
             type="button"
             onClick={() => onSave(draft)}
-            disabled={!dirty}
+            disabled={!dirty || isSaving}
             className="group inline-flex items-baseline gap-1 text-[0.7rem] font-medium text-accent transition-colors hover:text-white disabled:cursor-not-allowed disabled:text-white/25 disabled:hover:text-white/25 sm:text-xs"
           >
             <span className="underline-offset-4 group-hover:underline group-disabled:no-underline">
-              save
+              {isSaving ? "saving…" : "save"}
             </span>
             <span
               aria-hidden
@@ -624,9 +626,13 @@ export function ProfilePageContent({
   const router = useRouter();
   const [editingFavorites, setEditingFavorites] = useState(false);
   const [currentFavoriteIds, setCurrentFavoriteIds] = useState(user.favoriteMangaIds);
+  const [favoritesError, setFavoritesError] = useState<string | null>(null);
+  const [favoritesSaving, setFavoritesSaving] = useState(false);
 
   const saveFavorites = useCallback(
     async (ids: string[]) => {
+      setFavoritesError(null);
+      setFavoritesSaving(true);
       try {
         const res = await fetch("/api/settings/profile", {
           method: "PATCH",
@@ -641,9 +647,35 @@ export function ProfilePageContent({
           setCurrentFavoriteIds(ids);
           setEditingFavorites(false);
           router.refresh();
+          return;
         }
-      } catch {
-        // silently fail — user can retry
+        // Surface why the save failed (origin check, validation, auth)
+        // so the user sees something actionable instead of a silent no-op.
+        let message = "Could not save favorites - please try again.";
+        try {
+          const payload = (await res.json()) as {
+            message?: string;
+            errors?: Record<string, string[]>;
+          };
+          if (payload.message) {
+            message = payload.message;
+          } else if (payload.errors) {
+            const flat = Object.entries(payload.errors)
+              .map(([field, msgs]) => `${field}: ${msgs.join(", ")}`)
+              .join("; ");
+            if (flat) message = flat;
+          }
+        } catch {
+          // response body wasn't JSON; keep the generic message
+        }
+        setFavoritesError(message);
+      } catch (err) {
+        setFavoritesError(
+          (err as Error).message ||
+            "Network error while saving favorites - check your connection.",
+        );
+      } finally {
+        setFavoritesSaving(false);
       }
     },
     [user.username, user.timezone, router],
@@ -927,12 +959,21 @@ export function ProfilePageContent({
               ) : null}
             </div>
             {editingFavorites && isOwner ? (
-              <FavoritesEditor
-                readingList={readingList}
-                currentIds={currentFavoriteIds}
-                onSave={saveFavorites}
-                onCancel={() => setEditingFavorites(false)}
-              />
+              <div className="space-y-3">
+                <FavoritesEditor
+                  readingList={readingList}
+                  currentIds={currentFavoriteIds}
+                  onSave={saveFavorites}
+                  onCancel={() => {
+                    setEditingFavorites(false);
+                    setFavoritesError(null);
+                  }}
+                  isSaving={favoritesSaving}
+                />
+                {favoritesError ? (
+                  <p className="text-sm italic text-red-300">{favoritesError}</p>
+                ) : null}
+              </div>
             ) : favorites.length > 0 ? (
               <CoverGrid entries={favorites} />
             ) : isOwner ? (
