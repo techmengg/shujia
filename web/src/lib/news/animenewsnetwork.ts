@@ -25,7 +25,10 @@ async function scrapeOgImage(articleUrl: string): Promise<string | null> {
   try {
     const res = await fetch(articleUrl, {
       headers: { "User-Agent": FETCH_UA, Accept: "text/html" },
-      signal: AbortSignal.timeout(3000),
+      // ANN added an edition-aware 301 (rss.xml -> rss.xml?ann-edition=us)
+      // and article pages occasionally take 3-5s from Vercel iad1; give the
+      // scrape enough headroom to not silently null out the thumbnail.
+      signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) return null;
     const html = await res.text();
@@ -47,7 +50,7 @@ async function scrapeOgImage(articleUrl: string): Promise<string | null> {
   }
 }
 
-const getOgImage = unstable_cache(scrapeOgImage, ["ann-og-image-v1"], {
+const getOgImage = unstable_cache(scrapeOgImage, ["ann-og-image-v2"], {
   // Article images don't change after publish — cache for a day.
   revalidate: 86400,
   tags: ["ann-og-image"],
@@ -127,7 +130,7 @@ async function fetchNews(): Promise<NewsHeadline[]> {
   }
 }
 
-export const getComicsNews = unstable_cache(fetchNews, ["ann-rss-news"], {
+export const getComicsNews = unstable_cache(fetchNews, ["ann-rss-news-v2"], {
   revalidate: 3600,
   tags: ["ann-rss-news"],
 });
