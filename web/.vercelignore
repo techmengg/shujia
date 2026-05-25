@@ -33,6 +33,7 @@ coverage/
 # Scripts
 *.sh
 *.ps1
+!scripts/build.sh
 
 # Backup files
 *.bak
