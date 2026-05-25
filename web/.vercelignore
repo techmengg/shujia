@@ -30,10 +30,11 @@ coverage/
 *.md
 !README.md
 
-# Scripts
-*.sh
+# Scripts (only exclude local-dev helpers; scripts/build.sh must ship)
+setup-local-db.sh
+setup-local-db.ps1
+scripts/backup-prod.ps1
 *.ps1
-!scripts/build.sh
 
 # Backup files
 *.bak
