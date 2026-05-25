@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm exec prisma generate && pnpm exec prisma migrate deploy && pnpm exec next build",
+  "buildCommand": "bash scripts/build.sh",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "nextjs",
   "regions": ["iad1"],
