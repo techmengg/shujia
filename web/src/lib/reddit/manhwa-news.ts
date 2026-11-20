@@ -10,7 +10,6 @@
  */
 import { unstable_cache } from "next/cache";
 
-import { withStaleWhileRevalidate } from "@/lib/utils/swr-cache";
 import { fetchRedditJson } from "./client";
 
 export interface ManhwaNewsItem {
@@ -179,11 +178,9 @@ const cachedManhwaNews = unstable_cache(
   // result from before the proxy was wired up. v3 added OAuth (later
   // replaced by the CF-Worker proxy) + week/month windows.
   ["reddit-r-manhwa-news-v4"],
-  { revalidate: 86400 * 7, tags: ["reddit-manhwa-news"] },
+  { revalidate: 30 * 60, tags: ["reddit-manhwa-news"] },
 );
 
-export const getManhwaNews = withStaleWhileRevalidate({
-  cached: cachedManhwaNews,
-  tag: "reddit-manhwa-news",
-  refreshIntervalMs: 30 * 60 * 1000,
-});
+// The shared cache serves the last value and refreshes it in the background
+// once it is 30 minutes old, on one clock for every server instance.
+export const getManhwaNews = cachedManhwaNews;

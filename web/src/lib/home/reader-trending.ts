@@ -4,7 +4,6 @@ import { resolveTitleToMu } from "@/lib/manga/title-resolver";
 import { getRedditMangaDiscussions } from "@/lib/reddit/manga-discussions";
 import type { MangaSummary } from "@/lib/manga/types";
 import { getTrending } from "@/lib/mangaupdates/service-cached";
-import { withStaleWhileRevalidate } from "@/lib/utils/swr-cache";
 
 /**
  * Home-page Trending source. Pulls the top weekly chapter-discussion
@@ -86,11 +85,9 @@ const cachedReaderTrending = unstable_cache(
   // posts × MU resolution 4×limit) so the home rail consistently lands
   // its 20-item target after filter attrition.
   ["home-discussion-trending-v6"],
-  { revalidate: 86400 * 7, tags: ["home-discussion-trending"] },
+  { revalidate: 30 * 60, tags: ["home-discussion-trending"] },
 );
 
-export const getReaderTrending = withStaleWhileRevalidate({
-  cached: cachedReaderTrending,
-  tag: "home-discussion-trending",
-  refreshIntervalMs: 30 * 60 * 1000,
-});
+// The shared cache serves the last value and refreshes it in the background
+// once it is 30 minutes old, on one clock for every server instance.
+export const getReaderTrending = cachedReaderTrending;

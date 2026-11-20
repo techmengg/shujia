@@ -3,7 +3,6 @@ import { unstable_cache } from "next/cache";
 import { resolveTitleToMu } from "@/lib/manga/title-resolver";
 import type { MangaSummary } from "@/lib/manga/types";
 import { getMangaBakaNewReleases } from "@/lib/mangabaka/client";
-import { withStaleWhileRevalidate } from "@/lib/utils/swr-cache";
 
 /**
  * Home "New releases" rail. MangaBaka exposes the publication-date filter
@@ -61,11 +60,9 @@ const cachedNewReleases = unstable_cache(
   // candidate pool). Cards now link to `/manga/<MU-id>` again, drawing
   // titles from MB's English secondary_titles.
   ["home-new-releases-v6"],
-  { revalidate: 86400 * 7, tags: ["home-new-releases"] },
+  { revalidate: 30 * 60, tags: ["home-new-releases"] },
 );
 
-export const getNewReleases = withStaleWhileRevalidate({
-  cached: cachedNewReleases,
-  tag: "home-new-releases",
-  refreshIntervalMs: 30 * 60 * 1000,
-});
+// The shared cache serves the last value and refreshes it in the background
+// once it is 30 minutes old, on one clock for every server instance.
+export const getNewReleases = cachedNewReleases;

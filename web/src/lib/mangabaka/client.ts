@@ -9,7 +9,6 @@
  */
 import { unstable_cache } from "next/cache";
 
-import { withStaleWhileRevalidate } from "@/lib/utils/swr-cache";
 
 const API_BASE = "https://api.mangabaka.dev";
 
@@ -256,8 +255,8 @@ async function fetchNewReleases({
         "User-Agent":
           "shujia/1.0 (+https://github.com/techmengg/shujia) new-releases-fetcher",
       },
-      // Tight timeout — SWR keeps the cache warm in the background, so
-      // a stalled MB call shouldn't block the home-page render.
+      // Tight timeout: the cache refreshes in the background, so a stalled
+      // MB call shouldn't hold up anything.
       signal: AbortSignal.timeout(3000),
     });
   } catch {
@@ -328,13 +327,9 @@ const cachedMangaBakaNewReleases = unstable_cache(
   // have no English title at all so the rail no longer surfaces "Yamenaide,
   // Chayama-kun" / "Saseba naru" / "Gyakusatsu Kigen" placeholders.
   ["mangabaka-new-releases-12m-v6"],
-  // Long persistence — the SWR wrapper handles freshness via background
-  // regeneration; the underlying cache just needs to survive idle gaps.
-  { revalidate: 86400 * 7, tags: ["mangabaka-new-releases"] },
+  { revalidate: 30 * 60, tags: ["mangabaka-new-releases"] },
 );
 
-export const getMangaBakaNewReleases = withStaleWhileRevalidate({
-  cached: cachedMangaBakaNewReleases,
-  tag: "mangabaka-new-releases",
-  refreshIntervalMs: 30 * 60 * 1000,
-});
+// The shared cache serves the last value and refreshes it in the background
+// once it is 30 minutes old, on one clock for every server instance.
+export const getMangaBakaNewReleases = cachedMangaBakaNewReleases;
