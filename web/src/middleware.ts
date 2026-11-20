@@ -21,7 +21,7 @@ function shouldBlockForMaintenance(request: NextRequest): boolean {
 }
 
 /**
- * Middleware: maintenance gate + performance monitoring.
+ * Middleware: maintenance gate.
  *
  * When MAINTENANCE_MODE=true, returns 503 on POST/PATCH/PUT/DELETE under
  * /api/* (except the allowlist). GET routes pass through normally so the
@@ -42,46 +42,14 @@ export function middleware(request: NextRequest) {
       },
     );
   }
-
-  const start = performance.now();
-
-  const response = NextResponse.next();
-
-  // Add performance header
-  const duration = performance.now() - start;
-  response.headers.set("X-Response-Time", `${duration.toFixed(0)}ms`);
-
-  // Log slow requests for monitoring
-  if (duration > 1000) {
-    console.warn(
-      `[Performance] Slow request: ${request.method} ${request.nextUrl.pathname} took ${duration.toFixed(0)}ms`
-    );
-  }
-
-  // Log very slow requests more prominently
-  if (duration > 3000) {
-    console.error(
-      `[Performance] VERY SLOW request: ${request.method} ${request.nextUrl.pathname} took ${duration.toFixed(0)}ms`
-    );
-  }
-
-  return response;
+  return NextResponse.next();
 }
 
 /**
- * Matcher config - run on all routes except:
- * - Static files (_next/static)
- * - Image optimization (_next/image)
- * - Favicon
+ * Only the API: the gate above never applies anywhere else, and running
+ * middleware on every page view (mostly crawlers on manga pages) is billed
+ * CPU for nothing.
  */
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/api/:path*"],
 };
