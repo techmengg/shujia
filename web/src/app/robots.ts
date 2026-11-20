@@ -9,6 +9,24 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
+        // SEO-tool and backlink crawlers: they render every manga page and
+        // send no readers, so they only cost server time.
+        userAgent: [
+          "AhrefsBot",
+          "SemrushBot",
+          "MJ12bot",
+          "DotBot",
+          "BLEXBot",
+          "DataForSeoBot",
+          "SERankingBacklinksBot",
+          "SeznamBot",
+          "PetalBot",
+          "Bytespider",
+          "barkrowler",
+        ],
+        disallow: "/",
+      },
+      {
         userAgent: "*",
         allow: "/",
         // Keep auth and per-user write surfaces out of the index entirely.

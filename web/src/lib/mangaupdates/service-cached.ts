@@ -13,14 +13,16 @@ export const getSeriesSummaryById = unstable_cache(
   async (seriesId: string): Promise<MangaSummary | null> =>
     service.getSeriesSummaryById(seriesId),
   ["mangaupdates-summary-v2"],
-  { revalidate: 3600, tags: ["mangaupdates-summary"] },
+  // A series' metadata rarely changes, and most hits are crawlers walking
+  // the whole catalogue: a day keeps their repeat visits off MangaUpdates.
+  { revalidate: 86400, tags: ["mangaupdates-summary"] },
 );
 
 export const getSeriesDetailsById = unstable_cache(
   async (seriesId: string): Promise<MangaDetails | null> =>
     service.getSeriesDetailsById(seriesId),
   ["mangaupdates-details-v2"],
-  { revalidate: 3600, tags: ["mangaupdates-details"] },
+  { revalidate: 86400, tags: ["mangaupdates-details"] },
 );
 
 export const getTrendingByLanguage = unstable_cache(
