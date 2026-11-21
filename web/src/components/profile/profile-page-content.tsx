@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { CoverImage } from "@/components/manga/cover-image";
 import { FollowButton } from "@/components/users/follow-button";
 import { normalizeStatus, statusLabel } from "@/lib/manga/status";
 
@@ -243,20 +244,13 @@ function FavoritesEditor({
             {entry ? (
               <div className="group relative">
                 <div className="relative aspect-[2/3] w-full overflow-hidden border border-accent/50">
-                  {entry.coverImage ? (
-                    <Image
-                      src={entry.coverImage}
-                      alt={entry.title}
-                      fill
-                      sizes="(min-width: 640px) 12vw, 25vw"
-                      unoptimized
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-white/5 text-sm font-semibold text-white/70">
-                      {entry.title.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <CoverImage
+                    src={entry.coverImage}
+                    mangaId={entry.mangaId}
+                    title={entry.title}
+                    sizes="(min-width: 640px) 12vw, 25vw"
+                    placeholderClassName="text-sm font-semibold text-white/70"
+                  />
                   <span className="absolute left-0 top-0 inline-flex h-4 min-w-[1rem] items-center justify-center bg-black/85 px-1 text-[0.55rem] font-semibold tabular-nums text-accent sm:h-5 sm:text-[0.65rem]">
                     {i + 1}
                   </span>
@@ -379,22 +373,16 @@ function FavoritesEditor({
                 className="group block w-full text-left disabled:cursor-not-allowed"
               >
                 <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/5">
-                  {entry.coverImage ? (
-                    <Image
-                      src={entry.coverImage}
-                      alt={entry.title}
-                      fill
-                      sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 25vw"
-                      unoptimized
-                      className={`object-cover transition ${
-                        slotsFull ? "opacity-25" : "group-hover:opacity-40"
-                      }`}
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/70">
-                      {entry.title.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <CoverImage
+                    src={entry.coverImage}
+                    mangaId={entry.mangaId}
+                    title={entry.title}
+                    sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 25vw"
+                    className={`object-cover transition ${
+                      slotsFull ? "opacity-25" : "group-hover:opacity-40"
+                    }`}
+                    placeholderClassName="text-sm font-semibold text-white/70"
+                  />
                   {!slotsFull ? (
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-focus:opacity-100">
                       <span className="text-[0.7rem] font-medium text-accent sm:text-xs">
@@ -432,7 +420,7 @@ function FavoritesEditor({
           <p className="italic text-surface-subtle">
             {showAll
               ? `Showing all ${pickerEntries.length}.`
-              : `Showing ${PICKER_VISIBLE_LIMIT} of ${pickerEntries.length} — search to narrow.`}
+              : `Showing ${PICKER_VISIBLE_LIMIT} of ${pickerEntries.length}. Search to narrow.`}
           </p>
           <button
             type="button"
@@ -454,7 +442,7 @@ function FavoritesEditor({
 
       {slotsFull ? (
         <p className="text-[0.7rem] italic text-surface-subtle sm:text-xs">
-          All 8 slots filled — unpin one to swap.
+          All 8 slots filled. Unpin one to swap.
         </p>
       ) : null}
     </div>
@@ -583,20 +571,14 @@ function CoverGrid({ entries, emptyText }: { entries: ReadingListEntryDto[]; emp
         <li key={item.id} className="min-w-0">
           <Link href={`/manga/${item.mangaId}`} className="group block">
             <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/5">
-              {item.coverImage ? (
-                <Image
-                  src={item.coverImage}
-                  alt={item.title}
-                  fill
-                  sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 25vw"
-                  unoptimized
-                  className="object-cover transition duration-200 group-hover:scale-[1.02]"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/70">
-                  {item.title.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <CoverImage
+                src={item.coverImage}
+                mangaId={item.mangaId}
+                title={item.title}
+                sizes="(min-width: 1024px) 8vw, (min-width: 640px) 12vw, 25vw"
+                className="object-cover transition duration-200 group-hover:scale-[1.02]"
+                placeholderClassName="text-sm font-semibold text-white/70"
+              />
             </div>
             <p className="mt-1 line-clamp-2 text-center text-[0.55rem] leading-tight text-white/60 sm:text-[0.65rem]">
               {item.title}
@@ -695,7 +677,8 @@ export function ProfilePageContent({
 
   // --- Stats ---
   const totalSeries = readingList.length;
-  const ratings = readingList.map((e) => e.rating).filter((r): r is number => typeof r === "number");
+  // Imports store "not rated" as 0, so only scores above zero count.
+  const ratings = readingList.map((e) => e.rating).filter((r): r is number => typeof r === "number" && r > 0);
   const averageRating = ratings.length
     ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
     : null;
@@ -1026,20 +1009,13 @@ export function ProfilePageContent({
                   >
                     <Link href={`/manga/${entry.mangaId}`} className="shrink-0">
                       <div className="relative h-16 w-11 overflow-hidden bg-white/5 sm:h-20 sm:w-14">
-                        {entry.coverImage ? (
-                          <Image
-                            src={entry.coverImage}
-                            alt={entry.title}
-                            fill
-                            sizes="56px"
-                            unoptimized
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/50">
-                            {entry.title.charAt(0)}
-                          </div>
-                        )}
+                        <CoverImage
+                          src={entry.coverImage}
+                          mangaId={entry.mangaId}
+                          title={entry.title}
+                          sizes="56px"
+                          placeholderClassName="text-xs font-semibold text-white/50"
+                        />
                       </div>
                     </Link>
                     <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">

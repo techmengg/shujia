@@ -18,7 +18,7 @@ interface ActivityVerb {
 
 function deriveVerb(item: FollowingActivityItem): ActivityVerb {
   // Rating is the most informative signal — when present, lead with it.
-  if (typeof item.rating === "number") {
+  if (typeof item.rating === "number" && item.rating > 0) {
     return {
       verb: "rated",
       ratingBadge: item.rating.toFixed(1),
@@ -62,7 +62,7 @@ export function FollowingActivitySection({
   if (!items.length) {
     return (
       <p className="text-sm italic text-surface-subtle">
-        Nothing yet — follow a few readers to see their picks here.
+        Nothing yet. Follow a few readers to see their picks here.
       </p>
     );
   }

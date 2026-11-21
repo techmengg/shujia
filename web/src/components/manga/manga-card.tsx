@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
 
+import { CoverImage } from "@/components/manga/cover-image";
 import type { MangaSummary } from "@/lib/manga/types";
 
 interface MangaCardProps {
@@ -12,43 +11,6 @@ interface MangaCardProps {
 }
 
 export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
-	const [imgSrc, setImgSrc] = useState<string | null>(
-    manga.coverImage ?? null,
-  );
-	const [triedFallback512, setTriedFallback512] = useState(false);
-	const [triedOriginal, setTriedOriginal] = useState(false);
-
-  function deriveFallbackUrl(url: string): string | null {
-    try {
-      // Try switching between .256.jpg and .512.jpg, then fall back to the original file (no size suffix)
-      if (url.endsWith(".256.jpg") && !triedFallback512) {
-        setTriedFallback512(true);
-        return url.replace(/\.256\.jpg$/i, ".512.jpg");
-      }
-      if (url.endsWith(".512.jpg") && !triedFallback512) {
-        setTriedFallback512(true);
-        return url.replace(/\.512\.jpg$/i, ".256.jpg");
-      }
-      if (!triedOriginal) {
-        setTriedOriginal(true);
-        return url.replace(/\.256\.jpg$|\.512\.jpg$/i, "");
-      }
-    } catch {
-      // ignore
-    }
-    return null;
-  }
-
-  function handleImageError() {
-    if (!imgSrc) return;
-    const next = deriveFallbackUrl(imgSrc);
-    if (next) {
-      setImgSrc(next);
-      return;
-    }
-    setImgSrc(null);
-  }
-
   const isGrid = variant === "grid";
 
   const containerClasses = [
@@ -87,22 +49,14 @@ export function MangaCard({ manga, variant = "carousel" }: MangaCardProps) {
   return (
     <Link href={`/manga/${manga.id}`} className={containerClasses}>
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-white/5">
-        {imgSrc ? (
-          <Image
-            fill
-            sizes="(min-width: 1280px) 220px, (min-width: 1024px) 200px, 45vw"
-            src={imgSrc}
-            alt={manga.title}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-            priority={false}
-				unoptimized
-            onError={handleImageError}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center bg-white/10 text-lg font-semibold text-white">
-            {manga.title.charAt(0).toUpperCase()}
-          </div>
-        )}
+        <CoverImage
+          src={manga.coverImage}
+          mangaId={manga.id}
+          title={manga.title}
+          sizes="(min-width: 1280px) 220px, (min-width: 1024px) 200px, 45vw"
+          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+          placeholderClassName="bg-white/10 text-lg font-semibold text-white"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 transition group-hover:opacity-100" />
       </div>
       <div className={bodyClasses}>

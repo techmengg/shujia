@@ -67,22 +67,21 @@ async function fetchMostTracked(): Promise<MostTrackedItem[]> {
     // the entries were deleted between queries). Skip rather than crash.
   }
 
-  // Final pass: any item missing a cover gets a best-effort fetch from MU.
-  // Cached upstream so this is cheap on repeat renders.
+  // Covers stored on reading-list rows go stale when MangaUpdates swaps a
+  // series' cover, so prefer the current one. The summary is cached for a
+  // day upstream, so this stays cheap on repeat renders.
   await Promise.all(
-    items
-      .filter((i) => !i.coverImage)
-      .map(async (item) => {
-        try {
-          const summary = await getMangaSummaryById(
-            item.mangaId,
-            item.provider as Provider,
-          );
-          if (summary?.coverImage) item.coverImage = summary.coverImage;
-        } catch {
-          // ignore
-        }
-      }),
+    items.map(async (item) => {
+      try {
+        const summary = await getMangaSummaryById(
+          item.mangaId,
+          item.provider as Provider,
+        );
+        if (summary?.coverImage) item.coverImage = summary.coverImage;
+      } catch {
+        // keep the stored cover
+      }
+    }),
   );
 
   // Apply admin-set title overrides so e.g. MU's "Omniscient Reader" renders
@@ -105,7 +104,8 @@ const cachedMostTracked = unstable_cache(
   // v3 — bumped to bust the stale cache holding broken /manga/<MD-UUID>
   // links. v2 added the provider="mangaupdates" filter; v3 also applies
   // MangaTitleOverride so e.g. "Omniscient Reader's Viewpoint" shows here.
-  ["home-most-tracked-v3"],
+  // v4 swaps stored covers for the current MangaUpdates ones.
+  ["home-most-tracked-v4"],
   { revalidate: 30 * 60, tags: ["home-most-tracked"] },
 );
 
