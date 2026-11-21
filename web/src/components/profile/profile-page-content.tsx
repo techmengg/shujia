@@ -14,7 +14,6 @@ import { normalizeStatus, statusLabel } from "@/lib/manga/status";
 
 interface ProfileUser {
   name: string | null;
-  email: string;
   username: string | null;
   bio: string | null;
   avatarUrl: string | null;
@@ -687,7 +686,7 @@ export function ProfilePageContent({
   const profileColor = user.profileColor?.trim() || null;
   const bio = user.bio?.trim();
 
-  const displayName = user.name?.trim() || (user.username ? `@${user.username}` : user.email);
+  const displayName = user.name?.trim() || (user.username ? `@${user.username}` : "reader");
   const usernameLabel = user.username ? `@${user.username}` : null;
 
   const readingListHref = user.username

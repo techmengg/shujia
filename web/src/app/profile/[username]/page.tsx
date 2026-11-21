@@ -26,7 +26,6 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
     where: { username },
     select: {
       id: true,
-      email: true,
       username: true,
       name: true,
       bio: true,
@@ -92,7 +91,6 @@ export default async function ProfileByUsernamePage({ params }: ProfilePageProps
       viewerIsFollowing={viewerIsFollowing}
       user={{
         name: dbUser.name,
-        email: dbUser.email,
         username: dbUser.username,
         bio: dbUser.bio,
         avatarUrl: dbUser.avatarUrl,
