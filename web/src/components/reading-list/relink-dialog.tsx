@@ -199,7 +199,7 @@ export function RelinkDialog({ entry, onClose, onSuccess }: RelinkDialogProps) {
                           {r.title}
                         </p>
                         <p className="line-clamp-1 text-[0.65rem] text-white/45 sm:text-xs">
-                          {[r.year, r.status, r.demographic].filter(Boolean).join(" · ") || "—"}
+                          {[r.year, r.status, r.demographic].filter(Boolean).join(" · ") || "n/a"}
                         </p>
                         <button
                           type="button"

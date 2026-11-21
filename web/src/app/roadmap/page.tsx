@@ -28,7 +28,7 @@ const sections: RoadmapSection[] = [
       {
         title: "Re-enable the home \"Followed\" rail",
         detail:
-          "the section is parked while the design is being reworked — bringing it back so the people you follow surface the series they're tracking front-and-center.",
+          "the section is parked while the design is being reworked, bringing it back so the people you follow surface the series they're tracking front-and-center.",
       },
     ],
   },
@@ -77,7 +77,7 @@ const sections: RoadmapSection[] = [
       {
         title: "Community forum",
         detail:
-          "general-purpose discussion threads — recommendations, news, off-topic. distinct from the per-series threads above.",
+          "general-purpose discussion threads: recommendations, news, off-topic. distinct from the per-series threads above.",
       },
       {
         title: "Character, creator, group pages",
@@ -117,9 +117,9 @@ export default function RoadmapPage() {
         </h1>
         <p className="max-w-2xl text-sm leading-relaxed text-surface-subtle sm:text-base">
           shujia is a community-driven directory and tracker for manga, manhwa,
-          and manhua — think imdb / mal / letterboxd, but focused on comics
+          and manhua. think imdb / mal / letterboxd, but focused on comics
           first. this page tracks what&apos;s coming, not what&apos;s already
-          done — the app itself is the proof of what&apos;s shipped.
+          done. the app itself is the proof of what&apos;s shipped.
         </p>
         <p className="text-[0.7rem] italic text-surface-subtle/70 sm:text-xs">
           built by one person, so timelines are fuzzy by design.
@@ -163,7 +163,7 @@ export default function RoadmapPage() {
                   {section.heading}
                 </h2>
                 <span className="text-[0.7rem] italic text-surface-subtle sm:text-xs">
-                  — {section.blurb}
+                  · {section.blurb}
                 </span>
               </div>
 
@@ -198,7 +198,7 @@ export default function RoadmapPage() {
             today every series in shujia is keyed on
             {" "}
             <code className="font-mono text-[0.75em] text-white/80">(provider, externalId)</code>
-            {" "}— effectively &ldquo;wherever MangaUpdates sent us.&rdquo; that&apos;s
+            {" "}(effectively &ldquo;wherever MangaUpdates sent us&rdquo;). that&apos;s
             fine for the current scale, but it means a single upstream
             outage breaks every reading list, and there&apos;s no way to
             merge metadata from MangaBaka, AniList, MangaDex, or MAL
@@ -237,7 +237,7 @@ export default function RoadmapPage() {
               {" "}
               <code className="font-mono text-[0.75em] text-white/80">malId</code>
               ) and snapshot fields (title, cover, year, type, status,
-              tags). populate lazily — when someone visits
+              tags). populate lazily: when someone visits
               {" "}
               <code className="font-mono text-[0.75em] text-white/80">/manga/&lt;mu-id&gt;</code>
               {" "}we upsert the row, store the MU id + snapshot, return
@@ -245,7 +245,7 @@ export default function RoadmapPage() {
               Review, ReviewReaction, MangaPageView) stay keyed on
               {" "}
               <code className="font-mono text-[0.75em] text-white/80">(provider, mangaId)</code>
-              {" "}— zero migration risk on live data.
+              {" "}with zero migration risk on live data.
             </p>
             <p className="mt-1.5 text-[0.75rem] italic text-surface-subtle/80 sm:text-[0.8rem]">
               unlocks: faster repeat lookups (no external API hop for
@@ -281,7 +281,7 @@ export default function RoadmapPage() {
               {" "}foreign-key column, but the existing
               {" "}
               <code className="font-mono text-[0.75em] text-white/80">(provider, mangaId)</code>
-              {" "}stays — backfilled in the background, no
+              {" "}stays, backfilled in the background, no
               cutover.
             </p>
             <p className="mt-1.5 text-[0.75rem] italic text-surface-subtle/80 sm:text-[0.8rem]">
@@ -309,7 +309,7 @@ export default function RoadmapPage() {
               {" "}as primary;{" "}
               <code className="font-mono text-[0.75em] text-white/80">(provider, mangaId)</code>
               {" "}gets demoted to a legacy column kept for backwards
-              compatibility. external sources become pure backfill —
+              compatibility. external sources become pure backfill:
               MU, MB, AniList, MD, MAL all feed the same canonical
               record. community submissions and metadata corrections
               write directly to MangaSeries.

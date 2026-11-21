@@ -22,7 +22,7 @@ export function MobileSettingsNav() {
       >
         {SETTINGS_NAV_ITEMS.map((item) => (
           <option key={item.slug} value={item.slug} className="bg-black">
-            {item.label} — {item.description}
+            {item.label}: {item.description}
           </option>
         ))}
       </select>

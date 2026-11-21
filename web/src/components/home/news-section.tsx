@@ -61,7 +61,9 @@ function PrimaryTile({ item }: { item: NewsHeadline }) {
             unoptimized
             className="object-cover transition duration-300 group-hover:scale-[1.02]"
           />
-        ) : null}
+        ) : (
+          <NewsPlaceholder />
+        )}
       </div>
       <div className="mt-3 flex flex-col gap-2">
         <h3 className="line-clamp-2 text-base font-semibold leading-snug text-white transition-colors group-hover:text-accent sm:text-lg">
@@ -113,7 +115,9 @@ function SecondaryTile({
             unoptimized
             className="object-cover transition duration-300 group-hover:scale-[1.02]"
           />
-        ) : null}
+        ) : (
+          <NewsPlaceholder />
+        )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 leading-tight">
         <p className="line-clamp-2 text-[0.85rem] font-medium text-white transition-colors group-hover:text-accent sm:text-sm">
@@ -127,6 +131,15 @@ function SecondaryTile({
         <Meta item={item} compact />
       </div>
     </a>
+  );
+}
+
+/** Stands in for a story with no image, so the column stays even. */
+function NewsPlaceholder() {
+  return (
+    <div className="flex h-full w-full items-center justify-center text-[0.6rem] font-semibold uppercase tracking-widest text-white/25">
+      news
+    </div>
   );
 }
 

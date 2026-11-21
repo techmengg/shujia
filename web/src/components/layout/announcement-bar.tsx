@@ -28,7 +28,7 @@ export async function AnnouncementBar() {
           {mdCount === 1 ? "is" : "are"} still on the old MangaDex source and{" "}
           {mdCount === 1 ? "won't" : "won't"} open when clicked.{" "}
           <span className="italic text-surface-subtle">
-            Relink each to its MangaUpdates equivalent — your progress, ratings, and notes are kept.
+            Relink each to its MangaUpdates equivalent. Your progress, ratings, and notes are kept.
           </span>
         </p>
         <Link

@@ -47,7 +47,6 @@ const STATUS_FILTERS: { value: StatusFilterValue; label: string }[] = [
 const IMPORT_DEFAULT_CONCURRENCY = 12; // Increased from 6
 const IMPORT_LARGE_CONCURRENCY = 8;    // Increased from 2
 const LARGE_IMPORT_THRESHOLD = 200;
-const IMPORT_THROTTLE_DELAY_MS = 50;   // Reduced from 120ms
 const IMPORT_RETRY_ATTEMPTS = 5;
 const IMPORT_RETRY_BASE_DELAY_MS = 600;
 const IMPORT_RETRY_MAX_DELAY_MS = 6000;

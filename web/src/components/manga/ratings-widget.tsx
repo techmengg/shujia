@@ -265,7 +265,7 @@ export function RatingsWidget({
           ) : (
             <>
               <div className="flex items-baseline gap-3">
-                <p className="text-3xl font-semibold text-white/40">—</p>
+                <p className="text-3xl font-semibold text-white/40">n/a</p>
                 <StarRow value={0} scaleMax={MAX_STARS} />
               </div>
               <p className="text-[0.7rem] text-surface-subtle sm:text-xs">

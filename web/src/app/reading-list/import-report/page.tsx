@@ -51,7 +51,7 @@ export default function ImportReportPage() {
         <h1 className="text-xl font-semibold text-white sm:text-2xl">{title}</h1>
         <p className="text-sm text-white/60">
           {report
-            ? `Completed on ${formattedDate} — Source: ${report.source.toUpperCase()}`
+            ? `Completed on ${formattedDate}. Source: ${report.source.toUpperCase()}`
             : "No recent report found. Try importing again."}
         </p>
       </header>

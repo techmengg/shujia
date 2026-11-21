@@ -36,11 +36,11 @@ function RailHeader({
   return (
     <div className="mb-3 flex items-baseline justify-between gap-2 sm:mb-4 sm:gap-3">
       <div className="flex min-w-0 items-baseline gap-1.5 sm:gap-3">
-        <h2 className="truncate text-base font-semibold text-white sm:text-lg">
+        <h2 className="shrink-0 text-base font-semibold text-white sm:text-lg">
           {label}
         </h2>
         {note ? (
-          <span className="shrink-0 text-[0.7rem] italic text-surface-subtle sm:text-xs">
+          <span className="hidden min-w-0 truncate text-[0.7rem] italic text-surface-subtle sm:inline sm:text-xs">
             ({note})
           </span>
         ) : null}
@@ -200,7 +200,7 @@ export default async function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(homeStructuredData) }}
       />
       <h1 className="sr-only">
-        shujia — manga, manhwa, and manhua tracker
+        shujia: manga, manhwa, and manhua tracker
       </h1>
 
       {/* Temporarily hidden — re-enable when ready.
@@ -223,7 +223,7 @@ export default async function Home() {
             items={trending}
             emptyState={
               <EmptyLine>
-                Could not load trending right now — try again in a moment.
+                Could not load trending right now. Try again in a moment.
               </EmptyLine>
             }
           />
@@ -240,7 +240,7 @@ export default async function Home() {
           <MangaCarousel
             items={newReleases}
             emptyState={
-              <EmptyLine>No new releases right now — try again shortly.</EmptyLine>
+              <EmptyLine>No new releases right now. Try again shortly.</EmptyLine>
             }
           />
         </section>

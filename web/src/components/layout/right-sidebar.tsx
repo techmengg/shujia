@@ -7,6 +7,8 @@ import {
   SuggestedUsersList,
   type SuggestedUserItem,
 } from "@/components/users/suggested-users-list";
+import { HideOnPaths } from "@/components/layout/hide-on-paths";
+import { CoverImage } from "@/components/manga/cover-image";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getMangaSummaryById, type Provider } from "@/lib/manga";
 import { normalizeStatus } from "@/lib/manga/status";
@@ -198,7 +200,10 @@ export async function RightSidebar() {
 
   return (
     <div className="space-y-7">
-      <NewsWidget items={news} />
+      {/* The home page already leads with a full news rail. */}
+      <HideOnPaths paths={["/"]}>
+        <NewsWidget items={news} />
+      </HideOnPaths>
 
       {/* Discover */}
       <section className="space-y-2">
@@ -206,10 +211,6 @@ export async function RightSidebar() {
         <ul className="space-y-0">
           <SidebarLink href="/manga/random">Random comics</SidebarLink>
           <SidebarLink href="/explore">Comics finder</SidebarLink>
-          <SidebarLink href="/explore">Latest series</SidebarLink>
-          <SidebarComingSoon>Forum</SidebarComingSoon>
-          <SidebarComingSoon>Series ranking</SidebarComingSoon>
-          <SidebarComingSoon>Recommendation lists</SidebarComingSoon>
         </ul>
       </section>
 
@@ -232,7 +233,6 @@ export async function RightSidebar() {
               >
                 Reading list
               </SidebarLink>
-              <SidebarComingSoon>Create rec list</SidebarComingSoon>
             </ul>
           </section>
 
@@ -286,15 +286,6 @@ function SidebarLink({ href, children }: { href: string; children: ReactNode }) 
   );
 }
 
-function SidebarComingSoon({ children }: { children: ReactNode }) {
-  return (
-    <li className="flex items-baseline justify-between gap-2 py-1 text-[0.85rem] text-surface-subtle">
-      <span>{children}</span>
-      <span className="text-[0.65rem] italic text-surface-subtle/70">(coming soon)</span>
-    </li>
-  );
-}
-
 function ContinueReadingWidget({ item }: { item: ReadingEntry }) {
   return (
     <section className="space-y-2">
@@ -304,20 +295,13 @@ function ContinueReadingWidget({ item }: { item: ReadingEntry }) {
         className="group flex items-center gap-3 transition-opacity hover:opacity-90"
       >
         <div className="relative h-14 w-10 shrink-0 overflow-hidden bg-white/5">
-          {item.coverImage ? (
-            <Image
-              src={item.coverImage}
-              alt={item.title}
-              fill
-              sizes="40px"
-              unoptimized
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/60">
-              {item.title.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <CoverImage
+            src={item.coverImage}
+            mangaId={item.mangaId}
+            title={item.title}
+            sizes="40px"
+            placeholderClassName="text-xs font-semibold text-white/60"
+          />
         </div>
         <div className="min-w-0 flex-1">
           <p className="line-clamp-1 text-[0.85rem] font-medium text-white transition-colors group-hover:text-accent">
@@ -455,17 +439,9 @@ function RecentReviewsWidget({ items }: { items: RecentReview[] }) {
                     ) : (
                       <Link
                         href={reviewHref}
-                        className="mt-auto flex min-w-0 items-baseline text-[0.65rem] italic leading-tight text-white/55 transition-colors hover:text-accent"
+                        className="mt-auto block truncate text-[0.65rem] italic leading-tight text-white/55 transition-colors hover:text-accent"
                       >
-                        <span aria-hidden className="shrink-0">
-                          &ldquo;
-                        </span>
-                        <span className="min-w-0 flex-1 truncate">
-                          {review.body}
-                        </span>
-                        <span aria-hidden className="shrink-0">
-                          &rdquo;
-                        </span>
+                        &ldquo;{review.body.trim()}&rdquo;
                       </Link>
                     )
                   ) : null}

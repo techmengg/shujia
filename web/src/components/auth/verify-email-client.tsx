@@ -115,7 +115,7 @@ export function VerifyEmailClient({ token }: VerifyEmailClientProps) {
 
       {status === "pending" ? (
         <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-          Sit tight—this page will refresh when we finish checking your token.
+          Sit tight, this page will refresh when we finish checking your token.
         </p>
       ) : null}
 

@@ -324,7 +324,7 @@ export function ReviewsSection({
         <p className="text-sm italic text-red-300">{error}</p>
       ) : reviews.length === 0 ? (
         <p className="text-sm italic text-surface-subtle">
-          No reviews yet — be the first to share your thoughts.
+          No reviews yet. Be the first to share your thoughts.
         </p>
       ) : (
         <div className="space-y-4">

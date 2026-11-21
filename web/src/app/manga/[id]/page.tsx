@@ -26,7 +26,7 @@ interface MangaPageProps {
   }>;
 }
 
-const FALLBACK_TEXT = "—";
+const FALLBACK_TEXT = "n/a";
 
 function formatNullable(value?: string | number | null): string {
   if (value === undefined || value === null) return FALLBACK_TEXT;
@@ -205,7 +205,7 @@ function buildSearchSnippet(summary: {
   descriptors.push(typeFromLanguage);
   if (summary.year) descriptors.push(String(summary.year));
 
-  const lead = `Read about ${summary.title} — a ${descriptors.join(" ")} on shujia. Track your progress, rate it, and read community reviews.`;
+  const lead = `Read about ${summary.title}, a ${descriptors.join(" ")} on shujia. Track your progress, rate it, and read community reviews.`;
 
   if (lead.length <= 158) return lead;
 
@@ -338,7 +338,16 @@ export default async function MangaPage({ params }: MangaPageProps) {
   const ratingBayesian = manga.statistics?.rating?.bayesian ?? null;
   const follows = manga.statistics?.follows ?? null;
 
-  const altTitles = manga.altTitles.filter((title) => title.trim().length);
+  // MangaUpdates lists every romanisation it has seen, many of them the
+  // main title again with different punctuation. Keep one of each.
+  const titleKey = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const seenTitles = new Set([titleKey(manga.title)]);
+  const altTitles = manga.altTitles.filter((title) => {
+    const key = titleKey(title);
+    if (!key || seenTitles.has(key)) return false;
+    seenTitles.add(key);
+    return true;
+  });
 
   const baseUrlEnv =
     process.env.NEXT_PUBLIC_APP_URL ??
