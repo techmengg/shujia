@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm exec eslint src
+
+      - name: Type check
+        run: pnpm typecheck
+
+      # Plain next build: migrations only run in the Vercel build, against the
+      # real database. The placeholder URL is never connected to.
+      - name: Build
+        run: pnpm exec next build
+        env:
+          DATABASE_URL: postgresql://u:p@localhost:5432/db
+          DIRECT_DATABASE_URL: postgresql://u:p@localhost:5432/db
