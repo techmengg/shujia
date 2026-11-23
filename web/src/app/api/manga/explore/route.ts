@@ -44,6 +44,9 @@ export async function GET(request: Request) {
       page,
       perpage,
       hasMore: results.length >= perpage,
+    }, {
+      // Same answer for every visitor, so the CDN can hold it.
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=86400" },
     });
   } catch (error) {
     console.error("Explore API error:", error);

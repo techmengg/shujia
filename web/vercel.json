@@ -2,22 +2,12 @@
   "buildCommand": "bash scripts/build.sh",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": "nextjs",
-  "regions": ["iad1"],
+  "regions": [
+    "iad1"
+  ],
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
     }
-  },
-  "headers": [
-    {
-      "source": "/api/:path*",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=60, stale-while-revalidate=86400"
-        }
-      ]
-    }
-  ]
+  }
 }
-
